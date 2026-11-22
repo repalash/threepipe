@@ -1,0 +1,302 @@
+// GitHub access: the REST API for pull requests, commits, compares and file contents, and GraphQL for the
+// "Viewed" state of PR files. A token is optional for public repositories; it is kept in this browser only.
+
+const API = 'https://api.github.com'
+const TOKEN_KEY = 'prv.token'
+
+export function getToken() {
+    try { return localStorage.getItem(TOKEN_KEY) || '' } catch { return '' }
+}
+
+export function setToken(token) {
+    try { token ? localStorage.setItem(TOKEN_KEY, token.trim()) : localStorage.removeItem(TOKEN_KEY) } catch { /* no storage */ }
+}
+
+export class GitHubError extends Error {
+    constructor(message, status) {
+        super(message)
+        this.status = status
+    }
+}
+
+async function request(path, {accept = 'application/vnd.github+json', method = 'GET', body} = {}) {
+    const headers = {Accept: accept}
+    const token = getToken()
+    if (token) headers.Authorization = `Bearer ${token}`
+    if (body) headers['Content-Type'] = 'application/json'
+    const res = await fetch(path.startsWith('http') ? path : API + path, {method, headers, body: body && JSON.stringify(body)})
+    if (!res.ok) {
+        let message = res.statusText || `HTTP ${res.status}`
+        try { message = (await res.json()).message || message } catch { /* not json */ }
+        if (res.status === 404 && !token) message += '. If the repository is private, add a GitHub token.'
+        if ((res.status === 403 || res.status === 429) && res.headers.get('x-ratelimit-remaining') === '0')
+            message = 'GitHub API rate limit reached' + (token ? '' : '. Add a GitHub token for a higher limit.')
+        if (res.status === 401) message = 'GitHub refused the token (401). Check or replace it.'
+        throw new GitHubError(message, res.status)
+    }
+    return res
+}
+
+const json = async (path, opts) => (await request(path, opts)).json()
+
+/** Fetches all pages of a list endpoint (`per_page=100`). `pick` extracts the array from a page. */
+async function paginate(path, pick = (x) => x, max = 30) {
+    const out = []
+    const sep = path.includes('?') ? '&' : '?'
+    for (let page = 1; page <= max; page++) {
+        const items = pick(await json(`${path}${sep}per_page=100&page=${page}`))
+        out.push(...items)
+        if (items.length < 100) break
+    }
+    return out
+}
+
+/**
+ * Reads what to show from a GitHub URL or a short form:
+ * - https://github.com/o/r/pull/12 (also .../pull/12/files, .../pull/12/commits/<sha>), o/r#12, o/r/12
+ * - https://github.com/o/r/commit/<sha>
+ * - https://github.com/o/r/compare/base...head
+ */
+export function parseTarget(input) {
+    let s = (input || '').trim()
+    if (/github\.com\//i.test(s)) s = s.replace(/[?#].*$/, '')
+    let m = s.match(/github\.com\/([^/\s]+)\/([^/\s]+)\/pull\/(\d+)(?:\/commits\/([0-9a-f]{7,40}))?/i)
+    if (m) return {type: 'pr', owner: m[1], repo: m[2], number: +m[3], commit: m[4]}
+    m = s.match(/github\.com\/([^/\s]+)\/([^/\s]+)\/commit\/([0-9a-f]{7,40})/i)
+    if (m) return {type: 'commit', owner: m[1], repo: m[2], sha: m[3]}
+    m = s.match(/github\.com\/([^/\s]+)\/([^/\s]+)\/compare\/(.+?)(\.{2,3})(.+)$/i)
+    if (m) return {type: 'compare', owner: m[1], repo: m[2], base: decodeURIComponent(m[3]), head: decodeURIComponent(m[5])}
+    m = s.match(/^([\w.-]+)\/([\w.-]+)(?:#|\/pull\/|\/)(\d+)$/)
+    if (m) return {type: 'pr', owner: m[1], repo: m[2], number: +m[3]}
+    return null
+}
+
+/** The query string that reopens a target (and is shareable). */
+export function targetToParams(t) {
+    const p = new URLSearchParams()
+    if (t.type === 'pr') {
+        p.set('pr', `${t.owner}/${t.repo}/${t.number}`)
+        if (t.commit) p.set('commit', t.commit)
+    } else if (t.type === 'commit') p.set('commit', `${t.owner}/${t.repo}/${t.sha}`)
+    else if (t.type === 'compare') p.set('compare', `${t.owner}/${t.repo}/${t.base}...${t.head}`)
+    return p
+}
+
+export function paramsToTarget(params) {
+    const pr = params.get('pr')
+    if (pr) {
+        const [owner, repo, number] = pr.split('/')
+        if (owner && repo && +number) return {type: 'pr', owner, repo, number: +number, commit: params.get('commit') || undefined}
+    }
+    const commit = params.get('commit')
+    if (commit && commit.includes('/')) {
+        const [owner, repo, sha] = commit.split('/')
+        if (owner && repo && sha) return {type: 'commit', owner, repo, sha}
+    }
+    const compare = params.get('compare')
+    if (compare) {
+        const m = compare.match(/^([^/]+)\/([^/]+)\/(.+?)\.{2,3}(.+)$/)
+        if (m) return {type: 'compare', owner: m[1], repo: m[2], base: m[3], head: m[4]}
+    }
+    return null
+}
+
+function mapFiles(files) {
+    return files.map((f) => ({
+        path: f.filename,
+        prevPath: f.previous_filename,
+        status: f.status, // added, removed, modified, renamed, copied, changed, unchanged
+        additions: f.additions,
+        deletions: f.deletions,
+        blobSha: f.sha,
+    }))
+}
+
+/**
+ * Loads a change set: `{title, owner, repo, baseSha, headSha, files, htmlUrl, pr?, commits?, commit?}`.
+ * For a PR the base is the merge base (what GitHub's "Files changed" shows). With `target.commit`, only that
+ * commit of the PR (against its parent).
+ */
+export async function loadChangeSet(target) {
+    const {owner, repo} = target
+    const R = `/repos/${owner}/${repo}`
+    if (target.type === 'pr') {
+        const [pr, commits] = await Promise.all([
+            json(`${R}/pulls/${target.number}`),
+            paginate(`${R}/pulls/${target.number}/commits`, (x) => x, 3).catch(() => []),
+        ])
+        const base = {
+            owner, repo, pr, commits,
+            title: pr.title,
+            htmlUrl: pr.html_url,
+        }
+        if (target.commit?.includes('..')) {
+            // a range of the PR's commits (picked in the Log): from the first one's parent to the last one
+            const [a, b] = target.commit.split(/\.{2,3}/)
+            const first = commits.find((c) => c.sha.startsWith(a))
+            const baseSha = first?.parents?.[0]?.sha || `${a}^`
+            const cmp = await json(`${R}/compare/${baseSha}...${b}?per_page=100`)
+            return {...base, baseSha, headSha: cmp.commits?.length ? cmp.commits[cmp.commits.length - 1].sha : b, files: mapFiles(cmp.files || []),
+                range: [a, b], htmlUrl: `${pr.html_url}/files/${baseSha}..${b}`}
+        }
+        if (target.commit) {
+            const c = await loadCommit(owner, repo, target.commit)
+            return {...base, ...c, commit: c.commitInfo, htmlUrl: `${pr.html_url}/commits/${c.headSha}`}
+        }
+        const [files, cmp] = await Promise.all([
+            paginate(`${R}/pulls/${target.number}/files`),
+            json(`${R}/compare/${pr.base.sha}...${pr.head.sha}?per_page=1`).catch(() => null),
+        ])
+        return {
+            ...base,
+            baseSha: cmp?.merge_base_commit?.sha || pr.base.sha,
+            headSha: pr.head.sha,
+            files: mapFiles(files),
+        }
+    }
+    if (target.type === 'commit') {
+        const c = await loadCommit(owner, repo, target.sha)
+        return {owner, repo, ...c, commit: c.commitInfo, title: c.commitInfo.message.split('\n')[0], htmlUrl: c.commitInfo.html_url}
+    }
+    if (target.type === 'compare') {
+        const cmp = await json(`${R}/compare/${encodeURIComponent(target.base)}...${encodeURIComponent(target.head)}?per_page=100`)
+        let files = cmp.files || []
+        // compare lists up to 300 files per page; fetch the rest
+        for (let page = 2; files.length === (page - 1) * 300 && page < 12; page++) {
+            const more = await json(`${R}/compare/${encodeURIComponent(target.base)}...${encodeURIComponent(target.head)}?per_page=100&page=${page}`)
+            if (!more.files?.length) break
+            files = files.concat(more.files)
+        }
+        const commits = cmp.commits || []
+        return {
+            owner, repo, commits,
+            title: `${target.base}...${target.head}`,
+            htmlUrl: cmp.html_url,
+            baseSha: cmp.merge_base_commit?.sha || cmp.base_commit?.sha,
+            headSha: commits.length ? commits[commits.length - 1].sha : target.head,
+            files: mapFiles(files),
+        }
+    }
+    throw new Error('Unknown target')
+}
+
+/** Changed files of one commit, or of a range `[first, last]` (from first's parent), for the Log's file tree. */
+const filesCache = new Map()
+export function getCommitFiles(owner, repo, first, last, parentOfFirst) {
+    const key = `${owner}/${repo}/${first}..${last}`
+    if (!filesCache.has(key)) {
+        const p = first === last
+            ? loadCommit(owner, repo, first).then((c) => c.files)
+            : json(`/repos/${owner}/${repo}/compare/${parentOfFirst || first + '^'}...${last}?per_page=100`).then((c) => mapFiles(c.files || []))
+        filesCache.set(key, p)
+        p.catch(() => filesCache.delete(key))
+    }
+    return filesCache.get(key)
+}
+
+async function loadCommit(owner, repo, sha) {
+    const R = `/repos/${owner}/${repo}`
+    const first = await json(`${R}/commits/${sha}?per_page=100`)
+    let files = first.files || []
+    for (let page = 2; files.length === (page - 1) * 300 && page < 12; page++) {
+        const more = await json(`${R}/commits/${sha}?per_page=100&page=${page}`)
+        if (!more.files?.length) break
+        files = files.concat(more.files)
+    }
+    return {
+        commitInfo: {sha: first.sha, message: first.commit.message, author: first.commit.author, html_url: first.html_url},
+        baseSha: first.parents?.[0]?.sha || null,
+        headSha: first.sha,
+        files: mapFiles(files),
+    }
+}
+
+// --- file contents ---
+
+const memCache = new Map()
+const CACHE_NAME = 'prv-contents-v1'
+
+function looksBinary(bytes) {
+    const n = Math.min(bytes.length, 8000)
+    for (let i = 0; i < n; i++) if (bytes[i] === 0) return true
+    return false
+}
+
+/**
+ * The content of `path` at `ref`: `{text}` or `{binary: true, blob}`. Contents at a commit sha never change, so
+ * they are cached in memory and, where the browser allows, in Cache Storage (fast reopening on a phone).
+ */
+export function getFileContent(owner, repo, ref, path) {
+    const url = `${API}/repos/${owner}/${repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`
+    if (memCache.has(url)) return memCache.get(url)
+    const p = (async () => {
+        const immutable = /^[0-9a-f]{40}$/.test(ref)
+        let buf
+        let cache
+        if (immutable) {
+            try {
+                cache = await caches.open(CACHE_NAME)
+                const hit = await cache.match(url)
+                if (hit) buf = await hit.arrayBuffer()
+            } catch { cache = undefined }
+        }
+        if (!buf) {
+            const res = await request(url, {accept: 'application/vnd.github.raw+json'})
+            buf = await res.arrayBuffer()
+            if (cache) cache.put(url, new Response(buf.slice(0), {headers: {'Content-Type': 'application/octet-stream'}})).catch(() => {})
+        }
+        const bytes = new Uint8Array(buf)
+        if (looksBinary(bytes)) return {binary: true, size: bytes.length, blob: new Blob([bytes])}
+        return {text: new TextDecoder('utf-8').decode(bytes), size: bytes.length}
+    })()
+    memCache.set(url, p)
+    p.catch(() => memCache.delete(url))
+    return p
+}
+
+// --- pull request lists (landing page) ---
+
+export async function searchMyPullRequests() {
+    const q = encodeURIComponent('is:pr is:open involves:@me archived:false')
+    const res = await json(`/search/issues?q=${q}&sort=updated&order=desc&per_page=30`)
+    return res.items.map((it) => {
+        const [, owner, repo] = it.repository_url.match(/repos\/([^/]+)\/([^/]+)$/) || []
+        return {owner, repo, number: it.number, title: it.title, updated: it.updated_at, user: it.user?.login, draft: it.draft}
+    })
+}
+
+export async function getViewer() {
+    return json('/user')
+}
+
+// --- "Viewed" state (GraphQL; needs a token) ---
+
+async function graphql(query, variables) {
+    const res = await request(`${API}/graphql`, {method: 'POST', body: {query, variables}})
+    const data = await res.json()
+    if (data.errors?.length) throw new GitHubError(data.errors.map((e) => e.message).join('; '), 200)
+    if (!data.data) throw new GitHubError(data.message || 'GraphQL request failed', 200)
+    return data.data
+}
+
+/** Map of path -> 'VIEWED' | 'UNVIEWED' | 'DISMISSED' for a PR, plus the PR's node id. */
+export async function getViewedStates(owner, repo, number) {
+    const states = new Map()
+    let after = null
+    let id
+    for (let i = 0; i < 40; i++) {
+        const d = await graphql(`query($o:String!,$r:String!,$n:Int!,$after:String){repository(owner:$o,name:$r){pullRequest(number:$n){id files(first:100,after:$after){pageInfo{hasNextPage endCursor} nodes{path viewerViewedState}}}}}`,
+            {o: owner, r: repo, n: number, after})
+        const pr = d.repository.pullRequest
+        id = pr.id
+        for (const f of pr.files.nodes) states.set(f.path, f.viewerViewedState)
+        if (!pr.files.pageInfo.hasNextPage) break
+        after = pr.files.pageInfo.endCursor
+    }
+    return {id, states}
+}
+
+export async function setFileViewed(prNodeId, path, viewed) {
+    const name = viewed ? 'markFileAsViewed' : 'unmarkFileAsViewed'
+    await graphql(`mutation($id:ID!,$p:String!){${name}(input:{pullRequestId:$id,path:$p}){clientMutationId}}`, {id: prNodeId, p: path})
+}

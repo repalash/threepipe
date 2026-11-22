@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#212121">
+    <title>PR Diff Viewer</title>
+    <meta name="description" content="Review GitHub pull requests in a JetBrains-style side-by-side diff with a changed-files tree, TextMate highlighting and the Material Darker theme. Works on phones.">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23212121'/%3E%3Cpath d='M3 5.5h8.5M9 3l2.5 2.5L9 8M13 10.5H4.5M7 8l-2.5 2.5L7 13' stroke='%23FF9800' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://esm.sh" crossorigin>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div id="landing" hidden></div>
+<div id="app" hidden></div>
+<div id="menu" class="menu" hidden></div>
+<dialog id="dialog"></dialog>
+<div id="toasts"></div>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
