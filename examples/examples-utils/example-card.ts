@@ -1,27 +1,17 @@
 import {formatShortcut, shortcutsOf, ThreeViewer, UiObjectConfig, ViewerAction} from 'threepipe'
 import {lucideIcon, UiConfigForm} from '@threepipe/plugin-tweakpane-editor'
 
-// TODO: move the bar and stack layouts of UiConfigForm to uiconfig.js (uiconfig-dom, repalash/uiconfig.js#15)
-
 export interface ExampleCardOptions {
     /** The name of the example. Default: the title of the page */
     title?: string
     /** One or two sentences: what the example shows and what to try */
     description?: string
-    /**
-     * The controls, as uiconfig configs (the format of the Tweakpane panel): buttons, checkboxes (toggle buttons),
-     * dropdowns, sliders or numbers (in a popover), monitors (a live value). A folder is a group.
-     */
+    /** The controls, as uiconfig configs (as in the Tweakpane panel). A folder is a group. */
     actions?: UiObjectConfig[]
-    /**
-     * The example's own elements (a list of results, a table of stats, a legend), shown under the controls as they are.
-     * The card does not change them: the example keeps updating them, and styles them in its page. An element already
-     * on the page moves into the card.
-     */
+    /** The example's own elements (a list of results, a legend), shown under the controls as they are */
     content?: HTMLElement | HTMLElement[]
 }
 
-/** The actions of {@link exampleAction}, by their button */
 const actionOf = new WeakMap<UiObjectConfig, ViewerAction>()
 const COLLAPSED_KEY = 'threepipe-example-card-collapsed'
 const PHONE = '(max-width: 640px)'
@@ -56,8 +46,7 @@ export function createExampleCard(viewer: ThreeViewer, options: ExampleCardOptio
     const h = document.createElement('h1')
     h.textContent = title
     head.appendChild(h)
-    // the panel of example-info.mjs (loaded by global-loading.mjs before the example's script): its links and the
-    // prompt for an agent, and the link to the source (the right file and branch: an example may be only an index.html)
+    // the panel of example-info.mjs knows the right source file and branch (an example may be only an index.html)
     const infoPanel = document.getElementById('tp-example-info')
     const name = location.pathname.match(/examples\/([^/]+)\//)?.[1]
     const source = infoPanel?.dataset.source ?? (name ? `https://github.com/repalash/threepipe/tree/dev/examples/${name}` : undefined)
@@ -102,7 +91,6 @@ export function createExampleCard(viewer: ThreeViewer, options: ExampleCardOptio
     }
     let form: UiConfigForm | undefined
     if (options.actions?.length) {
-        // the key of each action button, formatted once: looked up again when the actions or their keys change
         const keys = new Map<UiObjectConfig, string | undefined>()
         viewer.actions.addEventListener('actionsChange', () => keys.clear())
         form = new UiConfigForm(options.actions, {
@@ -110,13 +98,11 @@ export function createExampleCard(viewer: ThreeViewer, options: ExampleCardOptio
             shortcutOf: (c) => {
                 if (keys.has(c)) return keys.get(c)
                 const action = actionOf.get(c)
-                // the key in viewer.actions now (none after setShortcut(id, null))
                 const key = action ? shortcutsOf(viewer.actions.shortcutOf(action.id))[0] : undefined
                 const text = key ? formatShortcut(key) : undefined
                 keys.set(c, text)
                 return text
             },
-            // a control that throws: a toast on the viewer, like an action in viewer.actions
             onError: (e) => {
                 console.error(e)
                 viewer.dialog.toast?.(e instanceof Error ? e.message : String(e), {kind: 'error', container: viewer.container})
@@ -135,14 +121,13 @@ export function createExampleCard(viewer: ThreeViewer, options: ExampleCardOptio
     }
     card.appendChild(body)
 
-    // collapsed: only the header shows; kept for the next example
     const setCollapsed = (collapsed: boolean) => {
         card.classList.toggle('example-card-collapsed', collapsed)
         toggle.setAttribute('aria-expanded', String(!collapsed))
         toggle.setAttribute('aria-label', collapsed ? 'Show the example card' : 'Hide the example card')
         toggle.title = collapsed ? 'Show' : 'Hide'
     }
-    // a phone starts with the header only, so the canvas is clear; a desktop opens it as it was left last time
+    // a phone starts collapsed, so the canvas is clear; a desktop opens it as it was left
     const phone = window.matchMedia(PHONE).matches
     let collapsed = phone
     if (!phone) {
@@ -166,7 +151,6 @@ export function createExampleCard(viewer: ThreeViewer, options: ExampleCardOptio
     })
 
     viewer.container.appendChild(card)
-    /** `body`: the scrolling part of the card, to add more of the example's own elements later */
     return {element: card, body, form}
 }
 
@@ -182,7 +166,6 @@ export function exampleAction(viewer: ThreeViewer, action: ViewerAction): UiObje
         label: action.label,
         icon: action.icon,
         disabled: () => !!action.enabled && !action.enabled(),
-        // viewer.actions shows the result in a toast (its toastResults setting decides)
         value: async() => viewer.actions.run(action.id),
     }
     actionOf.set(config, action)
@@ -193,7 +176,6 @@ function addStyles() {
     if (styled) return
     styled = true
     const style = document.createElement('style')
-    // the colours of the Tweakpane theme of the page, else light, or dark with the system
     style.textContent = `
 .example-card {
     --ec-bg-0: #ffffff; --ec-fg-0: #1e1e1e; --ec-dim-0: #757575; --ec-line-0: #e6e6e6; --ec-shadow-0: rgba(0, 0, 0, 0.08);
@@ -226,12 +208,9 @@ function addStyles() {
 .example-card-body { overflow-y: auto; padding: 0 6px 6px; }
 .example-card-collapsed .example-card-body { display: none; }
 .example-card p { margin: 0 6px 6px; color: var(--ec-dim); }
-/* the example's own elements, under the controls */
 .example-card-content { margin: 6px 6px 0; padding-top: 6px; border-top: 1px solid var(--ec-line); }
 .example-card-content:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
-/* the controls: the stack of UiConfigForm, flat in the card */
 .example-card .ucf-stack { background: none; box-shadow: none; padding: 0; max-height: none; overflow: visible; }
-/* a phone: at the bottom, as wide as the page */
 @media (max-width: 640px) {
     .example-card { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 40%; }
     .example-card p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
