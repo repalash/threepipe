@@ -77,4 +77,4 @@ export function logError(what: string, data: Record<string, unknown> = {}) {
 }
 
 /** An access code in a URL is a credential (src/access.ts): logs show it as `…`. */
-export const redactLog = (line: string) => line.replace(/(\/api\/v1\/access\/)[^/\s"]+/g, '$1…')
+export const redactLog = (line: string) => line.replace(/(\/api\/v1\/access\/)[\w-]{16,}/g, '$1…')
