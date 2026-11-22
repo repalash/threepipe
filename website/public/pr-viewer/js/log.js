@@ -1,6 +1,7 @@
 // The IDE's Log tab for the commits of a PR (or compare): a commit list with a graph line, a text/hash filter, the
 // changed files of the selected commit (or of a shift-selected range of commits), and the commit details.
 
+import {renderMarkdown} from './markdown.js'
 import {getCommitFiles} from './github.js'
 import {FileTree} from './tree.js'
 import {icons} from './icons.js'
@@ -127,13 +128,30 @@ export class LogView {
         if (newer === older) {
             const c = newer.commit
             const committer = c.committer && c.committer.name !== c.author?.name ? `<div class="dim">committed by ${esc(c.committer.name)}</div>` : ''
-            details.innerHTML = `<pre class="log-msg">${esc(c.message)}</pre>
+            const [subject, ...rest] = c.message.split('\n')
+            const lines = rest.join('\n').trim().split('\n')
+            // trailers ("Co-Authored-By: …") at the end stay one per line
+            let t = lines.length
+            while (t > 0 && /^[A-Za-z][\w-]*: \S/.test(lines[t - 1])) t--
+            if (t > 0 && lines[t - 1].trim()) t = lines.length
+            const body = lines.slice(0, t).join('\n').trim()
+            const trailers = lines.slice(t).map((l) => `<div>${esc(l).replace(/https?:\/\/[^\s<]+/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`)}</div>`).join('')
+            details.innerHTML = `<div class="log-msg"><div class="log-subject">${esc(subject)}</div>${body ? `<pre class="log-body">${esc(body)}</pre>` : ''}${trailers ? `<div class="log-trailers">${trailers}</div>` : ''}</div>
                 <div><span class="log-sha">${newer.sha.slice(0, 8)}</span> ${esc(c.author?.name || '')}${newer.author?.login ? ` <span class="dim">@${esc(newer.author.login)}</span>` : ''}
                 on ${esc(new Date(c.author?.date).toLocaleString())}</div>${committer}
                 <div><a href="${esc(newer.html_url)}" target="_blank" rel="noopener">Open on GitHub</a></div>`
         } else {
             details.innerHTML = `<div>${this.sel.b - this.sel.a + 1} commits selected</div><div class="dim">${older.sha.slice(0, 8)} … ${newer.sha.slice(0, 8)}</div>`
         }
+        // the commit message's body as Markdown (lists, code, links), as commit bodies are usually written
+        const bodyEl = details.querySelector('.log-body')
+        if (bodyEl) renderMarkdown(bodyEl.textContent).then((html) => {
+            if (id !== this.loadId || !bodyEl.isConnected) return
+            const art = document.createElement('article')
+            art.className = 'md md-compact log-body'
+            art.innerHTML = html
+            bodyEl.replaceWith(art)
+        }).catch(() => {})
         this.el.querySelector('#log-files-count').textContent = ''
         this.el.querySelector('#log-tree').innerHTML = '<div class="tree-msg dim">Loading…</div>'
         try {

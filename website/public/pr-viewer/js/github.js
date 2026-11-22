@@ -2,6 +2,7 @@
 // "Viewed" state of PR files. A token is optional for public repositories; it is kept in this browser only.
 
 const API = 'https://api.github.com'
+const FULL = 'application/vnd.github.full+json' // bodies also as GitHub's rendered HTML (body_html)
 const TOKEN_KEY = 'prv.token'
 
 export function getToken() {
@@ -76,11 +77,11 @@ async function request(path, {accept = 'application/vnd.github+json', method = '
 const json = async (path, opts) => (await request(path, opts)).json()
 
 /** Fetches all pages of a list endpoint (`per_page=100`). `pick` extracts the array from a page. */
-async function paginate(path, pick = (x) => x, max = 30) {
+async function paginate(path, pick = (x) => x, max = 30, opts) {
     const out = []
     const sep = path.includes('?') ? '&' : '?'
     for (let page = 1; page <= max; page++) {
-        const items = pick(await json(`${path}${sep}per_page=100&page=${page}`))
+        const items = pick(await json(`${path}${sep}per_page=100&page=${page}`, opts))
         out.push(...items)
         if (items.length < 100) break
     }
@@ -158,7 +159,7 @@ export async function loadChangeSet(target) {
     const R = `/repos/${owner}/${repo}`
     if (target.type === 'pr') {
         const [pr, commits] = await Promise.all([
-            json(`${R}/pulls/${target.number}`),
+            json(`${R}/pulls/${target.number}`, {accept: FULL}), // with body_html, the description as GitHub renders it
             paginate(`${R}/pulls/${target.number}/commits`, (x) => x, 3).catch(() => []),
         ])
         const base = {
@@ -408,4 +409,15 @@ export async function moveBranch({owner, repo, branch, sha, expected}) {
 
 export async function getPullHead(owner, repo, number) {
     return (await json(`/repos/${owner}/${repo}/pulls/${number}`)).head.sha
+}
+
+/** The PR's conversation: comments, reviews and their inline comments (bodies with GitHub's HTML). */
+export async function getTimeline(owner, repo, number) {
+    const R = `/repos/${owner}/${repo}`
+    const [comments, reviews, inline] = await Promise.all([
+        paginate(`${R}/issues/${number}/comments`, (x) => x, 5, {accept: FULL}),
+        paginate(`${R}/pulls/${number}/reviews`, (x) => x, 5, {accept: FULL}),
+        paginate(`${R}/pulls/${number}/comments`, (x) => x, 5, {accept: FULL}).catch(() => []),
+    ])
+    return {comments, reviews, inline}
 }

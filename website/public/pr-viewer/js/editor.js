@@ -288,3 +288,15 @@ export async function ensureLanguage(monaco, id) {
     registered.set(id, monId)
     return monId
 }
+
+/** Highlighted HTML (Shiki, the current theme) for a code block of a Markdown preview; null for unknown languages. */
+export async function highlightCode(code, lang) {
+    if (!highlighter) return null
+    const id = aliases.get(String(lang).toLowerCase()) || EXT[String(lang).toLowerCase()] || String(lang).toLowerCase()
+    try {
+        if (!highlighter.getLoadedLanguages().includes(id)) await highlighter.loadLanguage(id)
+        return highlighter.codeToHtml(code, {lang: id, theme: MONACO_THEME})
+    } catch {
+        return null
+    }
+}

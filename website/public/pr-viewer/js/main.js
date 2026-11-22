@@ -1,5 +1,5 @@
 import {
-    commitFiles, getFileContent, getPullHead, moveBranch, getToken, getViewedStates, GitHubError, loadChangeSet, paramsToTarget, parseTarget,
+    commitFiles, getFileContent, getPullHead, getTimeline, moveBranch, getToken, getViewedStates, GitHubError, loadChangeSet, paramsToTarget, parseTarget,
     listPullRequests, searchMyPullRequests, setFileViewed, setToken, targetToParams,
 } from './github.js'
 import {
@@ -11,6 +11,7 @@ import {FileTree} from './tree.js'
 import {fileIcon, icons, isImagePath} from './icons.js'
 import {formatWhen, LogView} from './log.js'
 import {onDoubleShift, Palette} from './palette.js'
+import {highlightBlocks, renderMarkdown, repoResolvers, sanitize} from './markdown.js'
 
 const $ = (s, el = document) => el.querySelector(s)
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c])
@@ -38,6 +39,7 @@ const settings = {
     highlight: store.get('highlight', 'words'), // 'words' | 'lines' | 'none'
     collapseUnchanged: store.get('collapseUnchanged', false),
     wordWrap: store.get('wordWrap', false),
+    mdPreview: store.get('mdPreview', true), // Markdown files show rendered in the diff
     fontSize: store.get('fontSize', null),
 }
 const viewMode = () => settings.view || (mobileQuery.matches ? 'unified' : 'sbs')
@@ -341,7 +343,7 @@ function buildShell() {
                 </div>
                 <div class="pr-head" id="pr-head" hidden>
                     <div class="pr-title" id="pr-title"></div>
-                    <a class="pr-link" id="pr-link" target="_blank" rel="noopener">View on GitHub</a>
+                    <div class="pr-links"><button class="pr-link" id="pr-timeline">View Timeline</button><a class="pr-link" id="pr-link" target="_blank" rel="noopener">View on GitHub</a></div>
                     <div class="pr-from"><span>Changes from</span>
                         <button class="pr-commits" id="pr-commits"></button>
                         <span class="pr-branch" id="pr-branch"></span>
@@ -389,8 +391,10 @@ function buildShell() {
                 <div class="tabs">
                     <button class="tab" id="tab-log" title="Commits">${icons.log}<span>Log</span></button>
                     <button class="tab active" id="tab-changes">${icons.changes}<span id="tab-label">Changes</span></button>
+                    <button class="tab" id="tab-timeline" hidden>${icons.comment}<span>Timeline</span></button>
                 </div>
                 <div class="log-host" id="log-host" hidden></div>
+                <div class="timeline-host" id="timeline-host" hidden></div>
                 <div class="toolbar" id="toolbar">
                     <button class="tb-btn" id="btn-prev-diff" title="Previous Difference (Shift+F7)">${icons.up}</button>
                     <button class="tb-btn" id="btn-next-diff" title="Next Difference (F7)">${icons.down}</button>
@@ -403,6 +407,7 @@ function buildShell() {
                     <button class="tb-btn" id="btn-edit" title="Edit the pull request's files (then commit to its branch)" hidden>${icons.pencil}</button>
                     <label class="viewed-toggle" title="Mark the file as viewed (V)"><input type="checkbox" id="chk-viewed"><span>Viewed</span></label>
                     <span class="diff-count" id="diff-count"></span>
+                    <button class="tb-btn" id="btn-md" title="Markdown: show the preview or the code" hidden></button>
                     <div class="seg">
                         <button class="tb-btn" id="btn-sbs" title="Side-by-side viewer">${icons.sideBySide}</button>
                         <button class="tb-btn" id="btn-unified" title="Unified viewer">${icons.unified}</button>
@@ -415,6 +420,7 @@ function buildShell() {
                         <div class="uni-head" id="uni-head"><span id="uni-left"></span><span id="uni-right"></span></div>
                         <div class="uni-ed" id="uni-ed"></div>
                     </div>
+                    <div class="view view-md" id="view-md"></div>
                     <div class="view view-msg" id="view-msg"></div>
                     <div class="loading-bar" id="loading-bar"></div>
                 </div>
@@ -473,6 +479,15 @@ function buildShell() {
     $('#btn-commit').onclick = () => openCommitPanel()
     $('#tab-log').onclick = () => setTab('log')
     $('#tab-changes').onclick = () => setTab('changes')
+    $('#tab-timeline').onclick = () => setTab('timeline')
+    $('#pr-timeline').onclick = () => openTimeline()
+    $('#timeline-host').onclick = (e) => {
+        const li = e.target.closest('.tl-commits li[data-sha]')
+        if (li) return openCommitSpec(li.dataset.sha)
+        const p = e.target.closest('.tl-path')
+        if (p) { setTab('changes'); selectFile(p.dataset.path) }
+    }
+    $('#btn-md').onclick = () => toggleMdPreview()
     $('#side-title').onclick = (e) => state.sidePanel !== 'prs' && commitMenu(e.currentTarget)
     $('#chk-viewed').onchange = (e) => toggleViewed(state.order[state.index], e.target.checked)
     $('#btn-drawer').onclick = openDrawer
@@ -592,6 +607,13 @@ function renderHeader() {
     // the IDE's PR view: the title, then "Changes from N commits ▾" and the branch
     $('#side').classList.toggle('is-pr', !!pr)
     $('#pr-head').hidden = !pr || state.sidePanel === 'prs'
+    const tlKey = pr ? `${target.owner}/${target.repo}#${pr.number}` : null
+    if (state.timelineKey && state.timelineKey !== tlKey) {
+        state.timelineKey = null
+        $('#tab-timeline').hidden = true
+        $('#timeline-host').innerHTML = ''
+        if (state.tab === 'timeline') setTab('changes')
+    }
     if (pr) {
         $('#pr-title').innerHTML = `${esc(pr.title)} <span class="dim">#${pr.number}</span>`
         $('#pr-link').href = pr.html_url
@@ -692,12 +714,12 @@ function applyHighlight() {
 }
 
 function setTab(tab) {
-    const log = tab === 'log'
-    $('#tab-log').classList.toggle('active', log)
-    $('#tab-changes').classList.toggle('active', !log)
-    $('#log-host').hidden = !log
-    $('#toolbar').hidden = log
-    $('#viewer').hidden = log
+    state.tab = tab
+    for (const k of ['log', 'changes', 'timeline']) $('#tab-' + k).classList.toggle('active', k === tab)
+    $('#log-host').hidden = tab !== 'log'
+    $('#timeline-host').hidden = tab !== 'timeline'
+    $('#toolbar').hidden = tab !== 'changes'
+    $('#viewer').hidden = tab !== 'changes'
 }
 
 /** Opens a commit (or 'a..b' range) of the PR picked in the Log, optionally at a file. */
@@ -843,8 +865,18 @@ async function openFileAt(i, push = true, keepScroll = false) {
     // tokenize up front: deleted lines in the unified view otherwise can render before their colors exist
     for (const m of state.models) if (m.getLineCount() < 20000) m.tokenization.forceTokenization(m.getLineCount())
 
+    $('#btn-md').hidden = !isMarkdown(f.path)
+    $('#btn-md').innerHTML = settings.mdPreview ? icons.code : icons.eye
+    $('#btn-md').title = settings.mdPreview ? 'Show the Markdown code' : 'Show the Markdown preview'
     try {
-        if (renderer() === 'sbs') {
+        if (mdPreviewOn(f)) {
+            const changes = f.status === 'added' ? [wholeInsert(modified)]
+                : f.status === 'removed' ? [wholeDelete(original)]
+                    : await computeDiff(original, modified)
+            if (id !== state.fileLoadId) return
+            state.unified?.setModel(null)
+            if (!await showMarkdownPreview(f, original.getValue(), modified.getValue(), changes, {left: leftLabel, right: rightLabel}, id, keepScroll)) return
+        } else if (renderer() === 'sbs') {
             const changes = f.status === 'added' ? [wholeInsert(modified)]
                 : f.status === 'removed' ? [wholeDelete(original)]
                     : await computeDiff(original, modified)
@@ -877,6 +909,185 @@ async function openFileAt(i, push = true, keepScroll = false) {
     prefetch(i + 1)
 }
 
+// --- Markdown preview ---
+
+function isMarkdown(path) {
+    return /\.(md|markdown|mdx)$/i.test(path)
+}
+
+function mdPreviewOn(f) {
+    return isMarkdown(f.path) && settings.mdPreview && !(state.editing && state.editableFile) && !state.mdFailed
+}
+
+function toggleMdPreview() {
+    setSetting('mdPreview', !settings.mdPreview)
+    if (settings.mdPreview && state.editing) state.editing = false
+    reopenFile(true)
+}
+
+/** Line sets of a diff: inserted / modified lines on the new side, deleted / modified on the old (1-based). */
+function changedLines(lineChanges) {
+    const r = {ins: new Set(), mod: new Set(), del: new Set(), modOld: new Set()}
+    for (const c of lineChanges) {
+        const hasO = c.originalEndLineNumber > 0, hasM = c.modifiedEndLineNumber > 0
+        if (hasM) for (let l = c.modifiedStartLineNumber; l <= c.modifiedEndLineNumber; l++) (hasO ? r.mod : r.ins).add(l)
+        if (hasO) for (let l = c.originalStartLineNumber; l <= c.originalEndLineNumber; l++) (hasM ? r.modOld : r.del).add(l)
+    }
+    return r
+}
+
+/** Shows a Markdown file rendered: old | new (side-by-side) or the new side, with the changed blocks marked. */
+async function showMarkdownPreview(f, oldText, newText, lineChanges, labels, id, keepScroll) {
+    const {cs, target: t} = state
+    const L = changedLines(lineChanges)
+    const classify = (mod, other, cls) => (a, b) => {
+        let r = ''
+        for (let l = a + 1; l <= b; l++) { if (mod.has(l)) return 'md-mod'; if (other.has(l)) r = cls }
+        return r
+    }
+    const sides = f.status === 'removed' ? ['old'] : f.status !== 'added' && viewMode() === 'sbs' ? ['old', 'new'] : ['new']
+    const scroll = keepScroll ? $('#view-md .mdp-pane:last-child .mdp-body')?.scrollTop : 0
+    let html
+    try {
+        html = await Promise.all(sides.map((s) => s === 'old'
+            ? renderMarkdown(oldText, {classify: f.status === 'removed' ? null : classify(L.modOld, L.del, 'md-del'), ...repoResolvers(t.owner, t.repo, cs.baseSha, f.prevPath || f.path)})
+            : renderMarkdown(newText, {classify: f.status === 'added' ? null : classify(L.mod, L.ins, 'md-ins'), ...repoResolvers(t.owner, t.repo, cs.headSha, f.path)})))
+    } catch (e) {
+        console.error(e)
+        toast(`The Markdown preview could not load (${e.message}); showing the code`, 'error')
+        state.mdFailed = true
+        if (id === state.fileLoadId) reopenFile(true)
+        return false
+    }
+    if (id !== state.fileLoadId) return false
+    const view = $('#view-md')
+    view.innerHTML = `<div class="mdp${sides.length > 1 ? ' two' : ''}">${sides.map((s, i) => `
+        <div class="mdp-pane mdp-${s}"><div class="mdp-head">${s === 'old' ? labels.left : labels.right}</div>
+            <div class="mdp-body"><article class="md">${html[i]}</article></div></div>`).join('')}</div>`
+    showView('md')
+    const main = $('.mdp-pane:last-child .mdp-body', view)
+    state.mdMarks = [...main.querySelectorAll('.md-ins, .md-mod, .md-del')].filter((e) => !e.parentElement.closest('.md-ins, .md-mod, .md-del'))
+    state.mdCur = -1
+    if (scroll) main.scrollTop = scroll
+    else if (state.mdMarks.length && f.status === 'modified') markCurrent(0, false)
+    // the two sides scroll together, by proportion
+    const bodies = [...view.querySelectorAll('.mdp-body')]
+    if (bodies.length === 2) {
+        let lock = null
+        bodies.forEach((b, i) => b.addEventListener('scroll', () => {
+            if (!settings.syncScroll || (lock && lock !== b)) return
+            lock = b
+            const o = bodies[1 - i]
+            o.scrollTop = b.scrollTop / Math.max(1, b.scrollHeight - b.clientHeight) * (o.scrollHeight - o.clientHeight)
+            requestAnimationFrame(() => { lock = null })
+        }, {passive: true}))
+    }
+    for (const b of bodies) b.addEventListener('scroll', () => updateToolbar(), {passive: true})
+    highlightBlocks(view)
+    return true
+}
+
+function markCurrent(i, smooth = true) {
+    state.mdCur = i
+    const el = state.mdMarks[i]
+    for (const m of state.mdMarks) m.classList.toggle('md-cur', m === el)
+    // scroll the preview only (scrollIntoView would also move the page on a phone)
+    const box = el?.closest('.mdp-body')
+    if (box) box.scrollTo({top: box.scrollTop + el.getBoundingClientRect().top - box.getBoundingClientRect().top - box.clientHeight / 3, behavior: smooth ? 'smooth' : 'auto'})
+    updateToolbar()
+}
+
+// --- the PR's timeline: description, comments, reviews, commits ---
+
+async function openTimeline() {
+    const {cs, target: t} = state
+    if (!cs?.pr) return
+    $('#tab-timeline').hidden = false
+    setTab('timeline')
+    closeDrawer()
+    const key = `${t.owner}/${t.repo}#${cs.pr.number}`
+    const host = $('#timeline-host')
+    if (state.timelineKey === key && host.childElementCount) return
+    state.timelineKey = key
+    host.innerHTML = '<div class="tl-loading dim">Loading the conversation…</div>'
+    try {
+        const [data, desc] = await Promise.all([getTimeline(t.owner, t.repo, cs.pr.number), sanitize(cs.pr.body_html || '')])
+        if (state.timelineKey !== key) return
+        host.innerHTML = await timelineHtml(cs, data, desc)
+        host.scrollTop = 0
+    } catch (e) {
+        if (state.timelineKey === key) host.innerHTML = `<div class="tl-loading dim">Could not load the conversation: ${esc(e.message)}</div>`
+        state.timelineKey = null
+    }
+}
+
+async function timelineHtml(cs, {comments, reviews, inline}, desc) {
+    const pr = cs.pr
+    const who = (u, name) => u
+        ? `<img class="tl-av" src="${esc(u.avatar_url)}${u.avatar_url?.includes('?') ? '&' : '?'}s=48" alt="" loading="lazy"><b>${esc(u.login)}</b>`
+        : `<span class="tl-av tl-av-none"></span><b>${esc(name || 'ghost')}</b>`
+    const when = (iso) => `<span class="dim" title="${esc(new Date(iso).toLocaleString())}">${esc(formatWhen(iso))}</span>`
+    const ev = []
+    for (const c of cs.commits || []) ev.push({t: c.commit.committer?.date || c.commit.author?.date, kind: 'commit', c})
+    for (const c of comments) ev.push({t: c.created_at, kind: 'comment', c})
+    // inline comments as threads, under the review of their first comment
+    const threads = new Map()
+    for (const c of [...inline].sort((a, b) => a.created_at.localeCompare(b.created_at))) {
+        const root = c.in_reply_to_id || c.id
+        if (!threads.has(root)) threads.set(root, [])
+        threads.get(root).push(c)
+    }
+    for (const r of reviews) {
+        const roots = [...threads.values()].filter((th) => th[0].pull_request_review_id === r.id)
+        if (r.state === 'COMMENTED' && !r.body && !roots.length) continue // a reply in a thread: shown in the thread
+        if (r.state === 'PENDING') continue
+        ev.push({t: r.submitted_at || r.created_at, kind: 'review', c: r, roots})
+    }
+    ev.sort((a, b) => (a.t || '').localeCompare(b.t || ''))
+    const bodies = await Promise.all(ev.map((e) => e.kind === 'commit' ? null : sanitize(e.c.body_html || '')))
+    const threadBodies = new Map()
+    await Promise.all([...threads.values()].flat().map(async (c) => threadBodies.set(c.id, await sanitize(c.body_html || ''))))
+
+    const hunk = (h) => {
+        const lines = (h || '').split('\n').slice(1).slice(-4)
+        return lines.length ? `<pre class="tl-hunk">${lines.map((l) => `<span class="${l[0] === '+' ? 'hk-add' : l[0] === '-' ? 'hk-del' : ''}">${esc(l)}</span>`).join('\n')}</pre>` : ''
+    }
+    const STATES = {APPROVED: ['approved these changes', 'ok'], CHANGES_REQUESTED: ['requested changes', 'bad'], COMMENTED: ['reviewed', ''], DISMISSED: ['had a review dismissed', '']}
+    let out = ''
+    for (let i = 0; i < ev.length; i++) {
+        const e = ev[i]
+        if (e.kind === 'commit') {
+            const group = [e.c]
+            while (ev[i + 1]?.kind === 'commit') group.push(ev[++i].c)
+            const a = group[0]
+            out += `<div class="tl-item tl-commits"><div class="tl-meta"><span class="tl-ic">${icons.commit}</span>${who(a.author, a.commit.author?.name)}
+                <span class="dim">added ${group.length} commit${group.length === 1 ? '' : 's'}</span> ${when(e.t)}</div>
+                <ul>${group.map((c) => `<li data-sha="${esc(c.sha)}" title="Open this commit's changes"><span class="tl-cmsg">${esc(c.commit.message.split('\n')[0])}</span><code>${short(c.sha)}</code></li>`).join('')}</ul></div>`
+        } else if (e.kind === 'comment') {
+            out += `<div class="tl-item tl-card"><div class="tl-meta">${who(e.c.user)} <span class="dim">commented</span> ${when(e.t)}</div>
+                <article class="md tl-body">${bodies[i]}</article></div>`
+        } else {
+            const [label, cls] = STATES[e.c.state] || [e.c.state.toLowerCase(), '']
+            out += `<div class="tl-item tl-card tl-review ${cls}"><div class="tl-meta">${who(e.c.user)} <span class="tl-state ${cls}">${label}</span> ${when(e.t)}</div>
+                ${bodies[i] ? `<article class="md tl-body">${bodies[i]}</article>` : ''}
+                ${e.roots.map((th) => `<div class="tl-thread"><button class="tl-path" data-path="${esc(th[0].path)}">${fileIcon(th[0].path)}<span>${esc(th[0].path)}${th[0].line || th[0].original_line ? `:${th[0].line || th[0].original_line}` : ''}</span></button>
+                    ${hunk(th[0].diff_hunk)}
+                    ${th.map((c) => `<div class="tl-reply"><div class="tl-meta">${who(c.user)} ${when(c.created_at)}</div><article class="md">${threadBodies.get(c.id)}</article></div>`).join('')}</div>`).join('')}</div>`
+        }
+    }
+    const s = pr.merged_at ? 'merged' : pr.draft ? 'draft' : pr.state
+    const n = cs.commits?.length || 0
+    return `<div class="tl">
+        <header class="tl-head"><h1>${esc(pr.title)} <span class="dim">#${pr.number}</span></h1>
+            <div class="tl-sub"><span class="state-pill st-${s}">${s[0].toUpperCase() + s.slice(1)}</span>
+            <span><b>${esc(pr.user?.login || '')}</b> ${pr.merged_at ? 'merged' : 'wants to merge'} ${n} commit${n === 1 ? '' : 's'} into <code>${esc(pr.base.ref)}</code> from <code>${esc(pr.head.label)}</code></span></div></header>
+        <div class="tl-item tl-card tl-desc"><div class="tl-meta">${who(pr.user)} <span class="dim">opened this pull request</span> ${when(pr.created_at)}</div>
+            <article class="md tl-body">${desc || '<p class="dim">No description provided.</p>'}</article></div>
+        ${out}
+        <div class="tl-end dim">${comments.length} comment${comments.length === 1 ? '' : 's'} · ${reviews.filter((r) => r.state !== 'PENDING').length} review${reviews.length === 1 ? '' : 's'} · <a href="${esc(pr.html_url)}" target="_blank" rel="noopener">Open on GitHub</a></div>
+    </div>`
+}
+
 // --- quick edits, committed to the PR's branch ---
 
 /** Edits belong to one head of one PR; null when not showing a PR's full changes. */
@@ -902,6 +1113,9 @@ function applyEditable() {
 
 function setEditing(on) {
     state.editing = on
+    const f = state.order[state.index]
+    // a Markdown preview is not editable: editing shows the code
+    if (f && isMarkdown(f.path) && settings.mdPreview && state.editableFile) { reopenFile(true); return }
     applyEditable()
     if (on && state.editableFile) {
         const ed = renderer() === 'sbs' ? state.sbs?.right : state.unified?.getModifiedEditor()
@@ -1236,7 +1450,7 @@ function applyView() {
 }
 
 function showView(which) {
-    for (const v of ['sbs', 'unified', 'msg']) $('#view-' + v).classList.toggle('active', v === which)
+    for (const v of ['sbs', 'unified', 'md', 'msg']) $('#view-' + v).classList.toggle('active', v === which)
     $('#btn-sbs').classList.toggle('on', viewMode() === 'sbs')
     $('#btn-unified').classList.toggle('on', viewMode() === 'unified')
 }
@@ -1264,6 +1478,10 @@ function showBinary(f, orig, mod) {
 // --- differences ---
 
 function diffInfo() {
+    if ($('#view-md').classList.contains('active')) {
+        const n = state.mdMarks?.length || 0
+        return {count: n, prev: state.mdCur > 0, next: state.mdCur < n - 1}
+    }
     if (!$('#view-msg').classList.contains('active')) {
         if (renderer() === 'sbs' && state.sbs) return {count: state.sbs.count, prev: state.sbs.canStep(-1), next: state.sbs.canStep(1)}
         if (renderer() === 'monaco' && state.unified) {
@@ -1275,7 +1493,14 @@ function diffInfo() {
 }
 
 function stepDiff(dir) {
-    if (renderer() === 'sbs' && state.sbs) {
+    if ($('#view-md').classList.contains('active')) {
+        const n = state.mdMarks?.length || 0
+        const next = state.mdCur + dir
+        if (next < 0 || next >= n) {
+            if (dir > 0 && state.index < state.order.length - 1) stepFile(1)
+            else if (dir < 0 && state.index > 0) stepFile(-1)
+        } else markCurrent(next)
+    } else if (renderer() === 'sbs' && state.sbs) {
         if (!state.sbs.step(dir)) {
             // past the last difference: go on to the next file, as the IDE does on a second F7
             if (dir > 0 && state.index < state.order.length - 1) stepFile(1)
@@ -1365,6 +1590,10 @@ function actionItems() {
             A(`Highlighting Differences: ${l}`, () => { setSetting('highlight', v); applyHighlight() }, {toggle: s.highlight === v})),
         A('Collapse Unchanged Fragments', () => { setSetting('collapseUnchanged', !s.collapseUnchanged); applyMonacoOptions() }, {toggle: s.collapseUnchanged}),
         A('Soft-Wrap', () => { setSetting('wordWrap', !s.wordWrap); applyMonacoOptions() }, {toggle: s.wordWrap}),
+        A('Markdown Preview', () => toggleMdPreview(), {toggle: s.mdPreview, ic: icons.eye}),
+        state.cs?.pr && A('View Timeline', () => openTimeline(), {ic: icons.comment}),
+        state.edits.size && A('Commit…', () => openCommitPanel(), {ic: icons.commit}),
+        state.editableFile && A(state.editing ? 'Stop Editing' : 'Edit File', () => setEditing(!state.editing), {ic: icons.pencil}),
         A('Increase Font Size', () => changeFont(1), {hint: `${MOD}=`, sub: `editor, now ${fontSize()}px`}),
         A('Decrease Font Size', () => changeFont(-1), {hint: `${MOD}−`}),
         A('Reset Font Size', () => changeFont(0), {hint: `${MOD}0`}),

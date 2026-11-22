@@ -21,6 +21,15 @@ Open `?pr=owner/repo/123`, or paste a PR / commit / compare URL on the start pag
   Ctrl/⌘+P on Files. Fuzzy matching as in the IDE: word starts and runs, e.g. `uas` → UseAutosave.
 - **Themes**: the 10 Material Theme UI variants (Darker, Oceanic, Palenight, Deep Ocean, Forest, Space, Volcano,
   Lighter, Sandy Beach, Sky Blue), from the gear menu or Search Everywhere ("Theme: …"); remembered per browser.
+- **Edit and commit**: the pencil over the diff makes the PR head editable (the bands follow the edit); the Commit
+  panel (the strip's commit button, or Commit in the toolbar) lists the edited files with checkboxes, a message and
+  *Amend last commit*, and *Commit and Push* makes one commit on the PR's branch (refused if the branch moved since,
+  with Undo). Needs a token with *Contents: write*. Edits are kept for the tab's session.
+- **Timeline** ("View Timeline" in the PR header): the description as GitHub renders it, comments, reviews with their
+  inline comment threads, and the commits, in time order.
+- **Markdown preview**: `.md` files show rendered in the diff (old | new with the changed blocks marked, or the new
+  side on a phone; F7 steps through them); the `</>` button shows the code. Commit message bodies in the Log are
+  rendered as Markdown too.
 - **Unified viewer**: Monaco's inline diff editor (the default on narrow screens).
 - **Log**: the PR's commits with a graph line and a text/hash filter; select a commit, or shift-select a range, to see
   its changed files and details; double-click, Enter or Show Diff opens it.
@@ -49,7 +58,7 @@ node tools/material-themes.mjs /tmp/mtui
 
 Public repositories work without a token (60 API requests an hour per IP). For private repositories and a higher
 limit, add a token (the lock button): a fine-grained token with *Contents: read* and *Pull requests: read and write*
-(write is only for Viewed), or a classic token with `repo`. It is stored in this browser's `localStorage` and sent
+(write is only for Viewed), plus *Contents: read and write* to commit edits, or a classic token with `repo`. It is stored in this browser's `localStorage` and sent
 only to `api.github.com`. File contents at a commit never change, so they are cached in Cache Storage.
 
 ## Snapshots

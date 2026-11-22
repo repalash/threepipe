@@ -1,7 +1,7 @@
 // Records the GitHub API responses the viewer needs for one PR into snap/<name>/, so `?snap=<name>&pr=…` works
 // with no token (e.g. to try the page on a phone). It loads the page in Playwright, sends its api.github.com requests
 // through curl (with GITHUB_TOKEN if set), and asks the page's own github.js for the PR, every commit of it, the file
-// contents of each, and the PR lists.
+// contents of each, the PR lists and the PR's conversation.
 //
 //   node tools/record-snapshot.cjs http://localhost:8000/pr-viewer/ owner/repo/123 [name]
 //
@@ -61,6 +61,7 @@ const crypto = require('crypto')
             if (ccs) await contents(ccs)
         }
         for (const state of ['open', 'closed', 'merged', 'all']) await gh.listPullRequests(owner, repo, {state}).catch(() => null)
+        await gh.getTimeline(owner, repo, +number).catch(() => null)
         return {files: cs.files.length, commits: cs.commits.length}
     }, pr)
     fs.writeFileSync(path.join(out, 'index.json'), JSON.stringify(index, null, 1))
