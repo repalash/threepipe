@@ -1,4 +1,4 @@
-import type {Context, Hono} from 'hono'
+import type {Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
 import {apiOrigin, filesOrigin, jsonBody, randomCode, sha256Hex} from './env'
@@ -15,7 +15,6 @@ import {ACCESS_KEY_SECONDS, DAY, LABEL_MAX, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, 
  *   DELETE /api/v1/access-links/<id>      revokes it: its keys stop working at once
  *   GET  /api/v1/access/agents.md#<code>                              (the code is the credential)
  *   POST /api/v1/access/key  <code>     → the key, text/plain
- *   GET  /api/v1/access/<code>/agents.md, GET /api/v1/access/<code>/key: the same, for links made before
  *
  * The /account page lists and revokes them. (teenybase's /api/v1/table/access_links/… works too, owner only.)
  */
@@ -53,48 +52,24 @@ export function accessRoutes(app: Hono<CloudEnv>) {
 
     app.get('/api/v1/access/agents.md', c => {
         const origin = apiOrigin(c)
-        return c.text(agentsMd(origin, filesOrigin(c.env, origin), keyStep(origin)), 200, MARKDOWN)
+        return c.text(agentsMd(origin, filesOrigin(c.env, origin)), 200, {'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'no-store'})
     })
-    app.post('/api/v1/access/key', async(c) => keyResponse(c, (await c.req.text()).trim()))
 
-    app.get('/api/v1/access/:code/agents.md', async(c) => {
-        const link = await findLink(c.env, c.req.param('code'))
-        const origin = apiOrigin(c)
-        return c.text(agentsMd(origin, filesOrigin(c.env, origin), oldKeyStep(origin, c.req.param('code'), link.username)), 200, MARKDOWN)
+    app.post('/api/v1/access/key', async(c) => {
+        const code = (await c.req.text()).trim()
+        const link = await c.env.PRIMARY_DB.prepare('SELECT l.id, l.owner_id, u.email FROM access_links l JOIN users u ON u.id = l.owner_id WHERE l.code_hash = ? AND l.app IS NULL')
+            .bind(await sha256Hex(code)).first<{id: string, owner_id: string, email: string}>()
+        if (!link) throw new HTTPException(404, {message: 'unknown or revoked access link: send only the code, the part of the link after # (no # means the link was cut off)'})
+        const key = await mintKey(c, {id: link.owner_id, email: link.email}, link.id, ACCESS_KEY_SECONDS)
+        touchLink(c, link.id)
+        return c.text(key, 200, {'cache-control': 'no-store'})
     })
-    app.get('/api/v1/access/:code/key', c => keyResponse(c, c.req.param('code')))
 }
 
-const MARKDOWN = {'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'no-store'}
-
-async function keyResponse(c: Context<CloudEnv>, code: string) {
-    const link = await findLink(c.env, code)
-    const key = await mintKey(c, {id: link.owner_id, email: link.email}, link.id, ACCESS_KEY_SECONDS)
-    touchLink(c, link.id)
-    return c.text(key, 200, {'cache-control': 'no-store'})
-}
-
-async function findLink(env: CloudflareBindings, code: string) {
-    const link = await env.PRIMARY_DB.prepare('SELECT l.id, l.owner_id, u.email, u.username FROM access_links l JOIN users u ON u.id = l.owner_id WHERE l.code_hash = ? AND l.app IS NULL')
-        .bind(await sha256Hex(code)).first<{id: string, owner_id: string, email: string, username: string}>()
-    if (!link) throw new HTTPException(404, {message: 'unknown or revoked access link'})
-    return link
-}
-
-const SAVE_KEY = 'save it as `TP_CLOUD_KEY=<key>` in `~/.config/threepipe-cloud/.env`, readable only by you (`chmod 600`)'
-
-function keyStep(api: string): string {
-    return `Your access link ends in \`#<code>\`. Get your key with \`printf %s '<code>' | curl -sS --data-binary @- ${api}/api/v1/access/key\` and ${SAVE_KEY}. The link, its code and the key are credentials: never print them, commit them or put them in shared folders like \`/tmp\`. Send the key with every request as \`Authorization: Bearer $TP_CLOUD_KEY\`. It acts as the user who made the link and is valid for ${ACCESS_KEY_SECONDS / DAY} days; get a new one the same way when it expires.`
-}
-
-function oldKeyStep(api: string, code: string, username: string): string {
-    return `Download your key from ${api}/api/v1/access/${code}/key and ${SAVE_KEY}. This URL and the key are credentials: never print them, commit them or put them in shared folders like \`/tmp\`. Send it with every request as \`Authorization: Bearer $TP_CLOUD_KEY\`. The key acts as the user \`${username}\` and is valid for ${ACCESS_KEY_SECONDS / DAY} days; fetch it again from the same URL when it expires.`
-}
-
-function agentsMd(api: string, files: string, keyStep: string): string {
+function agentsMd(api: string, files: string): string {
     return `# threepipe cloud
 
-${keyStep}
+Your access link ends in \`#<code>\`. Get your key with \`printf %s '<code>' | curl -sS --data-binary @- ${api}/api/v1/access/key\` and save it as \`TP_CLOUD_KEY=<key>\` in \`~/.config/threepipe-cloud/.env\`, readable only by you (\`chmod 600\`). The link, its code and the key are credentials: never print them, commit them or put them in shared folders like \`/tmp\`. In a \`.env\` file, keep the link in quotes: some parsers drop the part after \`#\`. Send the key with every request as \`Authorization: Bearer $TP_CLOUD_KEY\`. It acts as the user who made the link and is valid for ${ACCESS_KEY_SECONDS / DAY} days; get a new one the same way when it expires.
 
 ## Upload
 
