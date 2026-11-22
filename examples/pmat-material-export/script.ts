@@ -10,7 +10,7 @@ import {
 } from 'threepipe'
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
-const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true,
+const viewer = new ThreeViewer({renderScale: 'auto', canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true,
     plugins: [LoadingScreenPlugin],
 })
 

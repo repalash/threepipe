@@ -13,6 +13,7 @@ import {TimelineUiPlugin} from '@threepipe/plugin-timeline-ui'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [LoadingScreenPlugin, AnimationObjectPlugin, new TimelineUiPlugin(true)],
@@ -20,7 +21,7 @@ async function init() {
     viewer.timeline.endTime = 5 // 5 secs
 
     // Setup a basic UI for development
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.appendChild(viewer.timeline.uiConfig, {expanded: true})
     ui.setupPluginUi(TimelineUiPlugin, {expanded: false})
 

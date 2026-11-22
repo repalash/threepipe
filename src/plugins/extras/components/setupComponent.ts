@@ -2,6 +2,7 @@ import {Object3DComponent} from './Object3DComponent'
 import {TypedType, TypeSystem} from './typeSystem'
 import {objectHasOwn} from 'ts-browser-helpers'
 import {generateUiConfig, generateValueConfig, UiObjectConfig} from 'uiconfig.js'
+import {UiTags} from '../../../ui/uiconfig'
 import {ReferenceManager} from './ReferenceManager'
 import {ComponentCtx, StatePropConfig} from './componentTypes'
 
@@ -108,7 +109,7 @@ export function setupComponent(comp: Object3DComponent, ctx: ComponentCtx) {
         type: 'button',
         label: 'Reset to Default',
         uuid: 'reset_to_default',
-        tags: ['context-menu'],
+        tags: [UiTags.ContextMenu],
         value: () => {
             const lastState = {} as any
             propsMeta.forEach(({propKey, defaultValue}) => {
@@ -128,7 +129,7 @@ export function setupComponent(comp: Object3DComponent, ctx: ComponentCtx) {
         type: 'button',
         label: 'Remove Component',
         uuid: 'remove_component',
-        tags: ['context-menu'],
+        tags: [UiTags.ContextMenu],
         value: () => {
             return ctx.ecp.removeComponent(comp.object, comp.uuid)
         },

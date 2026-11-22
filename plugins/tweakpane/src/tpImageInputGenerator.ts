@@ -278,7 +278,7 @@ function downloadImage(config: UiObjectConfig, _: TweakpaneUiPlugin, viewer: Thr
         }
         // todo: use viewer.export directly (check threepipe Readme)
         const buffer = new EXRExporter2().parse(undefined as any, tex as DataTexture&ITexture)
-        const val: Blob|undefined = new Blob([buffer], {type: 'image/x-exr'})
+        const val: Blob|undefined = new Blob([buffer as Uint8Array<ArrayBuffer>], {type: 'image/x-exr'})
         if (!val) {
             console.error('cannot export data texture', vcv, tex, config)
             return

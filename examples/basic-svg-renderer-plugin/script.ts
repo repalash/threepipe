@@ -5,6 +5,7 @@ import {BasicSVGRendererPlugin} from '@threepipe/plugin-svg-renderer'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: false,
         tonemap: false,
@@ -33,7 +34,7 @@ async function init() {
     // // make it invisible.
     viewer.canvas.style.opacity = '0'
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPlugins(BasicSVGRendererPlugin)
     ui.appendChild(l.uiConfig)
 }

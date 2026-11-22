@@ -6,6 +6,7 @@ import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiSlider, 
 import {onChange3} from 'ts-browser-helpers'
 import {bindToValue} from '../../three'
 import {objectActionsUiConfig} from '../object/IObjectUi'
+import {UiTags} from '../../ui/uiconfig'
 
 /**
  * Extension of three.js PointLight with additional properties for serialization and UI
@@ -29,20 +30,20 @@ export class PointLight2 extends PointLight implements ILight<PointLightShadow> 
     }
     readonly isPointLight2 = true
 
-    @uiToggle('Enabled')
+    @uiToggle('Enabled', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare visible: boolean
 
-    @uiInput('Name')
+    @uiInput('Name', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare name: string
 
-    @uiColor('Color', (that: PointLight2)=>({onChange: ()=>that.setDirty()}))
+    @uiColor('Color', (that: PointLight2)=>({onChange: ()=>that.setDirty(), tags: [UiTags.Basic]}))
     declare color: Color
-    @uiNumber('Intensity')
+    @uiNumber('Intensity', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare intensity: number
-    @uiNumber('Distance')
+    @uiNumber('Distance', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare distance: number
     @uiNumber('Decay')
@@ -55,7 +56,7 @@ export class PointLight2 extends PointLight implements ILight<PointLightShadow> 
     @uiVector('Position', undefined, undefined, (that: PointLight2)=>({onChange: ()=>that.setDirty()}))
     declare readonly position: Vector3
 
-    @uiToggle('Cast Shadow')
+    @uiToggle('Cast Shadow', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare castShadow: boolean
 

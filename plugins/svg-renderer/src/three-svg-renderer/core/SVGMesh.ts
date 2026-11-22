@@ -14,18 +14,16 @@ import {Color, Material, Mesh, Vector3} from 'three';
 import {HalfedgeDS} from '../../three-mesh-halfedge';
 import {
   acceleratedRaycast,
+  BVHOptions,
   CENTER,
-  computeBoundsTree,
-  disposeBoundsTree,
-  MeshBVH,
-  MeshBVHOptions
+  MeshBVH
 } from 'three-mesh-bvh';
 import {computeMorphedGeometry, disposeMesh} from '../utils/buffergeometry';
 
 type ColorMaterial = Material & {color: Color};
 
 export interface SVGMeshOptions {
-  bvhOptions?: MeshBVHOptions;
+  bvhOptions?: BVHOptions;
 }
 
 /**
@@ -43,13 +41,7 @@ export interface SVGTexture {
   url: string;
 }
 
-declare module 'three/src/core/BufferGeometry.js' {
-  export interface BufferGeometry {
-    boundsTree?: MeshBVH;
-    computeBoundsTree: typeof computeBoundsTree;
-    disposeBoundsTree: typeof disposeBoundsTree;
-  }
-}
+// BufferGeometry.boundsTree is declared by three-mesh-bvh (GeometryBVH, which MeshBVH extends)
 
 
 /**
@@ -62,7 +54,7 @@ export class SVGMesh {
   readonly sourceMesh: Mesh;
   readonly threeMesh = new Mesh();
   readonly hes: HalfedgeDS;
-  readonly bvhOptions: MeshBVHOptions;
+  readonly bvhOptions: BVHOptions;
   bvh: MeshBVH;
   drawFills = true;
   drawVisibleContours = true;
@@ -94,7 +86,7 @@ export class SVGMesh {
 
     // Setup BVH
     const bvhOptions = {
-      maxLeafTris: 1,
+      targetLeafSize: 1,
       strategy: CENTER,
       ...options?.bvhOptions
     }

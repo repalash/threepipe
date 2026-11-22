@@ -1,6 +1,6 @@
 import {configDefaults, defineConfig} from 'vitest/config'
-import glsl from 'rollup-plugin-glsl'
 import path from 'node:path'
+import {glsl} from './scripts/vite-utils.mjs'
 
 export default defineConfig({
     plugins: [
@@ -8,8 +8,8 @@ export default defineConfig({
     ],
     resolve: {
         alias: {
-            'threepipe': path.resolve(__dirname, './src/index.ts'),
-            'three': path.resolve(__dirname, './node_modules/three/'),
+            'threepipe': path.resolve(import.meta.dirname, './src/index.ts'),
+            'three': path.resolve(import.meta.dirname, './node_modules/three/'),
         },
     },
     test: {

@@ -47,3 +47,24 @@ describe('GLTFAnimationPlugin scene update', () => {
         expect(plugin.animations[0].actions[0]).toBe(first)
     })
 })
+
+describe('GLTFAnimationPlugin converge-mode recording', () => {
+    test('the recording step keeps the animation speed', () => {
+        const root = new Object3D()
+        root.animations = [clip('a')]
+        const plugin = new GLTFAnimationPlugin() as any
+        const viewer = fakeViewer(root)
+        // a converge-mode recording at 30 fps: each frame steps 1/30 s
+        const progressive = {postFrameConvergedRecordingDelta: () => 1 / 30}
+        viewer.getPlugin = (t: string) => t === 'Progressive' ? progressive : undefined
+        viewer.renderManager = {resetShadows: () => undefined}
+        viewer.setDirty = () => undefined
+        plugin._viewer = viewer
+        Object.defineProperty(plugin, 'pageScrollTime', {get: () => 0}) // reads the page, which the node setup has not
+        plugin._sceneUpdate({})
+        plugin._animationState = 'playing'
+        plugin.animationSpeed = 2
+        plugin._postFrame()
+        expect(plugin._animationTime).toBeCloseTo(2 / 30)
+    })
+})

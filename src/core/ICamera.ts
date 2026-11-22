@@ -138,7 +138,7 @@ export interface ICamera<TE extends ICameraEventMap = ICameraEventMap> extends C
     maxFarPlane?: number // default = 1000
 
     // todo
-    // Note: for userData: add _ in front of for private use, which is preserved while cloning but not serialisation, and __ for private use, which is not preserved while cloning and serialisation
+    // Note: for userData: add _ in front for private use, which is preserved while cloning and in JSON (toJSON, viewer config) but not in glTF, and __ for private use (runtime state), which is not preserved while cloning, in JSON or in glTF
     userData: ICameraUserData
     /**
      * @deprecated use {@link isMainCamera} instead

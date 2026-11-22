@@ -1,6 +1,7 @@
 import {Color} from 'three'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
+import {UiTags} from '../../ui/uiconfig'
 import {glsl, serialize} from 'ts-browser-helpers'
 import {IMaterialUserData, PhysicalMaterial} from '../../core'
 import {MaterialExtension, updateMaterialDefines} from '../../materials'
@@ -115,6 +116,7 @@ vec3 clearcoatTint(const in float dotNV, const in float dotNL, const in float cl
                     {
                         type: 'checkbox',
                         label: 'Enabled',
+                        tags: [UiTags.Basic],
                         get value() {
                             return state.enableTint || false
                         },

@@ -5,6 +5,7 @@ import {IObject3D} from '../IObject'
 import {generateUiConfig, uiColor, uiNumber, UiObjectConfig, uiToggle, uiVector, uiInput} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 import {objectActionsUiConfig} from '../object/IObjectUi'
+import {UiTags} from '../../ui/uiconfig'
 
 /**
  * Extension of three.js HemisphereLight with additional properties for serialization and UI
@@ -28,19 +29,19 @@ export class HemisphereLight2 extends HemisphereLight implements ILight<undefine
     }
     readonly isHemisphereLight2 = true
 
-    @uiToggle('Enabled')
+    @uiToggle('Enabled', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare visible: boolean
 
-    @uiInput('Name')
+    @uiInput('Name', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare name: string
 
-    @uiColor('Sky Color', (that: HemisphereLight2)=>({onChange: ()=>that.setDirty()}))
+    @uiColor('Sky Color', (that: HemisphereLight2)=>({onChange: ()=>that.setDirty(), tags: [UiTags.Basic]}))
     declare color: Color
-    @uiColor('Ground Color', (that: HemisphereLight2)=>({onChange: ()=>that.setDirty()}))
+    @uiColor('Ground Color', (that: HemisphereLight2)=>({onChange: ()=>that.setDirty(), tags: [UiTags.Basic]}))
     declare groundColor: Color
-    @uiNumber('Intensity')
+    @uiNumber('Intensity', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare intensity: number
     @uiVector('Position', undefined, undefined, (that: HemisphereLight2)=>({onChange: ()=>that.setDirty()}))

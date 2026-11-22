@@ -12,6 +12,7 @@ import {
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 const viewer = new ThreeViewer({
+    renderScale: 'auto',
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     plugins: [LoadingScreenPlugin],
 })

@@ -5,6 +5,7 @@ import {IObject3D} from '../IObject'
 import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 import {objectActionsUiConfig} from '../object/IObjectUi'
+import {UiTags} from '../../ui/uiconfig'
 
 /**
  * Extension of three.js AmbientLight with additional properties for serialization and UI
@@ -28,17 +29,17 @@ export class AmbientLight2 extends AmbientLight implements ILight<undefined> {
     }
     readonly isAmbientLight2 = true
 
-    @uiToggle('Enabled')
+    @uiToggle('Enabled', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare visible: boolean
 
-    @uiInput('Name')
+    @uiInput('Name', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare name: string
 
-    @uiColor('Color', (that: AmbientLight2)=>({onChange: ()=>that.setDirty()}))
+    @uiColor('Color', (that: AmbientLight2)=>({onChange: ()=>that.setDirty(), tags: [UiTags.Basic]}))
     declare color: Color
-    @uiNumber('Intensity')
+    @uiNumber('Intensity', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare intensity: number
 

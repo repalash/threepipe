@@ -68,6 +68,7 @@ export class CustomScreenPassExtensionPlugin extends AScreenPassExtensionPlugin 
 }
 
 const viewer = new ThreeViewer({
+    renderScale: 'auto',
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     tonemap: true, // also tonemap (this is also added as an extension)
     plugins: [CustomScreenPassExtensionPlugin],
@@ -82,7 +83,7 @@ async function init() {
         })])
 
     // Add the color to the UI
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.setupPluginUi(CustomScreenPassExtensionPlugin, {expanded: true})
 
 }

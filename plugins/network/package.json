@@ -42,8 +42,7 @@
         "src", "README.md", "CHANGELOG.md", "docs", "tsconfig.json"
     ],
     "scripts": {
-        "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
-        "prepare": "npm run build",
+        "new:pack": "npm run build 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
         "build": "rimraf dist && vite build",
         "watch": "NODE_ENV=development vite build --watch",
         "docs": "rimraf docs && npx typedoc --skipErrorChecking"

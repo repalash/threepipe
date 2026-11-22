@@ -1,15 +1,16 @@
 import {Camera, Euler, Object3D, OrthographicCamera, Quaternion, Vector3} from 'three'
-import {generateUiConfig, uiDropdown, uiInput, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiInput, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import type {ICamera, ICameraEventMap, ICameraUserData, TCameraControlsMode} from '../ICamera'
 import {ICameraSetDirtyOptions} from '../ICamera'
 import type {ICameraControls, TControlsCtor} from './ICameraControls'
 import {OrbitControls3} from '../../three/controls/OrbitControls3'
 import {IObject3D} from '../IObject'
-import {ThreeSerialization} from '../../utils'
+import {copyUserData, ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
 import {bindToValue} from '../../three/utils/decorators'
 import {makeICameraCommonUiConfig, objectExtensionsUiConfig} from '../object/IObjectUi'
+import {UiTags} from '../../ui/uiconfig'
 
 // todo: extract out common functions with perspective camera into iCameraCommons
 // todo: maybe change domElement to some wrapper/base class of viewer
@@ -19,16 +20,14 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
         return this._controls
     }
 
-    @uiInput('Name') declare name: string
+    @uiInput('Name', {tags: [UiTags.Basic]}) declare name: string
 
     @serialize('camControls')
     private _controls?: ICameraControls
     private _currentControlsMode: TCameraControlsMode = '';
     ['_canvas']?: HTMLCanvasElement
 
-    @uiDropdown('Controls Mode', undefined, (t: OrthographicCamera2)=>({
-        children: ['none', ...t.controlsCtors.keys()].map(k=>({label: k, value: k === 'none' ? '' : k})),
-    }))
+    // its dropdown is in makeICameraCommonUiConfig: it lists the modes again when a plugin adds one
     @serialize()
     @onChange2(OrthographicCamera2.prototype.refreshCameraControls)
         controlsMode: TCameraControlsMode
@@ -40,7 +39,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
         userData: ICameraUserData = {}
 
     @onChange3(OrthographicCamera2.prototype.setDirty)
-    @uiNumber('Zoom')
+    @uiNumber('Zoom', {tags: [UiTags.Basic]})
     @serialize() declare zoom: number
 
     @onChange3(OrthographicCamera2.prototype.setDirty)
@@ -352,6 +351,8 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     }
 
     fromJSON(data: any, meta?: any): this | null {
+        // __ userData keys (runtime state) are not loaded, the camera keeps its own (like __isMainCamera). Files saved before the toJSON filter have them.
+        if (data.userData) data = {...data, userData: copyUserData({}, data.userData)}
         ThreeSerialization.Deserialize(data, this, meta, true)
         this.setDirty({change: 'deserialize'})
         return this

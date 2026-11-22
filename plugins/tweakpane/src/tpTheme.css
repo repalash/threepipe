@@ -215,6 +215,31 @@
 }
 
 /*
+ * The dialogs of viewer.dialog (htmlDialogWrapper of ts-browser-helpers: alert, confirm, prompt, choose) in the colours of
+ * the theme. The theme class is on the body, and the dialogs are in the body, so they get these values. The second
+ * buttons and the field have the colour of a Tweakpane field. The fallbacks are the colours of Tweakpane without a theme.
+ * Dark is the default (the black theme); the light themes change the scheme, the link and the backdrop.
+ */
+:root body {
+    --dialog-bg: var(--tp-base-background-color, #28292e);
+    --dialog-fg: var(--tp-container-foreground-color, #bbbcc4);
+    --dialog-muted: var(--tp-label-foreground-color, rgba(187, 188, 196, 0.7));
+    --dialog-border: var(--tp-container-border-color, rgba(187, 188, 196, 0.1));
+    --dialog-secondary: var(--tp-input-background-color, rgba(187, 188, 196, 0.1));
+    --dialog-hover: var(--tp-input-background-color-hover, rgba(187, 188, 196, 0.15));
+    --dialog-primary: var(--tpf-accent, #0d99ff);
+    --dialog-ring: var(--tpf-accent, #0d99ff);
+    --dialog-link: #4db5ff;
+    --dialog-backdrop: rgba(0, 0, 0, 0.5);
+    --dialog-color-scheme: dark;
+}
+:root .tpTheme-white, :root .tpTheme-light, :root .tpTheme-clean {
+    --dialog-link: #007be5;
+    --dialog-backdrop: rgba(0, 0, 0, 0.25);
+    --dialog-color-scheme: light;
+}
+
+/*
  * Like the property panel of a design tool: 24px fields on a light grey fill, 11px Inter, grey labels, flat sections split by thin lines,
  * small square checkboxes, outlined buttons. Scoped to the two clean modes.
  */
@@ -538,3 +563,20 @@
     font-size: 13px !important;
 }
 
+
+/*
+ * CustomContextMenu of threepipe core (the preset menu of a panel, the image input menu): the colours and font of the
+ * theme, like the panel. The core menu adds its own dark style later in the page, so these rules are more specific.
+ */
+body[class*="tpTheme-"] #customContextMenu {
+    background: var(--tp-base-background-color); color: var(--tp-container-foreground-color);
+    border: 0; padding: 4px; border-radius: 8px; min-width: 140px; backdrop-filter: none;
+    box-shadow: 0 0 0 1px var(--tp-container-border-color), 0 6px 20px rgba(0, 0, 0, 0.14);
+}
+body[class*="tpTheme-"] .customContextMenuItems {
+    color: inherit; font: 400 12px/1 var(--tp-font-family); padding: 8px 10px; border-radius: 5px; transition: none;
+}
+body.tpTheme-clean .customContextMenuItems, body.tpTheme-clean-dark .customContextMenuItems { font-size: 11px; }
+body[class*="tpTheme-"] .customContextMenuItems:hover { color: inherit; background: var(--tp-button-background-color-hover); }
+/* the menu of a panel's ⋮ button: below the button, inside the panel (it opened 120px from the right, past the edge) */
+body[class*="tpTheme-"] .tp-fldv > #customContextMenu { left: auto !important; right: 4px; top: calc(var(--tp-blade-unit-size) + 6px) !important; }

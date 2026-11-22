@@ -1,7 +1,6 @@
 import {Camera, Euler, Object3D, PerspectiveCamera, Quaternion, Vector3} from 'three'
 import {
     generateUiConfig,
-    uiDropdown,
     uiInput,
     uiNumber,
     UiObjectConfig,
@@ -15,10 +14,11 @@ import {ICameraSetDirtyOptions} from '../ICamera'
 import type {ICameraControls, TControlsCtor} from './ICameraControls'
 import {OrbitControls3} from '../../three/controls/OrbitControls3'
 import {IObject3D} from '../IObject'
-import {ThreeSerialization} from '../../utils'
+import {copyUserData, ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
 import {bindToValue} from '../../three/utils/decorators'
 import {makeICameraCommonUiConfig, objectExtensionsUiConfig} from '../object/IObjectUi'
+import {UiTags} from '../../ui/uiconfig'
 
 // todo: maybe change domElement to some wrapper/base class of viewer
 /**
@@ -30,16 +30,14 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         return this._controls
     }
 
-    @uiInput('Name') declare name: string
+    @uiInput('Name', {tags: [UiTags.Basic]}) declare name: string
 
     @serialize('camControls')
     private _controls?: ICameraControls
     private _currentControlsMode: TCameraControlsMode = '';
     ['_canvas']?: HTMLCanvasElement
 
-    @uiDropdown('Controls Mode', undefined, (t: PerspectiveCamera2)=>({
-        children: ['none', ...t.controlsCtors.keys()].map(k=>({label: k, value: k === 'none' ? '' : k})),
-    }))
+    // its dropdown is in makeICameraCommonUiConfig: it lists the modes again when a plugin adds one
     @serialize()
     @onChange2(PerspectiveCamera2.prototype.refreshCameraControls)
         controlsMode: TCameraControlsMode
@@ -51,7 +49,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         userData: ICameraUserData = {}
 
     @onChange3(PerspectiveCamera2.prototype.setDirty)
-    @uiSlider('Field Of View', [1, 180], 0.001)
+    @uiSlider('Field Of View', [1, 180], 0.001, {tags: [UiTags.Basic]})
     @serialize() declare fov: number
 
     @onChange3(PerspectiveCamera2.prototype.setDirty)
@@ -92,9 +90,24 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         autoAspect: boolean
 
     @serialize()
-    @onChange2('refreshAspect')
+    @onChange3('_aspectChanged')
     @uiNumber<PerspectiveCamera2>('Aspect Ratio', (t)=>({hidden: ()=>t.autoAspect}))
     declare aspect: number
+
+    /**
+     * With {@link autoAspect}, an aspect set to the canvas ratio give or take float rounding is not a change. three's
+     * `setViewOffset` sets `fullWidth / fullHeight`, which can differ from `clientWidth / clientHeight` in the last bit (the
+     * jitter of `SSAAPlugin` at a fractional render scale). Refreshing it would mark the camera dirty on every
+     * jittered frame, and progressive rendering would restart instead of converging.
+     */
+    protected _aspectChanged({value}: {value: number}) {
+        const canvas = this._canvas
+        if (this.autoAspect && canvas && canvas.clientHeight > 0) {
+            const aspect = canvas.clientWidth / canvas.clientHeight
+            if (Math.abs(value - aspect) <= aspect * 1e-9) return
+        }
+        this.refreshAspect?.() // not set yet while three's constructor sets the aspect
+    }
 
     /**
      * Near clipping plane.
@@ -358,6 +371,8 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         // if (data.cameraObject) this._camera.fromJSON(data.cameraObject)
         // todo: add check for OrbitControls being not deserialized(inited properly) if it doesn't exist yet (if it is not inited properly)
         // console.log(JSON.parse(JSON.stringify(data)))
+        // __ userData keys (runtime state) are not loaded, the camera keeps its own (like __isMainCamera). Files saved before the toJSON filter have them.
+        if (data.userData) data = {...data, userData: copyUserData({}, data.userData)}
         ThreeSerialization.Deserialize(data, this, meta, true)
         this.refreshAspect(false)
         this.setDirty({change: 'deserialize'})

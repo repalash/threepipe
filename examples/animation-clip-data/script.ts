@@ -5,6 +5,7 @@ import {TimelineUiPlugin} from '@threepipe/plugin-timeline-ui'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [LoadingScreenPlugin, GLTFAnimationPlugin, new TimelineUiPlugin(false)],
@@ -13,7 +14,7 @@ async function init() {
     viewer.scene.mainCamera.fov = 70
     viewer.timeline.endTime = 2
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.appendChild(viewer.timeline.uiConfig, {expanded: true})
     ui.setupPluginUi(TimelineUiPlugin, {expanded: true})
 

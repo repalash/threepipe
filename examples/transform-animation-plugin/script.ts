@@ -12,6 +12,7 @@ import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         plugins: [PopmotionPlugin, LoadingScreenPlugin],
     })
@@ -57,7 +58,7 @@ async function init() {
         ['Up']: async() => transformAnimPlugin.animateTransform(model, 'up', 1000),
     })
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.appendChild(model.uiConfig)
 
     ui.setupPluginUi(TransformAnimationPlugin, {expanded: true})

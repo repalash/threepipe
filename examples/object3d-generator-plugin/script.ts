@@ -13,6 +13,7 @@ import {HierarchyUiPlugin} from '@threepipe/plugin-tweakpane-editor'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [PickingPlugin, Object3DWidgetsPlugin, HierarchyUiPlugin, LoadingScreenPlugin, UndoManagerPlugin],
@@ -34,7 +35,7 @@ async function init() {
 
     viewer.getPlugin(PickingPlugin)?.setSelectedObject(object)
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(Object3DGeneratorPlugin)!.expanded = true
     ui.setupPluginUi(HierarchyUiPlugin)
     ui.setupPluginUi(PickingPlugin)

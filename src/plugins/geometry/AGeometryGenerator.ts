@@ -1,6 +1,7 @@
 import {BufferAttribute, BufferGeometry, Float32BufferAttribute} from 'three'
 import {Class, getOrCall} from 'ts-browser-helpers'
 import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
+import {UiTags} from '../../ui/uiconfig'
 import {IGeometry} from '../../core/IGeometry'
 import {IMaterial} from '../../core/IMaterial'
 import {IObject3D} from '../../core/IObject'
@@ -37,13 +38,13 @@ function updateIndices(geometry: BufferGeometry, indices: number[] | BufferAttri
 export function updateUi(geometry: BufferGeometry, childrenUi: () => UiObjectConfig[]) {
     const uiConfig = (geometry as any).uiConfig as UiObjectConfig
     if (!uiConfig) return
-    let oldUi = uiConfig.children?.find((c) => typeof c === 'object' && c.tags?.includes('generatedGeometry')) as UiObjectConfig | undefined
+    let oldUi = uiConfig.children?.find((c) => typeof c === 'object' && c.tags?.includes(UiTags.GeneratedGeometry)) as UiObjectConfig | undefined
     if (!oldUi) {
         oldUi = {
             type: 'folder',
             label: 'Generation Params',
             expanded: true,
-            tags: ['generatedGeometry'],
+            tags: [UiTags.GeneratedGeometry],
             children: [],
         }
         const dividerIndex = uiConfig.children?.findIndex((c) => typeof c === 'object' && (c.type === 'divider' || c.type === 'separator')) ?? -1
@@ -61,7 +62,7 @@ export function updateUi(geometry: BufferGeometry, childrenUi: () => UiObjectCon
 export function removeUi(geometry: BufferGeometry) {
     const uiConfig = (geometry as any).uiConfig as UiObjectConfig
     if (!uiConfig) return
-    const index = uiConfig.children?.findIndex((c) => typeof c === 'object' && c.tags?.includes('generatedGeometry')) ?? -1
+    const index = uiConfig.children?.findIndex((c) => typeof c === 'object' && c.tags?.includes(UiTags.GeneratedGeometry)) ?? -1
     if (index >= 0) {
         uiConfig.children?.splice(index, 1)
         uiConfig.uiRefresh?.(true, 'postFrame')

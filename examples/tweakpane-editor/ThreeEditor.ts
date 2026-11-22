@@ -24,6 +24,7 @@ import {
     GLTFAnimationPlugin,
     GLTFKHRMaterialVariantsPlugin,
     GLTFMeshOptDecodePlugin,
+    getUrlQueryParam,
     HalfFloatType,
     HDRiGroundPlugin,
     InteractionPromptPlugin,
@@ -38,6 +39,7 @@ import {
     Object3DWidgetsPlugin,
     ObjectConstraintsPlugin,
     ParallaxMappingPlugin,
+    PerfPanelPlugin,
     PickingPlugin,
     PLYLoadPlugin,
     PointerLockControlsPlugin,
@@ -63,7 +65,7 @@ import {
     VirtualCamerasPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {EditorCameraPlugin, InspectorPlugin, LayersPanelPlugin, NotesPlugin, SelectionOutlinePlugin, StickyNotesUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 import {FontLibrary, GeometryGeneratorExtrasPlugin} from '@threepipe/plugin-geometry-generator'
@@ -96,6 +98,7 @@ import {
     VelocityBufferPlugin,
 } from '@threepipe/webgi-plugins'
 import {TroikaTextPlugin} from '@threepipe/plugin-troika-text'
+import {AnnotationsPlugin} from '@threepipe/plugin-annotations'
 
 export class ThreeEditor extends ThreeViewer {
 
@@ -116,13 +119,15 @@ export class ThreeEditor extends ThreeViewer {
         new DepthBufferPlugin(HalfFloatType, false, false),
         new NormalBufferPlugin(HalfFloatType, false),
         CameraViewPlugin,
+        EditorCameraPlugin,
         FullScreenPlugin,
         PickingPlugin,
         ObjectConstraintsPlugin,
         new TransformControlsPlugin(false),
         new PivotControlsPlugin(false),
         new PivotEditPlugin(false),
-        OutlinePlugin,
+        new OutlinePlugin(false), // off: the SelectionOutlinePlugin draws the selection; turn it on in the Interaction mode to compare
+        SelectionOutlinePlugin,
         EditorViewWidgetPlugin,
         ViewerUiConfigPlugin,
         ClearcoatTintPlugin,
@@ -135,6 +140,7 @@ export class ThreeEditor extends ThreeViewer {
         VirtualCamerasPlugin,
         // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
         new RenderTargetPreviewPlugin(true),
+        PerfPanelPlugin,
         new FrameFadePlugin(),
         new HDRiGroundPlugin(false, true),
         new VignettePlugin(false),
@@ -147,7 +153,8 @@ export class ThreeEditor extends ThreeViewer {
         new SSGIPlugin(UnsignedByteType, 1, false),
         KTX2LoadPlugin, KTXLoadPlugin, PLYLoadPlugin, Rhino3dmLoadPlugin, STLLoadPlugin, USDZLoadPlugin,
         BlendLoadPlugin,
-        HierarchyUiPlugin,
+        // the layers, placed in the left sidebar of the page frame in init(), and the inspector of the selection
+        LayersPanelPlugin, InspectorPlugin,
         new Object3DWidgetsPlugin(false),
         Object3DGeneratorPlugin,
         GeometryGeneratorPlugin,
@@ -174,18 +181,21 @@ export class ThreeEditor extends ThreeViewer {
         TroikaTextPlugin,
         new CascadedShadowsPlugin(false),
         DynamicImportPlugin,
+        NotesPlugin, StickyNotesUiPlugin,
+        // editable: Add annotation in its folder (Interaction), then click a surface; edits are undoable
+        new AnnotationsPlugin({editable: true}),
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
-        ['Viewer']: [ViewerUiConfigPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
-        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PivotControlsPlugin, PivotEditPlugin, PickingPlugin, OutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
+        ['Viewer']: [ViewerUiConfigPlugin, EditorCameraPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, TweakpaneEditorPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
+        ['Interaction']: [LayersPanelPlugin, InspectorPlugin, TransformControlsPlugin, PivotControlsPlugin, PivotEditPlugin, PickingPlugin, OutlinePlugin, SelectionOutlinePlugin, AnnotationsPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['Buffers']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin, CascadedShadowsPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAAPlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin, LoadingScreenPlugin],
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [TimelineUiPlugin, AnimationObjectPlugin, GLTFAnimationPlugin, CameraViewPlugin],
-        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin],
-        ['Debug']: [RenderTargetPreviewPlugin, DynamicImportPlugin],
+        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin, StickyNotesUiPlugin, NotesPlugin],
+        ['Debug']: [RenderTargetPreviewPlugin, PerfPanelPlugin, DynamicImportPlugin],
     }
 
     async init() {
@@ -206,6 +216,10 @@ export class ThreeEditor extends ThreeViewer {
         const fade = this.getPlugin(FrameFadePlugin)
         fade && (fade.isEditor = true)
 
+        // the buttons of the notes go above the perf pill at the bottom left of the canvas
+        const sticky = this.getPlugin(StickyNotesUiPlugin)
+        sticky && (sticky.dock.style.bottom = '56px')
+
         const taa = this.getPlugin(TemporalAAPlugin)
         taa && (taa.stableNoise = true)
 
@@ -222,12 +236,92 @@ export class ThreeEditor extends ThreeViewer {
             normal && rt.addTarget(this.getPlugin(NormalBufferPlugin)?.target, 'normal', false, true, false)
         }
 
-        this.addPluginSync(new TweakpaneUiPlugin(true))
+        this.addPluginSync(new TweakpaneUiPlugin())
         const editor = this.addPluginSync(new TweakpaneEditorPlugin())
 
         editor.loadPlugins(this.editorModes)
 
+        // the layers and the inspector of the selection are panels of the page frame, each with an entry in the mode bar;
+        // the person moves a panel with the menu of its entry. A panel is out of the frame while its plugin is off.
+        // The layers: in the left sidebar (?layers=bottom: in the bottom strip). The inspector: ?inspector=swap (the
+        // default), in the right sidebar, and while something is selected it takes the whole panel (the settings of the
+        // mode hide; a click on a mode shows them); ?inspector=right, in the right sidebar above the mode settings;
+        // ?inspector=left, under the layers.
+        const layers = this.getPlugin(LayersPanelPlugin)
+        const inspector = this.getPlugin(InspectorPlugin)
+        const inspectorParam = getUrlQueryParam('inspector')
+        const inspectorPlace = inspectorParam === 'right' || inspectorParam === 'left' ? inspectorParam : 'swap'
+        // swap: only while the inspector is in the right sidebar (the person can move it elsewhere)
+        const swap = () => {
+            const frame = editor.frame
+            if (inspectorPlace !== 'swap' || !frame || frame.panelArea('inspector') !== 'right') return
+            const selected = !!inspector?.hasSelection
+            frame.setPanelHidden('inspector', !selected)
+            frame.setModeSettingsHidden(selected)
+        }
+        if (layers) {
+            const area = getUrlQueryParam('layers') === 'bottom' ? 'bottom' : 'left'
+            const placeLayers = () => layers.isDisabled() ? editor.removePanel('layers') :
+                editor.addPanel('layers', layers.element, {...LayersPanelPlugin.AreaEntry, area})
+            placeLayers()
+            layers.addEventListener('enabledChange', placeLayers)
+        }
+        if (inspector) {
+            const area = inspectorPlace === 'left' ? 'left' : 'right'
+            const placeInspector = () => {
+                if (inspector.isDisabled()) editor.removePanel('inspector')
+                else editor.addPanel('inspector', inspector.element, {...InspectorPlugin.AreaEntry, area})
+                swap()
+            }
+            placeInspector()
+            inspector.addEventListener('enabledChange', placeInspector)
+            inspector.addEventListener('selectionChange', swap)
+        }
+        // a new frame (a change of the layout, like classic and back) starts with the mode settings shown
+        editor.addEventListener('frameChange', swap)
+
+        // the name in the page frame: the first loaded model or viewer config file (not a texture or an environment
+        // map) names the document, and a click on the name renames it; the files dropped after it do not change it. The
+        // exported file takes the name, also after a viewer config sets the exporter (its own exportOptions, or Reset
+        // All Settings); a name typed in the exporter's field stays until then. A project system could set
+        // editor.documentName instead.
+        const exporter = this.getPlugin(AssetExporterPlugin)
+        // the extension of the file that named the document: the exporter adds its own, and a dot in a typed name stays
+        let fileExt = ''
+        const exportName = () => {
+            const name = editor.documentName
+            const ext = fileExt && name.toLowerCase().endsWith(fileExt) ? fileExt : ''
+            if (!exporter) return
+            exporter.exportOptions.name = name.slice(0, name.length - ext.length)
+            exporter.uiConfig?.uiRefresh?.(true) // its name field
+        }
+        editor.addEventListener('documentNameChange', exportName)
+        exporter?.addEventListener('deserialize', exportName)
+        editor.documentName = 'Untitled'
+        this.assetManager.addEventListener('loadAsset', ({data}) => {
+            const name = editor.documentName === 'Untitled' ? loadedFileName(data) : '' // not named by a file before, or by the person
+            if (name) {
+                fileExt = name.match(/\.[^.]+$/)?.[0].toLowerCase() ?? ''
+                editor.documentName = name
+            }
+        })
+
         await FontLibrary.Init // required for text geometry generation. todo add to other editors?
 
+    }
+}
+
+/** The file name of a loaded model or viewer config: a dropped or picked file has it on its blob, a URL load in its path */
+function loadedFileName(data: any): string {
+    if (data?.assetType !== 'model' && data?.assetType !== 'config') return ''
+    const blob = data.__rootBlob
+    if (blob) return blob.filePath?.split('/').pop() || blob.name || ''
+    const path: string | undefined = data.userData?.rootPath || data.__rootPath
+    if (!path || path.startsWith('blob:') || path.startsWith('data:')) return ''
+    const base = path.split(/[?#]/)[0].split('/').pop() || ''
+    try {
+        return decodeURIComponent(base)
+    } catch (e) {
+        return base
     }
 }
