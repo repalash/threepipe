@@ -28,8 +28,8 @@ function redactUrl(u: string): string {
 export function redactTokens(s: string): string {
     return s
         .replace(/\beyJ[\w-]{6,}\.[\w-]{6,}\.[\w-]{6,}/g, '<token>')
-        // credentials in a path: an access link (/api/v1/access/<code>/…) and a signed drive URL (/t/<exp>.<signature>/…)
-        .replace(/(\/api\/v1\/access\/)[\w-]{16,}/g, '$1<token>')
+        // credentials in a URL: an access link (/api/v1/access/agents.md#<code>, before: /api/v1/access/<code>/…) and a signed drive URL (/t/<exp>.<signature>/…)
+        .replace(/(\/api\/v1\/access\/(?:agents\.md#)?)[\w-]{16,}/g, '$1<token>')
         .replace(/(\/t\/)\d+\.[\w-]{16,}/g, '$1<token>')
         .replace(/\b(bearer|basic)\s+[\w.~+/-]{8,}=*/gi, (_m, scheme) => `${scheme} <token>`)
         .replace(/([\w-]*(?:token|secret|password|passwd|session|cookie|api[_-]?key|auth|credential)s?)(["']?\s*[:=]\s*["']?)[^\s"',;&]{8,}/gi, '$1$2<token>')

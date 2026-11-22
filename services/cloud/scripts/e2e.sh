@@ -31,9 +31,14 @@ TOK=$(echo "$SIGN" | j "['token']" 2>/dev/null) && ok "sign-up" || { bad "sign-u
 LINK=$(curl -s -X POST $A/api/v1/access-links -H "Authorization: Bearer $TOK" -H 'content-type: application/json' -d '{"name":"laptop"}')
 URL=$(echo "$LINK" | j "['url']") && ok "access link: $URL" || bad "access link: $LINK"
 LID=$(echo "$LINK" | j "['id']")
-MD=$(curl -s "$URL"); echo "$MD" | head -1 | grep -q "threepipe cloud" && echo "$MD" | grep -q "valid for 30 days" && echo "$MD" | grep -q "(max 90 MB)" && ok "agents.md (limits from src/limits.ts)" || bad "agents.md: $MD"
-KEYURL=$(echo "$MD" | grep -o "http[^ ]*/key" | head -1)
-KEY=$(curl -s "$KEYURL"); [ ${#KEY} -gt 50 ] && ok "key (${#KEY} chars)" || bad "key: $KEY"
+CODE=${URL#*/api/v1/access/agents.md#}; [ "$CODE" != "$URL" ] && [ ${#CODE} -ge 16 ] && ok "the code is the link's fragment" || bad "link: $URL"
+MD=$(curl -s "$URL"); echo "$MD" | head -1 | grep -q "threepipe cloud" && echo "$MD" | grep -q "valid for 30 days" && echo "$MD" | grep -q "(max 90 MB)" && echo "$MD" | grep -q "$A/api/v1/access/key" && ok "agents.md (limits from src/limits.ts)" || bad "agents.md: $MD"
+KEY=$(printf %s "$CODE" | curl -s --data-binary @- "$A/api/v1/access/key"); [ ${#KEY} -gt 50 ] && ok "key (${#KEY} chars)" || bad "key: $KEY"
+[ "$(printf %s "x$CODE" | code --data-binary @- "$A/api/v1/access/key")" = "404" ] && ok "wrong code -> 404" || bad "wrong code"
+# a link made before: the code in the path
+OLDURL=$(curl -s -X POST $A/api/v1/access-links -H "Authorization: Bearer $TOK" -H 'content-type: application/json' -d '{"name":"old"}' | j "['url']"); OLDCODE=${OLDURL#*#}
+OLDMD=$(curl -s "$A/api/v1/access/$OLDCODE/agents.md"); OLDKEY=$(curl -s "$A/api/v1/access/$OLDCODE/key")
+echo "$OLDMD" | grep -q "$A/api/v1/access/$OLDCODE/key" && [ ${#OLDKEY} -gt 50 ] && ok "old links: agents.md and key with the code in the path" || bad "old link: $OLDMD"
 H="Authorization: Bearer $KEY"
 echo "hello share" > $TMP/a.txt
 R=$(curl -s -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-share/a.txt"); SURL=$(echo "$R" | j "['url']") && ok "upload s/ -> $SURL" || bad "upload s/: $R"
@@ -95,7 +100,7 @@ R=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "Authorization: Bearer $T2"
 # revoke the link: the key stops working
 R=$(curl -s -X POST -H "Authorization: Bearer $TOK" -H 'content-type: application/json' -d "{\"where\":\"id == '$LID'\",\"returning\":[\"id\"]}" "$A/api/v1/table/access_links/delete"); echo "$R" | grep -q "$LID" && ok "revoke link (teenybase delete)" || bad "revoke: $R"
 R=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-share2/a.txt"); [ "$R" = "401" ] && ok "revoked key -> 401" || bad "revoked key: $R"
-[ "$(curl -s -o /dev/null -w '%{http_code}' "$KEYURL")" = "404" ] && ok "revoked link -> 404" || bad "revoked link"
+[ "$(printf %s "$CODE" | code --data-binary @- "$A/api/v1/access/key")" = "404" ] && ok "revoked link -> 404" || bad "revoked link"
 
 # staff removes a permanent asset
 STAFF=st$RANDOM
@@ -338,9 +343,10 @@ LINK="{\"values\":{\"from_asset\":\"e2e-$U/big\",\"relation\":\"uses\",\"to_asse
 [ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -d "$LINK" "$A/api/v1/table/threepipe_asset_links/insert")" != "200" ] && ok "a member cannot add a link" || bad "assets: member link"
 MQ=$(python3 -c "import urllib.parse,sys;print(urllib.parse.urlencode({'where':sys.argv[1]}))" "to_asset == 'e2e-$U/external'")
 R=$(curl -s "$A/api/v1/table/threepipe_asset_links/select?$MQ"); echo "$R" | python3 -c "import json,sys;d=json.load(sys.stdin);r=d if isinstance(d,list) else d.get('items',d);sys.exit(0 if len(r)==1 and r[0]['from_asset'].endswith('/big') else 1)" && ok "anyone can read what uses an asset" || bad "assets: reverse link: $R"
-# the worker's log lines (not wrangler's own request lines, which production does not have) never hold an access code
-CODE=$(echo "$URL" | sed -E 's#.*/access/([^/]+)/.*#\1#')
-grep -q "GET /api/v1/access/…/key" "$TMP/dev.log" && ! grep -F "$CODE" "$TMP/dev.log" | grep -qv '\[wrangler:' && ok "logs show access codes as …" || bad "access code in the logs: $(grep -F "$CODE" "$TMP/dev.log" | grep -v '\[wrangler:' | head -2)"
+# no log line, wrangler's own request lines included, holds a code sent the new way
+! grep -qF "$CODE" "$TMP/dev.log" && ok "logs never hold the code of a new link" || bad "access code in the logs: $(grep -F "$CODE" "$TMP/dev.log" | head -2)"
+# a link made before: the worker's log lines (not wrangler's own, which production does not have) show its code as …
+grep -q "GET /api/v1/access/…/key" "$TMP/dev.log" && ! grep -F "$OLDCODE" "$TMP/dev.log" | grep -qv '\[wrangler:' && ok "logs show old links' codes as …" || bad "old access code in the logs: $(grep -F "$OLDCODE" "$TMP/dev.log" | grep -v '\[wrangler:' | head -2)"
 echo "failures: $FAILS"
 # what the worker logged, to see why a check failed
 [ $FAILS -eq 0 ] || grep -E '\[cloud\]|ERROR|Error' "$TMP/dev.log" | tail -20

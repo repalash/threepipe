@@ -85,9 +85,10 @@ npm run deploy                   # the first one creates the D1 database: commit
 |---|---|---|
 | `/api/v1/table/users/auth/...` | anyone | sign-up / login (password, local), GitHub and Google sign-in (`/api/v1/table/users/auth/oauth/<github\|google>`) |
 | `GET /api/v1/sign-in-options`, `POST /api/v1/handle` `{handle}` | anyone / a new Google account | the sign-in buttons; pick the handle once |
-| `POST /api/v1/access-links` `{name?}` | signed in | → `{id, name, url}`; the url is `/api/v1/access/<code>/agents.md` |
-| `GET /api/v1/access/<code>/agents.md` | the link | instructions and the API for agents |
-| `GET /api/v1/access/<code>/key` | the link | the user's JWT with `meta.link` (30 days); deleting the link revokes it |
+| `POST /api/v1/access-links` `{name?}` | signed in | → `{id, name, url}`; the url is `/api/v1/access/agents.md#<code>`: the code is never sent in a URL, so no log has it |
+| `GET /api/v1/access/agents.md` | anyone | instructions and the API for agents |
+| `POST /api/v1/access/key` with the code as the body | the link | the user's JWT with `meta.link` (30 days); deleting the link revokes it |
+| `GET /api/v1/access/<code>/agents.md`, `GET /api/v1/access/<code>/key` | the link | the same, for links made before |
 | `GET /api/v1/access-links`, `DELETE /api/v1/access-links/<id>` | signed in (not with a key) | your agents' links and connected apps; revoke one (its keys stop at once). teenybase's `/api/v1/table/access_links/…` works too |
 | `PUT /api/v1/uploads/<prefix>/<path>` | signed in / key | upload one file (body), max 90 MB → `{url, path, size, sha256, expires_at}` |
 | `POST /api/v1/uploads/<s\|b\|p>/<name>/` | signed in / key | many files in one multipart request (each part named by its path), max 40 MB and 500 files → `{files: [...]}` |

@@ -37,14 +37,14 @@ describe('redaction', () => {
     test('a report: the text keeps links and emails and loses tokens; everything else gets the full pass', () => {
         const r = redactReport({
             type: 'bug', surface: 'modelling-editor', route: '/editor/?doc=secret#x', email: 'me@x.example',
-            text: 'See https://example.com/p?x=1 and other@corp.example, key ghp_1234567890abcdefghijkl',
+            text: 'See https://example.com/p?x=1 and other@corp.example, key ghp_1234567890abcdefghijkl, link https://cloud.threepipe.org/api/v1/access/agents.md#Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4z',
             cause: {kind: 'error', message: 'fetch https://a.example/x?sig=1 for other@corp.example failed', frame: 'at load (/Users/jane/app.js:1:2)'},
             environment: {'other@corp.example': 'https://a.example/?q=1'},
             context: {editor: {file: 'C:\\Users\\Jane\\a.glb', owner: 'me@x.example'}},
             log: Array.from({length: 600}, (_, i) => `${i} ` + 'x'.repeat(1200)),
         })
         expect(r.route).toBe('/editor/')
-        expect(r.text).toBe('See https://example.com/p?x=1 and other@corp.example, key <token>')
+        expect(r.text).toBe('See https://example.com/p?x=1 and other@corp.example, key <token>, link https://cloud.threepipe.org/api/v1/access/agents.md#<token>')
         expect(r.cause).toEqual({kind: 'error', message: 'fetch https://a.example/x for <email> failed', frame: 'at load (/Users/<user>/app.js:1:2)'})
         expect(r.environment).toEqual({'<email>': 'https://a.example/'})
         expect(r.context).toEqual({editor: {file: 'C:\\Users\\<user>\\a.glb', owner: 'me@x.example'}})

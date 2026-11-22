@@ -1,4 +1,4 @@
-import type {Hono} from 'hono'
+import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
 import {apiOrigin, filesOrigin, jsonBody, randomCode, sha256Hex} from './env'
@@ -6,14 +6,16 @@ import {mintKey, requireUser, touchLink} from './auth'
 import {ACCESS_KEY_SECONDS, DAY, LABEL_MAX, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, sizeText, UPLOAD_BATCH_BYTES, UPLOAD_BATCH_FILES, UPLOAD_MAX_BYTES} from './limits'
 
 /**
- * Access links: a signed-in user creates one per agent/machine and copies its URL. The agent reads agents.md from it,
- * which says where to get the key. The key is the user's JWT with `meta.link`; deleting the link revokes it (src/auth.ts).
+ * Access links: a signed-in user creates one per agent/machine and copies its URL. The code is the URL's fragment, so
+ * no request URL carries it and no log has it. The agent reads agents.md from the URL, which says how to get the key.
+ * The key is the user's JWT with `meta.link`; deleting the link revokes it (src/auth.ts).
  *
  *   POST   /api/v1/access-links {name?}   → {id, name, url}         (signed in, not with a key)
  *   GET    /api/v1/access-links           → {links}: agents' links and the apps you connected (src/connect.ts)
  *   DELETE /api/v1/access-links/<id>      revokes it: its keys stop working at once
- *   GET  /api/v1/access/<code>/agents.md                              (the code is the credential)
- *   GET  /api/v1/access/<code>/key      → the key, text/plain
+ *   GET  /api/v1/access/agents.md#<code>                              (the code is the credential)
+ *   POST /api/v1/access/key  <code>     → the key, text/plain
+ *   GET  /api/v1/access/<code>/agents.md, GET /api/v1/access/<code>/key: the same, for links made before
  *
  * The /account page lists and revokes them. (teenybase's /api/v1/table/access_links/… works too, owner only.)
  */
@@ -27,7 +29,7 @@ export function accessRoutes(app: Hono<CloudEnv>) {
         const id = crypto.randomUUID()
         await c.env.PRIMARY_DB.prepare('INSERT INTO access_links (id, owner_id, name, code_hash) VALUES (?, ?, ?, ?)')
             .bind(id, user.id, name, await sha256Hex(code)).run()
-        return c.json({id, name, url: `${apiOrigin(c)}/api/v1/access/${code}/agents.md`})
+        return c.json({id, name, url: `${apiOrigin(c)}/api/v1/access/agents.md#${code}`})
     })
 
     app.get('/api/v1/access-links', async(c) => {
@@ -49,21 +51,27 @@ export function accessRoutes(app: Hono<CloudEnv>) {
         return c.json({deleted: c.req.param('id')})
     })
 
+    app.get('/api/v1/access/agents.md', c => {
+        const origin = apiOrigin(c)
+        return c.text(agentsMd(origin, filesOrigin(c.env, origin), keyStep(origin)), 200, MARKDOWN)
+    })
+    app.post('/api/v1/access/key', async(c) => keyResponse(c, (await c.req.text()).trim()))
+
     app.get('/api/v1/access/:code/agents.md', async(c) => {
         const link = await findLink(c.env, c.req.param('code'))
         const origin = apiOrigin(c)
-        return c.text(agentsMd(origin, filesOrigin(c.env, origin), c.req.param('code'), link.username), 200, {
-            'content-type': 'text/markdown; charset=utf-8',
-            'cache-control': 'no-store',
-        })
+        return c.text(agentsMd(origin, filesOrigin(c.env, origin), oldKeyStep(origin, c.req.param('code'), link.username)), 200, MARKDOWN)
     })
+    app.get('/api/v1/access/:code/key', c => keyResponse(c, c.req.param('code')))
+}
 
-    app.get('/api/v1/access/:code/key', async(c) => {
-        const link = await findLink(c.env, c.req.param('code'))
-        const key = await mintKey(c, {id: link.owner_id, email: link.email}, link.id, ACCESS_KEY_SECONDS)
-        touchLink(c, link.id)
-        return c.text(key, 200, {'cache-control': 'no-store'})
-    })
+const MARKDOWN = {'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'no-store'}
+
+async function keyResponse(c: Context<CloudEnv>, code: string) {
+    const link = await findLink(c.env, code)
+    const key = await mintKey(c, {id: link.owner_id, email: link.email}, link.id, ACCESS_KEY_SECONDS)
+    touchLink(c, link.id)
+    return c.text(key, 200, {'cache-control': 'no-store'})
 }
 
 async function findLink(env: CloudflareBindings, code: string) {
@@ -73,10 +81,20 @@ async function findLink(env: CloudflareBindings, code: string) {
     return link
 }
 
-function agentsMd(api: string, files: string, code: string, username: string): string {
+const SAVE_KEY = 'save it as `TP_CLOUD_KEY=<key>` in `~/.config/threepipe-cloud/.env`, readable only by you (`chmod 600`)'
+
+function keyStep(api: string): string {
+    return `Your access link ends in \`#<code>\`. Get your key with \`printf %s '<code>' | curl -sS --data-binary @- ${api}/api/v1/access/key\` and ${SAVE_KEY}. The link, its code and the key are credentials: never print them, commit them or put them in shared folders like \`/tmp\`. Send the key with every request as \`Authorization: Bearer $TP_CLOUD_KEY\`. It acts as the user who made the link and is valid for ${ACCESS_KEY_SECONDS / DAY} days; get a new one the same way when it expires.`
+}
+
+function oldKeyStep(api: string, code: string, username: string): string {
+    return `Download your key from ${api}/api/v1/access/${code}/key and ${SAVE_KEY}. This URL and the key are credentials: never print them, commit them or put them in shared folders like \`/tmp\`. Send it with every request as \`Authorization: Bearer $TP_CLOUD_KEY\`. The key acts as the user \`${username}\` and is valid for ${ACCESS_KEY_SECONDS / DAY} days; fetch it again from the same URL when it expires.`
+}
+
+function agentsMd(api: string, files: string, keyStep: string): string {
     return `# threepipe cloud
 
-Download your key from ${api}/api/v1/access/${code}/key and save it as \`TP_CLOUD_KEY=<key>\` in \`~/.config/threepipe-cloud/.env\`, readable only by you (\`chmod 600\`). This URL and the key are credentials: never print them, commit them or put them in shared folders like \`/tmp\`. Send it with every request as \`Authorization: Bearer $TP_CLOUD_KEY\`. The key acts as the user \`${username}\` and is valid for ${ACCESS_KEY_SECONDS / DAY} days; fetch it again from the same URL when it expires.
+${keyStep}
 
 ## Upload
 
