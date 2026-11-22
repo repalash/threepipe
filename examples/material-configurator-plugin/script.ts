@@ -59,7 +59,7 @@ async function init() {
     wh.secondOffset = 38
     wh.analog = false
 
-    // the swatches of the variations go in the card (by default they are a column over the top left of the canvas)
+    // the swatches go in the card, not over the canvas
     const swatches = document.createElement('div')
     createExampleCard(viewer, {
         description: 'MaterialConfiguratorPlugin: variations of the materials of the watch (dial, strap, metal), set up in the editor and saved in the file. Click a swatch to apply it; the change animates. Right-click a swatch or a section to edit them.',

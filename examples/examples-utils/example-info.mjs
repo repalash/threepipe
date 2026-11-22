@@ -91,7 +91,6 @@ async function copy(text) {
 function mount(info) {
     const host = document.createElement('div')
     host.id = 'tp-example-info'
-    // for the source button of the example card (example-card.ts)
     host.dataset.source = info.sourceUrl
     const root = host.attachShadow({mode: 'open'})
     root.innerHTML = `<style>${STYLE}</style><div class="panel" id="panel" hidden></div>

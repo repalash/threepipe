@@ -87,7 +87,6 @@ async function init() {
     createExampleCard(viewer, {
         description: 'Animates the properties of a material (colour, maps, metalness, roughness, normal scale) to another set of values with the PopmotionPlugin. Animate switches between the two.',
         actions: [
-            // disabled while the animation runs
             {type: 'button', label: 'Animate', icon: 'play', value: async() => animate()},
         ],
     })

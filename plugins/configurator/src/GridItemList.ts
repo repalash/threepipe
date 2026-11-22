@@ -85,8 +85,7 @@ export class GridItemList {
     /**
      * Puts the grids in `parent`.
      * @param parent - default: a new element on the page
-     * @param inFlow - the grids follow each other in the layout of `parent` (an element of the page, like a panel),
-     * instead of a column over the top left of the canvas
+     * @param inFlow - lay the grids out in `parent`'s flow (a panel) instead of a column over the canvas
      */
     public static RebuildUi(parent?: HTMLElement, inFlow = false): void {
         if (GridItemList.Elements.length === 0) return

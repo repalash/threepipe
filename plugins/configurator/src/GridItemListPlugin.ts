@@ -11,10 +11,7 @@ export class GridItemListPlugin extends AViewerPluginSync {
     removeAll = GridItemList.RemoveAll
     private _container?: HTMLElement
 
-    /**
-     * An element of the page to put the grids in, in its layout (a panel, the card of an example). Default: a column over
-     * the top left of the viewer's canvas.
-     */
+    /** An element to put the grids in, in its layout (a panel). Default: a column over the top left of the canvas. */
     get container(): HTMLElement | undefined {
         return this._container
     }

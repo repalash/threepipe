@@ -63,9 +63,8 @@ async function init() {
     card.appendChild(form.element)
     viewer.container.appendChild(card)
 
-    // The same kind of configs as a toolbar: layout 'bar' (a row) or 'stack' (a column). An `icon` is SVG markup, an
-    // image URL or a Lucide icon name. A checkbox is a toggle button, a dropdown a select, and a slider, a number or a
-    // colour opens its field in a popover. An async button is disabled, with a spinner, until it is done.
+    // The same configs as a toolbar: layout 'bar' (a row) or 'stack' (a column). An `icon` is SVG markup, an image URL
+    // or a Lucide icon name.
     const bar = new UiConfigForm([
         {type: 'folder', label: 'Object', children: [
             {type: 'checkbox', label: 'Visible', icon: 'eye', property: [mesh, 'visible'], onChange: () => mesh.setDirty?.()},
@@ -89,8 +88,7 @@ async function init() {
     bar.element.classList.add('bar')
     viewer.container.appendChild(bar.element)
 
-    // the forms do not watch the values: a refresh after each frame shows the changes of the other one (it is cheap,
-    // the DOM changes only when a value does)
+    // the forms do not watch the values: refresh them after each frame (the DOM changes only when a value does)
     viewer.addEventListener('postFrame', () => {
         form.refresh()
         bar.refresh()
