@@ -35,10 +35,8 @@ async function init() {
         throw new Error('ssaoPlugin.target returned undefined')
     }
 
-    // Show the occlusion itself: a custom pipeline without the render pass, where the SSAO pass writes its result for the
-    // screen pass (packing is 2 in the SSAOPlugin constructor, view the target with alpha = 1). Off: the automatic pipeline,
-    // the final render with the occlusion applied.
-    // To show the SSAO target on the screen instead: viewer.renderManager.screenPass.overrideReadBuffer = ssaoTarget
+    // Show the occlusion itself: a pipeline without the render pass, so the screen pass shows the SSAO result (packing 2
+    // in the SSAOPlugin constructor). Off: the automatic pipeline, with the occlusion applied.
     const renderManager = viewer.renderManager
     let aoOnly = false
     const showAoOnly = (on: boolean) => {
