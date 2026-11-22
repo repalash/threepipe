@@ -193,20 +193,20 @@ body.side-hidden .side, body.side-hidden .splitter { display: none; }
 .uni-ed { flex: 1; min-height: 0; border-top: 1px solid var(--border); }
 
 /* diff decorations (JetBrains Material Darker colors) */
-.monaco-editor .dl-mod { background: #1a2e33; }
-.monaco-editor .dl-ins { background: #264c34; }
-.monaco-editor .dl-del { background: #3a3a3a; }
+.monaco-editor .dl-mod { background: #1d2d31; }
+.monaco-editor .dl-ins { background: #264b33; }
+.monaco-editor .dl-del { background: #41454b; }
 /* word highlights fill the whole line height, as in the IDE (vertical padding on an inline box paints without moving text) */
 .monaco-editor .dw-mod, .monaco-editor .dw-ins, .monaco-editor .dw-del { padding: calc((var(--prv-lh, 20px) - 1.32em) / 2) 0; }
-.monaco-editor .dw-mod { background: #1b404b; }
-.monaco-editor .dw-ins { background: #2f6340; }
-.monaco-editor .dw-del { background: #3d4649; }
-.monaco-editor .dl-pt-bot.dl-pt-ins { box-shadow: inset 0 -1px 0 #264c34; }
-.monaco-editor .dl-pt-top.dl-pt-ins { box-shadow: inset 0 1px 0 #264c34; }
-.monaco-editor .dl-pt-bot.dl-pt-del { box-shadow: inset 0 -1px 0 #3a3a3a; }
-.monaco-editor .dl-pt-top.dl-pt-del { box-shadow: inset 0 1px 0 #3a3a3a; }
-.monaco-editor .dl-pt-bot.dl-pt-mod { box-shadow: inset 0 -1px 0 #1a2e33; }
-.monaco-editor .dl-pt-top.dl-pt-mod { box-shadow: inset 0 1px 0 #1a2e33; }
+.monaco-editor .dw-mod { background: #12404b; }
+.monaco-editor .dw-ins { background: #264b33; }
+.monaco-editor .dw-del { background: #41454b; }
+.monaco-editor .dl-pt-bot.dl-pt-ins { box-shadow: inset 0 -1px 0 #264b33; }
+.monaco-editor .dl-pt-top.dl-pt-ins { box-shadow: inset 0 1px 0 #264b33; }
+.monaco-editor .dl-pt-bot.dl-pt-del { box-shadow: inset 0 -1px 0 #41454b; }
+.monaco-editor .dl-pt-top.dl-pt-del { box-shadow: inset 0 1px 0 #41454b; }
+.monaco-editor .dl-pt-bot.dl-pt-mod { box-shadow: inset 0 -1px 0 #1d2d31; }
+.monaco-editor .dl-pt-top.dl-pt-mod { box-shadow: inset 0 1px 0 #1d2d31; }
 .monaco-editor .monaco-scrollable-element > .scrollbar > .slider { border-radius: 6px; }
 
 /* image diff */
@@ -455,3 +455,6 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
     .pal-foot { display: none; }
     .pal-input input { font-size: 16px; } /* no zoom on focus in iOS */
 }
+
+/* full-width multi-line selection (SELECTION_BACKGROUND), drawn with the other line overlays under the text */
+.monaco-editor .view-overlays .prv-sel, .monaco-editor .margin-view-overlays .prv-sel { background: #353535; }

@@ -25,8 +25,9 @@ Open `?pr=owner/repo/123`, or paste a PR / commit / compare URL on the start pag
 - **Viewed**: per-file checkboxes (V). With a token they sync with GitHub's "Viewed" (GraphQL); without one they are
   kept in this browser.
 
-Code is highlighted by TextMate grammars through [Shiki](https://shiki.style) (`material-theme-darker`, adjusted
-toward the IDE's colors) inside [Monaco](https://microsoft.github.io/monaco-editor/), both from CDNs; languages load
+Code is highlighted by TextMate grammars through [Shiki](https://shiki.style) (`material-theme-darker`, with the
+diff, selection, gutter and main syntax colors taken from the IDE's own scheme, `colors/Material Darker.xml` of
+[Material Theme UI Lite](https://github.com/AtomMaterialUI/material-theme-ui-lite), MIT) inside [Monaco](https://microsoft.github.io/monaco-editor/), both from CDNs; languages load
 on demand. Diffs come from Monaco's diff algorithm (the one VS Code uses). No build step: the files here are served
 as they are.
 

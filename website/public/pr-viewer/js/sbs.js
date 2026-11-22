@@ -2,7 +2,7 @@
 // (no filler lines), line numbers of both sides in the middle, and a divider that connects each change on the left
 // to its counterpart on the right with curved shapes. Scrolling one side scrolls the other to the matching position.
 
-import {DIFF_COLORS} from './editor.js'
+import {DIFF_COLORS, fullWidthSelection} from './editor.js'
 
 const FILL = {mod: DIFF_COLORS.modified, ins: DIFF_COLORS.inserted, del: DIFF_COLORS.deleted}
 
@@ -79,6 +79,7 @@ export class SideBySideViewer {
             minimap: {enabled: false},
             scrollBeyondLastLine: false,
             renderLineHighlight: 'none',
+            roundedSelection: false,
             fontFamily,
             fontSize,
             lineHeight,
@@ -110,9 +111,14 @@ export class SideBySideViewer {
         })
         this.right = monaco.editor.create(this.root.querySelector('.sbs-right'), {
             ...common,
+            lineDecorationsWidth: 4, // the IDE starts the right side's text just after the divider
             overviewRulerLanes: 1,
             scrollbar: {vertical: 'auto', horizontalScrollbarSize: 10, verticalScrollbarSize: 12, alwaysConsumeMouseWheel: false, useShadows: false},
         })
+        fullWidthSelection(monaco, this.left)
+        fullWidthSelection(monaco, this.right)
+        this.left.onDidFocusEditorWidget(() => { this.lastFocused = this.left; this._requestDraw() })
+        this.right.onDidFocusEditorWidget(() => { this.lastFocused = this.right; this._requestDraw() })
         this.decoL = this.left.createDecorationsCollection()
         this.decoR = this.right.createDecorationsCollection()
 
@@ -120,6 +126,9 @@ export class SideBySideViewer {
             this.left.onDidScrollChange((e) => this._scrolled('L', e)),
             this.right.onDidScrollChange((e) => this._scrolled('R', e)),
             this.left.onDidLayoutChange(() => this.draw()),
+            // the caret row's line number is brighter, as in the IDE
+            this.left.onDidChangeCursorPosition(() => this._requestDraw()),
+            this.right.onDidChangeCursorPosition(() => this._requestDraw()),
             this.right.onDidLayoutChange(() => this.draw()),
         ]
         this.resizeObs = new ResizeObserver(() => this.draw())
@@ -298,12 +307,13 @@ export class SideBySideViewer {
         ctx.textBaseline = 'middle'
         const drawNums = (ed, empty, s, x, align) => {
             if (empty) return
+            const caret = ed.hasWidgetFocus() || ed === this.lastFocused ? ed.getPosition()?.lineNumber - 1 : -1
             const count = ed.getModel().getLineCount()
             const first = Math.max(0, Math.floor(s / lh))
             const last = Math.min(count, Math.ceil((s + H) / lh))
             ctx.textAlign = align
             for (let i = first; i < last; i++) {
-                ctx.fillStyle = '#4b4b4b'
+                ctx.fillStyle = i === caret ? '#616161' : '#424242'
                 ctx.fillText(String(i + 1), x, i * lh - s + lh / 2 + 0.5)
             }
         }

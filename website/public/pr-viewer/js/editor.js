@@ -7,8 +7,21 @@ const MONACO_BASE = `https://cdn.jsdelivr.net/npm/monaco-editor@${MONACO_VERSION
 const SHIKI = 'https://esm.sh/shiki@4.6.0'
 const SHIKI_THEME = 'https://esm.sh/@shikijs/themes@4.6.0/material-theme-darker'
 
-// Where the IDE's Material Darker colors differ from the VS Code theme's (sampled from the IDE screenshots)
+// Where the IDE's Material Darker colors differ from the VS Code theme's: from the IDE's own scheme, colors/Material
+// Darker.xml of Material Theme UI Lite (github.com/AtomMaterialUI/material-theme-ui-lite, MIT)
 const JETBRAINS_TOKEN_COLORS = [
+    // DEFAULT_LINE/BLOCK/DOC_COMMENT 616161 italic
+    {scope: ['comment', 'punctuation.definition.comment', 'comment.block.documentation'], settings: {foreground: '#616161', fontStyle: 'italic'}},
+    // DEFAULT_CLASS_NAME ffcb6b; DEFAULT_INTERFACE_NAME c3e88d italic
+    {scope: ['entity.name.type.class', 'entity.name.class', 'support.class', 'entity.other.inherited-class', 'new.expr entity.name.type'], settings: {foreground: '#FFCB6B'}},
+    {scope: ['entity.name.type.interface'], settings: {foreground: '#C3E88D', fontStyle: 'italic'}},
+    // DEFAULT_FUNCTION_DECLARATION / CALL / INSTANCE_METHOD 82aaff
+    {scope: ['entity.name.function', 'support.function', 'meta.function-call entity.name.function'], settings: {foreground: '#82AAFF', fontStyle: ''}},
+    // DEFAULT_OPERATION_SIGN, BRACES, BRACKETS, PARENTHS, DOT, COMMA, SEMICOLON, VALID_STRING_ESCAPE 89ddff
+    {scope: ['keyword.operator', 'punctuation', 'meta.brace', 'constant.character.escape'], settings: {foreground: '#89DDFF'}},
+    {scope: ['punctuation.definition.string', 'punctuation.definition.comment'], settings: {}},
+    // DEFAULT_NUMBER, DEFAULT_CONSTANT f78c6c
+    {scope: ['constant.numeric', 'constant.language'], settings: {foreground: '#F78C6C'}},
     {scope: ['meta.object-literal.key', 'variable.other.property', 'variable.other.object.property', 'support.variable.property',
         'variable.other.constant.property', 'entity.name.tag.yaml', 'support.type.property-name'], settings: {foreground: '#EEFFFF'}},
     {scope: ['variable.parameter', 'meta.parameters variable.parameter'], settings: {foreground: '#F78C6C', fontStyle: ''}},
@@ -21,16 +34,52 @@ export const THEME = 'material-theme-darker'
 export const MONACO_THEME = 'prv-material-darker'
 
 // JetBrains (Material Darker) diff colors, sampled from the IDE
+// The IDE's diff colors (Material Darker.xml: DIFF_MODIFIED 12404b, DIFF_INSERTED 264b33, DIFF_DELETED 41454b, and their
+// error stripes). A modified block's lines get the modified color softened over the background; its changed words the
+// full color. An inserted or deleted block gets its full color.
 export const DIFF_COLORS = {
-    modified: '#1a2e33',
-    modifiedWord: '#24434d',
-    inserted: '#264c34',
-    insertedWord: '#2f6340',
-    deleted: '#3a3a3a',
-    deletedWord: '#4f4f4f',
-    insertedRuler: '#3f7d52',
-    modifiedRuler: '#3b6b78',
-    deletedRuler: '#6a6a6a',
+    modified: '#1d2d31', // 12404b at about 35% over 212121, as the IDE renders it
+    modifiedWord: '#12404b',
+    inserted: '#264b33',
+    insertedWord: '#264b33',
+    deleted: '#41454b',
+    deletedWord: '#41454b',
+    insertedRuler: '#447152',
+    modifiedRuler: '#43698d',
+    deletedRuler: '#656e76',
+}
+
+// full-width multi-line selections, as in the IDE (Monaco stops a selected line at its end): see fullWidthSelection
+const selStyle = document.createElement('style')
+document.head.appendChild(selStyle)
+const selClasses = new Set()
+function selFromClass(px) {
+    const name = `prv-sel-x${px}`
+    if (!selClasses.has(name)) {
+        selClasses.add(name)
+        selStyle.sheet.insertRule(`.monaco-editor .view-overlays .prv-sel.${name} { margin-left: ${px}px; }`)
+    }
+    return name
+}
+
+/** Paints a multi-line selection to the editor's right edge (from the start column on its first line), as the IDE does. */
+export function fullWidthSelection(monaco, editor) {
+    const deco = editor.createDecorationsCollection()
+    const update = () => {
+        const out = []
+        for (const s of editor.getSelections() || []) {
+            if (s.startLineNumber === s.endLineNumber) continue
+            const first = s.startLineNumber
+            const x = s.startColumn > 1 ? Math.round(editor.getOffsetForColumn(first, s.startColumn)) : 0
+            out.push({range: new monaco.Range(first, 1, first, 1), options: {isWholeLine: true, className: x ? `prv-sel ${selFromClass(x)}` : 'prv-sel'}})
+            if (s.endLineNumber - 1 > first)
+                out.push({range: new monaco.Range(first + 1, 1, s.endLineNumber - 1, 1), options: {isWholeLine: true, className: 'prv-sel'}})
+        }
+        deco.set(out)
+    }
+    editor.onDidChangeCursorSelection(update)
+    editor.onDidChangeModel(() => deco.clear())
+    return deco
 }
 
 let monacoReady
@@ -110,8 +159,12 @@ function defineTheme(monaco) {
             'editorGutter.background': '#212121',
             'editor.lineHighlightBackground': '#00000000',
             'editor.lineHighlightBorder': '#00000000',
-            'editorLineNumber.foreground': '#4a4a4a',
-            'editorLineNumber.activeForeground': '#6a6a6a',
+            'editorLineNumber.foreground': '#424242', // LINE_NUMBERS_COLOR
+            'editorLineNumber.activeForeground': '#616161', // LINE_NUMBER_ON_CARET_ROW_COLOR
+            'editor.selectionBackground': '#353535', // SELECTION_BACKGROUND
+            'editor.inactiveSelectionBackground': '#353535',
+            'editor.selectionHighlightBackground': '#00000000',
+            'editorCursor.foreground': '#FFCC00', // CARET_COLOR
             'scrollbar.shadow': '#00000000',
             'scrollbarSlider.background': '#4a4a4a66',
             'scrollbarSlider.hoverBackground': '#5a5a5a99',

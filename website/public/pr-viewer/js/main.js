@@ -2,7 +2,7 @@ import {
     getFileContent, getToken, getViewedStates, GitHubError, loadChangeSet, paramsToTarget, parseTarget,
     listPullRequests, searchMyPullRequests, setFileViewed, setToken, targetToParams,
 } from './github.js'
-import {ensureLanguage, languageForPath, languageName, loadMonaco, MONACO_THEME} from './editor.js'
+import {ensureLanguage, fullWidthSelection, languageForPath, languageName, loadMonaco, MONACO_THEME} from './editor.js'
 import {SideBySideViewer} from './sbs.js'
 import {FileTree} from './tree.js'
 import {fileIcon, icons, isImagePath} from './icons.js'
@@ -856,6 +856,7 @@ function ensureUnified() {
             minimap: {enabled: false},
             scrollBeyondLastLine: false,
             renderLineHighlight: 'none',
+            roundedSelection: false,
             folding: false,
             stickyScroll: {enabled: false},
             renderIndicators: true,
@@ -878,6 +879,8 @@ function ensureUnified() {
             ...monacoOptions(),
         })
         state.unified.getModifiedEditor().onDidScrollChange(() => updateToolbar())
+        fullWidthSelection(state.monaco, state.unified.getModifiedEditor())
+        fullWidthSelection(state.monaco, state.unified.getOriginalEditor())
     }
     return state.unified
 }
