@@ -158,6 +158,21 @@ export class SideBySideViewer {
         this.draw()
     }
 
+    /** New line changes for the same models (after an edit): keeps the scroll position. */
+    updateChanges(lineChanges) {
+        this.changes = normalizeChanges(lineChanges)
+        this.cur = Math.min(this.cur, this.changes.length - 1)
+        this._layoutDivider()
+        this._decorate()
+        this.draw()
+    }
+
+    /** Makes the right side (the PR's head) editable. */
+    setEditable(on) {
+        this.right.updateOptions({readOnly: !on, domReadOnly: !on, renderLineHighlight: 'none'})
+        this.root.classList.toggle('editable', !!on)
+    }
+
     _layoutDivider() {
         const lines = Math.max(this.left.getModel()?.getLineCount() || 1, this.right.getModel()?.getLineCount() || 1)
         const digits = Math.max(2, String(lines).length)

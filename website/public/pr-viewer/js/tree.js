@@ -51,10 +51,13 @@ const esc = (s) => s.replace(/[&<>"]/g, (c) => ({'&': '&amp;', '<': '&lt;', '>':
 const STATUS_LABEL = {added: 'Added', removed: 'Deleted', modified: 'Modified', renamed: 'Renamed', copied: 'Copied', changed: 'Changed'}
 
 export class FileTree {
-    constructor(el, {onSelect, onToggleViewed = null}) {
+    constructor(el, {onSelect, onToggleViewed = null, checks = false, rootLabel = ''}) {
         this.el = el
         this.onSelect = onSelect
         this.onToggleViewed = onToggleViewed // set: a Viewed slot on each file (blue dot: not viewed yet)
+        this.checks = checks // the slot is a checkbox instead (the Commit panel: files to include); `viewed` = checked
+        this.rootLabel = rootLabel
+        this.edited = new Set() // files edited here and not committed yet
         this.collapsed = new Set()
         this.selected = null
         this.viewed = new Set()
@@ -79,6 +82,11 @@ export class FileTree {
         this.files = files
         this.root = buildTree(files)
         this.order = flattenTree(this.root)
+        this.render()
+    }
+
+    setEdited(paths) {
+        this.edited = new Set(paths)
         this.render()
     }
 
@@ -127,14 +135,17 @@ export class FileTree {
                 const name = f.path.split('/').pop()
                 const viewed = this.viewed.has(f.path)
                 const title = `${STATUS_LABEL[f.status] || f.status}: ${f.prevPath ? f.prevPath + ' → ' : ''}${f.path}  (+${f.additions} −${f.deletions})`
-                rows.push(`<div class="tr tr-file st-${f.status}${f.path === this.selected ? ' sel' : ''}${viewed ? ' viewed' : ''}" data-file="${esc(f.path)}" style="--d:${depth}" title="${esc(title)}">
-                    <span class="tw"></span>${fileIcon(f.path)}<span class="tn">${esc(name)}</span>${this.onToggleViewed
-                        ? `<span class="tvd" title="${viewed ? 'Viewed: click to unmark' : 'Mark as viewed'}"><i class="tvd-dot"></i><i class="tvd-box">${viewed ? icons.check : ''}</i></span>` : ''}
+                const slot = !this.onToggleViewed ? ''
+                    : this.checks ? `<span class="tvd tck" title="${viewed ? 'Included in the commit' : 'Not included'}"><i class="tvd-box">${viewed ? icons.check : ''}</i></span>`
+                        : `<span class="tvd" title="${viewed ? 'Viewed: click to unmark' : 'Mark as viewed'}"><i class="tvd-dot"></i><i class="tvd-box">${viewed ? icons.check : ''}</i></span>`
+                const edited = this.edited.has(f.path)
+                rows.push(`<div class="tr tr-file st-${f.status}${f.path === this.selected ? ' sel' : ''}${viewed ? ' viewed' : ''}${edited ? ' edited' : ''}" data-file="${esc(f.path)}" style="--d:${depth}" title="${esc(title)}${edited ? ' · edited here, not committed' : ''}">
+                    <span class="tw"></span>${this.checks ? slot : ''}${fileIcon(f.path)}<span class="tn">${esc(name)}</span>${edited ? '<span class="ted" title="Edited here, not committed"></span>' : ''}${this.checks ? '' : slot}
                 </div>`)
             }
         }
         const rootOpen = !this.collapsed.has('|root')
-        rows.push(dirRow('', '|root', 0, this.root.count, rootOpen).replace('<span class="tn"></span>', ''))
+        rows.push(this.rootLabel ? dirRow(this.rootLabel, '|root', 0, this.root.count, rootOpen) : dirRow('', '|root', 0, this.root.count, rootOpen).replace('<span class="tn"></span>', ''))
         if (rootOpen) walk(this.root, 1)
         this.el.innerHTML = rows.join('')
     }

@@ -474,3 +474,47 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 
 /* full-width multi-line selection (SELECTION_BACKGROUND), drawn with the other line overlays under the text */
 .monaco-editor .view-overlays .prv-sel, .monaco-editor .margin-view-overlays .prv-sel { background: var(--sel); }
+
+/* ---------- edits and the Commit panel ---------- */
+.toast { display: flex; align-items: center; gap: 12px; }
+.toast-action { border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; padding: 2px 4px; }
+.strip-btn { position: relative; }
+.strip-badge {
+    position: absolute; right: 1px; top: 1px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px;
+    background: var(--accent); color: var(--on-accent); font: 600 9px/14px Inter, sans-serif; font-style: normal; text-align: center;
+}
+.btn-commit { height: 24px; padding: 0 9px; font-size: 12px; gap: 5px; margin-right: 4px; }
+.btn-commit .ic { width: 14px; height: 14px; }
+#btn-edit.on { background: var(--accent-bg); color: var(--accent); }
+.viewer.editing .sbs-right .monaco-editor .cursors-layer .cursor { background: var(--accent); }
+.tr.edited .tn { color: var(--modified); }
+.ted { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-left: 6px; flex-shrink: 0; }
+.tck { margin-left: 0; padding: 0 6px 0 0; width: 20px; }
+@media (hover: none) { .tr .tck { width: 26px; } }
+.tck .tvd-box, .tr:hover .tck .tvd-box { display: grid; border-color: var(--fg-dim); }
+.tr.viewed .tck .tvd-box { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.cmt { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.cmt .tree { flex: 1; }
+.cmt .tree-msg .ic { width: 13px; height: 13px; vertical-align: -2px; }
+.cmt-bottom { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px 10px; border-top: 1px solid var(--border); flex: 0 0 auto; height: 44%; min-height: 200px; }
+.cmt-opts { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.cmt-amend { display: flex; align-items: center; gap: 7px; cursor: pointer; color: var(--fg); }
+.cmt-amend input { accent-color: var(--accent); margin: 0; }
+.cmt-count { color: var(--added); font-size: 12px; }
+#cmt-msg {
+    flex: 1; min-height: 70px; resize: none; padding: 7px 9px; border-radius: 4px; border: 1px solid var(--border2);
+    background: var(--ed-bg, var(--bg)); color: var(--fg-strong); font: 12.5px/1.5 "JetBrains Mono", ui-monospace, monospace; outline: none;
+}
+#cmt-msg:focus { border-color: var(--accent); }
+.cmt-err { color: #ff8a80; font-size: 12px; overflow-wrap: anywhere; }
+.cmt-actions { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cmt-actions .btn { height: 28px; font-size: 12.5px; }
+.cmt-actions .btn:disabled { opacity: .45; cursor: default; filter: none; }
+.cmt-to { display: flex; align-items: center; gap: 4px; font-size: 12px; min-width: 0; overflow: hidden; }
+.cmt-to span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmt-to .ic { width: 13px; height: 13px; flex-shrink: 0; }
+@media (max-width: 760px) {
+    .btn-commit { height: 30px; }
+    .cmt-bottom { height: 48%; }
+    #cmt-msg { font-size: 16px; } /* no zoom on focus in iOS */
+}

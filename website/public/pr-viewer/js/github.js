@@ -350,3 +350,62 @@ export async function setFileViewed(prNodeId, path, viewed) {
     const name = viewed ? 'markFileAsViewed' : 'unmarkFileAsViewed'
     await graphql(`mutation($id:ID!,$p:String!){${name}(input:{pullRequestId:$id,path:$p}){clientMutationId}}`, {id: prNodeId, p: path})
 }
+
+// --- commit edits to the PR's branch (Git Data API; the token needs Contents: write on the head repository) ---
+
+const refPath = (branch) => `heads/${branch.split('/').map(encodeURIComponent).join('/')}`
+
+function canWrite() {
+    if (SNAP) throw new GitHubError('This is a snapshot: open the page without ?snap= and with a token to commit', 400)
+    if (!getToken()) throw new GitHubError('Committing needs a GitHub token', 401)
+}
+
+/** The branch's head, refusing when it is not `expected` (the edits were made on that commit's files). */
+async function leasedHead(owner, repo, branch, expected) {
+    const head = (await json(`/repos/${owner}/${repo}/git/ref/${refPath(branch)}`)).object.sha
+    if (head !== expected)
+        throw new GitHubError(`The branch has new commits (${head.slice(0, 7)}) since this page loaded: reload first`, 409)
+    return head
+}
+
+/**
+ * Commits `files` ([{path, text}]) as one commit on `branch` of `owner/repo`, on top of `expectedHead` (refused if
+ * the branch has moved since). With `amend`, replaces the head commit instead (same parents and author, a force
+ * update). Returns {sha, previous}.
+ */
+export async function commitFiles({owner, repo, branch, expectedHead, files, message, amend = false}) {
+    canWrite()
+    const R = `/repos/${owner}/${repo}/git`
+    const head = await leasedHead(owner, repo, branch, expectedHead)
+    const headCommit = await json(`${R}/commits/${head}`)
+    let treeSha = headCommit.tree.sha
+    if (files.length) {
+        // keep each file's mode (an executable script stays one)
+        const modes = new Map()
+        try {
+            const t = await json(`${R}/trees/${treeSha}?recursive=1`)
+            for (const e of t.tree) if (e.type === 'blob') modes.set(e.path, e.mode)
+        } catch { /* default mode */ }
+        treeSha = (await json(`${R}/trees`, {method: 'POST', body: {
+            base_tree: treeSha,
+            tree: files.map((f) => ({path: f.path, mode: modes.get(f.path) || '100644', type: 'blob', content: f.text})),
+        }})).sha
+    }
+    const body = amend
+        ? {message, tree: treeSha, parents: headCommit.parents.map((p) => p.sha), author: headCommit.author}
+        : {message, tree: treeSha, parents: [head]}
+    const commit = await json(`${R}/commits`, {method: 'POST', body})
+    await json(`${R}/refs/${refPath(branch)}`, {method: 'PATCH', body: {sha: commit.sha, force: amend}})
+    return {sha: commit.sha, previous: head}
+}
+
+/** Moves `branch` back to `sha` (undo of a commit made here), if it is still at `expected`. */
+export async function moveBranch({owner, repo, branch, sha, expected}) {
+    canWrite()
+    await leasedHead(owner, repo, branch, expected)
+    await json(`/repos/${owner}/${repo}/git/refs/${refPath(branch)}`, {method: 'PATCH', body: {sha, force: true}})
+}
+
+export async function getPullHead(owner, repo, number) {
+    return (await json(`/repos/${owner}/${repo}/pulls/${number}`)).head.sha
+}

@@ -1,5 +1,5 @@
 import {
-    getFileContent, getToken, getViewedStates, GitHubError, loadChangeSet, paramsToTarget, parseTarget,
+    commitFiles, getFileContent, getPullHead, moveBranch, getToken, getViewedStates, GitHubError, loadChangeSet, paramsToTarget, parseTarget,
     listPullRequests, searchMyPullRequests, setFileViewed, setToken, targetToParams,
 } from './github.js'
 import {
@@ -48,10 +48,17 @@ const lineHeight = () => Math.round(fontSize() * 1.54)
 
 // --- toasts, menus, dialogs ---
 
-function toast(message, kind = 'info', ms = 4000) {
+function toast(message, kind = 'info', ms = 4000, action = null) {
     const el = document.createElement('div')
     el.className = `toast toast-${kind}`
     el.textContent = message
+    if (action) {
+        const b = document.createElement('button')
+        b.className = 'toast-action'
+        b.textContent = action.label
+        b.onclick = () => { el.remove(); action.run() }
+        el.appendChild(b)
+    }
     $('#toasts').appendChild(el)
     setTimeout(() => el.classList.add('out'), ms)
     setTimeout(() => el.remove(), ms + 400)
@@ -205,6 +212,13 @@ const state = {
     loadId: 0,
     fileLoadId: 0,
     tree: null,
+    edits: new Map(), // path -> edited text of the PR head (state.editKey), not committed yet
+    editKey: null,
+    carryEdits: null, // edits not in the last commit, kept for the new head
+    cmtExcluded: new Set(), // edited files unchecked in the Commit panel
+    editing: false, // edit mode: the right side (the PR head) is editable
+    editableFile: false,
+    pristine: null, // the open file's text at the head
 }
 
 function navigate(target, file) {
@@ -257,6 +271,20 @@ async function openTarget(target, file) {
     }
     if (id !== state.loadId) return
     state.cs = cs
+    const hk = headKey()
+    if (hk && hk !== state.editKey) {
+        if (state.carryEdits && state.carryKey === `${target.owner}/${target.repo}#${target.number}`) {
+            // the files not in the last commit are the same at the new head
+            state.edits = state.carryEdits
+        } else if (state.edits.size) {
+            toast(`Discarded ${state.edits.size} uncommitted edit${state.edits.size === 1 ? '' : 's'}: the pull request has a new head`, 'error', 6000)
+            state.edits = new Map()
+        }
+        state.carryEdits = null
+        state.editKey = hk
+        saveEdits()
+    }
+    renderEdits()
     addRecent(target, cs.title)
     document.title = `${cs.title} · ${labelForTarget(target)}`
     renderHeader()
@@ -301,7 +329,8 @@ function buildShell() {
         </header>
         <div class="main">
             <nav class="strip hide-mobile">
-                <button class="strip-btn active" id="strip-changes" title="Changes">${icons.commit}</button>
+                <button class="strip-btn" id="strip-commit" title="Commit (edits made here)">${icons.commit}<i class="strip-badge" id="strip-badge" hidden></i></button>
+                <button class="strip-btn active" id="strip-changes" title="Changes">${icons.changes}</button>
                 <button class="strip-btn" id="strip-prs" title="Pull requests of the repository">${icons.pr}</button>
                 <button class="strip-btn" id="strip-home" title="Open another pull request">${icons.folder}</button>
             </nav>
@@ -333,6 +362,26 @@ function buildShell() {
                     <div class="prl-filters"><button class="prl-state" id="prl-state"></button><span class="spacer"></span><button class="tb-btn" id="prl-reload" title="Reload">${icons.refresh}</button></div>
                     <div class="prl-list" id="prl-list"></div>
                 </div>
+                <div class="cmt" id="cmt" hidden>
+                    <div class="side-tools">
+                        <button class="tb-btn" id="cmt-rollback" title="Rollback: discard the edits of the checked files">${icons.undo}</button>
+                        <button class="tb-btn" id="cmt-expand" title="Expand All">${icons.expand}</button>
+                        <button class="tb-btn" id="cmt-collapse" title="Collapse All">${icons.collapse}</button>
+                    </div>
+                    <div class="tree" id="cmt-tree"></div>
+                    <div class="cmt-bottom">
+                        <div class="cmt-opts">
+                            <label class="cmt-amend" title="Replace the last commit of the branch (a force push)"><input type="checkbox" id="cmt-amend"><span>Amend last commit</span></label>
+                            <span class="spacer"></span><span class="cmt-count" id="cmt-count"></span>
+                        </div>
+                        <textarea id="cmt-msg" placeholder="Commit Message" spellcheck="true"></textarea>
+                        <div class="cmt-err" id="cmt-err" hidden></div>
+                        <div class="cmt-actions">
+                            <button class="btn btn-primary" id="cmt-go">Commit and Push</button>
+                            <span class="cmt-to dim" id="cmt-to"></span>
+                        </div>
+                    </div>
+                </div>
             </aside>
             <div class="splitter hide-mobile" id="splitter"></div>
             <div class="scrim only-mobile" id="scrim"></div>
@@ -345,11 +394,13 @@ function buildShell() {
                 <div class="toolbar" id="toolbar">
                     <button class="tb-btn" id="btn-prev-diff" title="Previous Difference (Shift+F7)">${icons.up}</button>
                     <button class="tb-btn" id="btn-next-diff" title="Next Difference (F7)">${icons.down}</button>
-                    <a class="tb-btn hide-mobile" id="btn-open-file" target="_blank" rel="noopener" title="Open the file on GitHub">${icons.pencil}</a>
+                    <a class="tb-btn hide-mobile" id="btn-open-file" target="_blank" rel="noopener" title="Open the file on GitHub">${icons.external}</a>
                     <button class="tb-btn" id="btn-prev-file" title="Previous File (Alt+←)">${icons.left}</button>
                     <span class="file-pos" id="file-pos"></span>
                     <button class="tb-btn" id="btn-next-file" title="Next File (Alt+→)">${icons.right}</button>
                     <span class="spacer"></span>
+                    <button class="btn btn-primary btn-commit" id="btn-commit" title="Commit the edits to the pull request's branch" hidden>${icons.commit}<span></span></button>
+                    <button class="tb-btn" id="btn-edit" title="Edit the pull request's files (then commit to its branch)" hidden>${icons.pencil}</button>
                     <label class="viewed-toggle" title="Mark the file as viewed (V)"><input type="checkbox" id="chk-viewed"><span>Viewed</span></label>
                     <span class="diff-count" id="diff-count"></span>
                     <div class="seg">
@@ -379,6 +430,20 @@ function buildShell() {
     })
     $('#pr-commits').onclick = (e) => commitMenu(e.currentTarget)
     $('#strip-prs').onclick = () => setSidePanel(state.sidePanel === 'prs' ? 'changes' : 'prs')
+    $('#strip-commit').onclick = () => setSidePanel(state.sidePanel === 'commit' ? 'changes' : 'commit')
+    state.cmtTree = new FileTree($('#cmt-tree'), {
+        checks: true,
+        rootLabel: 'Changes',
+        onSelect: (path) => { selectFile(path); setTab('changes'); if (mobileQuery.matches) closeDrawer() },
+        onToggleViewed: (path) => { state.cmtExcluded.has(path) ? state.cmtExcluded.delete(path) : state.cmtExcluded.add(path); renderCommitPanel() },
+    })
+    $('#cmt-expand').onclick = () => state.cmtTree.collapseAll(false)
+    $('#cmt-collapse').onclick = () => state.cmtTree.collapseAll(true)
+    $('#cmt-rollback').onclick = () => rollbackChecked()
+    $('#cmt-amend').onchange = () => onAmendToggle()
+    $('#cmt-msg').oninput = () => renderCommitPanel(false)
+    $('#cmt-msg').onkeydown = (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); doCommit() } }
+    $('#cmt-go').onclick = () => doCommit()
     $('#prl-state').onclick = (e) => openMenu(e.currentTarget, ['open', 'closed', 'merged', 'all'].map((v) => ({
         label: v[0].toUpperCase() + v.slice(1), checked: state.prlState === v, action: () => { state.prlState = v; loadPrList() },
     })))
@@ -404,6 +469,8 @@ function buildShell() {
     $('#btn-expand').onclick = () => state.tree.collapseAll(false)
     $('#btn-collapse').onclick = () => state.tree.collapseAll(true)
     $('#btn-reload').onclick = () => reloadTarget()
+    $('#btn-edit').onclick = () => setEditing(!state.editing)
+    $('#btn-commit').onclick = () => openCommitPanel()
     $('#tab-log').onclick = () => setTab('log')
     $('#tab-changes').onclick = () => setTab('changes')
     $('#side-title').onclick = (e) => state.sidePanel !== 'prs' && commitMenu(e.currentTarget)
@@ -448,17 +515,20 @@ function setupSplitter() {
 
 function setSidePanel(which) {
     state.sidePanel = which
-    const prs = which === 'prs'
+    const prs = which === 'prs', cmt = which === 'commit', other = prs || cmt
     document.body.classList.remove('side-hidden')
-    $('#strip-changes').classList.toggle('active', !prs)
+    $('#strip-changes').classList.toggle('active', !other)
     $('#strip-prs').classList.toggle('active', prs)
+    $('#strip-commit').classList.toggle('active', cmt)
     $('#prl').hidden = !prs
-    for (const id of ['#tree', '.side-tools']) $(id).hidden = prs
-    $('#pr-head').hidden = prs || !state.cs?.pr
-    $('.side-head').classList.toggle('prs', prs)
-    $('#side-title-text').textContent = prs ? `Pull Requests · ${state.target.repo}` : sideTitle()
-    $('#side-title').classList.toggle('no-menu', prs || !state.cs?.commits?.length)
+    $('#cmt').hidden = !cmt
+    for (const id of ['#tree', '#side > .side-tools']) $(id).hidden = other
+    $('#pr-head').hidden = other || !state.cs?.pr
+    $('.side-head').classList.toggle('prs', other)
+    $('#side-title-text').textContent = prs ? `Pull Requests · ${state.target.repo}` : cmt ? 'Commit' : sideTitle()
+    $('#side-title').classList.toggle('no-menu', other || !state.cs?.commits?.length)
     if (prs) loadPrList()
+    if (cmt) renderCommitPanel()
 }
 
 async function loadPrList() {
@@ -730,6 +800,8 @@ async function openFileAt(i, push = true, keepScroll = false) {
         ? `https://github.com/${state.target.owner}/${state.target.repo}/blob/${state.cs.baseSha}/${f.path}`
         : `https://github.com/${state.target.owner}/${state.target.repo}/blob/${state.cs.headSha}/${f.path}`
     renderViewed()
+    state.editableFile = false
+    applyEditable()
     updateToolbar()
     setLoading(true)
 
@@ -761,9 +833,13 @@ async function openFileAt(i, push = true, keepScroll = false) {
     if (id !== state.fileLoadId) return
     const old = state.models
     const uri = (side) => monaco.Uri.parse(`prv-${side}://${id}/${f.path.split('/').map(encodeURIComponent).join('/')}`)
+    state.editableFile = canEdit(f)
+    state.pristine = mod.text
+    const edited = state.editableFile && state.edits.has(f.path)
     const original = monaco.editor.createModel(orig.text, lang, uri('a'))
-    const modified = monaco.editor.createModel(mod.text, lang, uri('b'))
+    const modified = monaco.editor.createModel(edited ? state.edits.get(f.path) : mod.text, lang, uri('b'))
     state.models = [original, modified]
+    if (state.editableFile) modified.onDidChangeContent(() => onEdited(f, original, modified, id))
     // tokenize up front: deleted lines in the unified view otherwise can render before their colors exist
     for (const m of state.models) if (m.getLineCount() < 20000) m.tokenization.forceTokenization(m.getLineCount())
 
@@ -775,8 +851,10 @@ async function openFileAt(i, push = true, keepScroll = false) {
             if (id !== state.fileLoadId) return
             showView('sbs')
             state.unified?.setModel(null)
+            const sc = keepScroll && state.sbs ? state.sbs.right.getScrollTop() : 0
             ensureSbs().setModels(original, modified, changes, {left: leftLabel, right: rightLabel})
             if (changes.length && !keepScroll) state.sbs.goTo(0)
+            else if (sc) state.sbs.right.setScrollTop(sc)
         } else {
             showView('unified')
             $('#uni-left').innerHTML = leftLabel
@@ -794,9 +872,230 @@ async function openFileAt(i, push = true, keepScroll = false) {
         old.forEach((m) => setTimeout(() => m.dispose(), 0))
     }
     setLoading(false)
+    applyEditable()
     updateToolbar()
     prefetch(i + 1)
 }
+
+// --- quick edits, committed to the PR's branch ---
+
+/** Edits belong to one head of one PR; null when not showing a PR's full changes. */
+function headKey() {
+    const {cs, target} = state
+    return cs?.pr && !cs.commit && !cs.range ? `${target.owner}/${target.repo}#${target.number}@${cs.headSha}` : null
+}
+
+function canEdit(f = state.order[state.index]) {
+    return !!(f && canEditPr() && f.status !== 'removed' && !isImagePath(f.path))
+}
+
+function applyEditable() {
+    if (!shellBuilt) return
+    const ok = state.editableFile && canEdit()
+    const on = ok && state.editing
+    state.sbs?.setEditable(on)
+    state.unified?.updateOptions({readOnly: !on, domReadOnly: !on})
+    $('#btn-edit').hidden = !ok
+    $('#btn-edit').classList.toggle('on', on)
+    $('#viewer').classList.toggle('editing', on)
+}
+
+function setEditing(on) {
+    state.editing = on
+    applyEditable()
+    if (on && state.editableFile) {
+        const ed = renderer() === 'sbs' ? state.sbs?.right : state.unified?.getModifiedEditor()
+        ed?.focus()
+        toast('Editing the head of the pull request. Commit when done.', 'info', 3000)
+    }
+}
+
+let editTimer
+function onEdited(f, original, modified, id) {
+    const text = modified.getValue()
+    if (text === state.pristine) state.edits.delete(f.path)
+    else state.edits.set(f.path, text)
+    renderEdits()
+    // the side-by-side viewer's bands follow the edit (Monaco's diff editor updates on its own)
+    clearTimeout(editTimer)
+    editTimer = setTimeout(async () => {
+        if (id !== state.fileLoadId || modified.isDisposed() || renderer() !== 'sbs' || !state.sbs) return
+        const changes = f.status === 'added' ? [wholeInsert(modified)] : await computeDiff(original, modified)
+        if (id !== state.fileLoadId || modified.isDisposed()) return
+        state.sbs.updateChanges(changes)
+        updateToolbar()
+    }, 300)
+}
+
+function renderEdits() {
+    if (!shellBuilt) return
+    const n = state.edits.size
+    $('#btn-commit').hidden = !n
+    $('#btn-commit span').textContent = `Commit${n > 1 ? ` (${n})` : ''}`
+    $('#strip-badge').hidden = !n
+    $('#strip-badge').textContent = n
+    state.tree?.setEdited(state.edits.keys())
+    if (state.sidePanel === 'commit') renderCommitPanel()
+    saveEdits()
+}
+
+// edits survive a reload of the tab (sessionStorage), for the same PR head
+let saveTimer
+function saveEdits() {
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => {
+        try {
+            if (state.edits.size) sessionStorage.setItem('prv.edits', JSON.stringify({key: state.editKey, files: Object.fromEntries(state.edits)}))
+            else sessionStorage.removeItem('prv.edits')
+        } catch { /* too large or no storage */ }
+    }, 300)
+}
+function restoreEdits() {
+    try {
+        const v = JSON.parse(sessionStorage.getItem('prv.edits') || 'null')
+        if (v?.key && v.files) { state.editKey = v.key; state.edits = new Map(Object.entries(v.files)) }
+    } catch { /* none */ }
+}
+
+function discardEdits(paths) {
+    for (const p of paths) state.edits.delete(p)
+    renderEdits()
+    if (paths.includes(state.order[state.index]?.path)) reopenFile(true)
+}
+
+function rollbackChecked() {
+    const paths = [...state.edits.keys()].filter((p) => !state.cmtExcluded.has(p))
+    if (!paths.length) return
+    if (!confirm(`Discard the edits of ${paths.length === 1 ? paths[0] : paths.length + ' files'}?`)) return
+    discardEdits(paths)
+}
+
+function headCommitMessage() {
+    const c = state.cs?.commits
+    return c?.length ? c[c.length - 1].commit.message : ''
+}
+
+function onAmendToggle() {
+    const amend = $('#cmt-amend').checked
+    const ta = $('#cmt-msg')
+    // as in the IDE: Amend brings the last commit's message, unticking it restores what was typed
+    if (amend) { state.cmtTyped = ta.value; ta.value = headCommitMessage() }
+    else ta.value = state.cmtTyped ?? ''
+    renderCommitPanel(false)
+}
+
+function commitFilesList() {
+    return [...state.edits.keys()].map((path) => {
+        const f = state.cs?.files.find((x) => x.path === path)
+        return {path, status: 'modified', additions: f?.additions ?? 0, deletions: f?.deletions ?? 0}
+    })
+}
+
+function renderCommitPanel(tree = true) {
+    if (!shellBuilt || !state.cmtTree) return
+    const files = commitFilesList()
+    const included = files.filter((f) => !state.cmtExcluded.has(f.path))
+    if (tree) {
+        if (files.length) {
+            state.cmtTree.setFiles(files)
+            state.cmtTree.setViewed(new Set(included.map((f) => f.path)))
+            state.cmtTree.select(state.order[state.index]?.path)
+        } else {
+            state.cmtTree.files = null
+            state.cmtTree.root = null
+            $('#cmt-tree').innerHTML = `<div class="tree-msg dim">${canEditPr()
+                ? `No changes. Turn on editing with the pencil (${icons.pencil}) over the diff, edit the right side, and commit here to <b>${esc(state.cs.pr.head.ref)}</b>.`
+                : 'Only the full changes of an open pull request can be edited and committed.'}</div>`
+        }
+    }
+    const amend = $('#cmt-amend').checked
+    $('#cmt-count').textContent = files.length ? `${included.length} modified` : ''
+    const pr = state.cs?.pr
+    $('#cmt-to').innerHTML = pr ? `to ${icons.branch}<span>${esc(pr.head.ref)}</span>` : ''
+    const msg = $('#cmt-msg').value.trim()
+    $('#cmt-go').disabled = state.committing || !canEditPr() || !msg || (!included.length && !(amend && msg !== headCommitMessage().trim()))
+    $('#cmt-go').textContent = state.committing ? 'Pushing…' : amend ? 'Amend and Push' : 'Commit and Push'
+}
+
+function canEditPr() {
+    const pr = state.cs?.pr
+    return !!(headKey() && pr.state === 'open' && pr.head?.repo)
+}
+
+function openCommitPanel() {
+    setSidePanel('commit')
+    if (mobileQuery.matches) openDrawer()
+    setTimeout(() => $('#cmt-msg').focus(), 50)
+}
+
+async function doCommit() {
+    if ($('#cmt-go').disabled) return
+    if (!getToken()) {
+        toast('Committing needs a GitHub token with Contents: write', 'error')
+        return tokenDialog()
+    }
+    const {pr, headSha} = state.cs
+    const amend = $('#cmt-amend').checked
+    const message = $('#cmt-msg').value.trim()
+    const paths = [...state.edits.keys()].filter((p) => !state.cmtExcluded.has(p))
+    if (amend && !confirm(`Amend replaces the last commit of ${pr.head.ref} (a force push). Continue?`)) return
+    const where = {owner: pr.head.repo.owner.login, repo: pr.head.repo.name, branch: pr.head.ref}
+    state.committing = true
+    $('#cmt-err').hidden = true
+    renderCommitPanel(false)
+    try {
+        const {sha, previous} = await commitFiles({...where, expectedHead: headSha, message, amend,
+            files: paths.map((path) => ({path, text: state.edits.get(path)}))})
+        // the unchecked files keep their edits on the new head
+        const rest = new Map([...state.edits].filter(([p]) => !paths.includes(p)))
+        const t = state.target
+        state.carryEdits = rest
+        state.carryKey = `${t.owner}/${t.repo}#${t.number}`
+        state.edits = rest
+        state.cmtExcluded.clear()
+        $('#cmt-msg').value = ''
+        $('#cmt-amend').checked = false
+        state.cmtTyped = ''
+        renderEdits()
+        toast(`${amend ? 'Amended' : 'Committed'} ${sha.slice(0, 7)} and pushed to ${pr.head.ref}`, 'info', 10000, {
+            label: 'Undo', run: () => undoCommit(where, previous, sha),
+        })
+        await waitForHead(sha)
+        reloadTarget()
+    } catch (err) {
+        let m = err.message
+        if (err.status === 403 || err.status === 404) m += `. The token needs Contents: write on ${pr.head.repo.full_name}.`
+        $('#cmt-err').textContent = m
+        $('#cmt-err').hidden = false
+    } finally {
+        state.committing = false
+        renderCommitPanel(false)
+    }
+}
+
+/** GitHub updates the PR's head a moment after a push. */
+async function waitForHead(sha) {
+    const t = state.target
+    for (let k = 0; k < 10; k++) {
+        if (await getPullHead(t.owner, t.repo, t.number).catch(() => null) === sha) return
+        await new Promise((r) => setTimeout(r, 1500))
+    }
+}
+
+async function undoCommit(where, previous, sha) {
+    try {
+        await moveBranch({...where, sha: previous, expected: sha})
+        toast(`${where.branch} is back at ${previous.slice(0, 7)}`)
+        await waitForHead(previous)
+        reloadTarget()
+    } catch (e) {
+        toast(`Undo failed: ${e.message}`, 'error', 8000)
+    }
+}
+
+window.addEventListener('beforeunload', (e) => {
+    if (state.edits.size) { e.preventDefault(); e.returnValue = '' }
+})
 
 function prefetch(i) {
     const f = state.order[i]
@@ -1021,6 +1320,8 @@ function onKey(e) {
         e.preventDefault()
         return changeFont(e.key === '0' ? 0 : (e.key === '=' || e.key === '+' || e.code === 'Period') ? 1 : -1)
     }
+    // typing in the editable head: only F7 / Shift+F7 stay shortcuts
+    if (e.key !== 'F7' && state.editing && state.editableFile && e.target.closest?.('.sbs-right, .editor.modified')) return
     if (e.key === 'F7') {
         e.preventDefault()
         stepDiff(e.shiftKey ? -1 : 1)
@@ -1119,5 +1420,6 @@ function setupPalette() {
 }
 
 applyThemeCss(themeById(settings.theme))
+restoreEdits()
 window.addEventListener('popstate', () => route())
 route()

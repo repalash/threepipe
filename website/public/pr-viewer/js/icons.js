@@ -7,6 +7,8 @@ export const icons = {
     down: svg('<path d="M8 3v10M4 9l4 4 4-4"/>'),
     left: svg('<path d="M13 8H3M7 4L3 8l4 4"/>'),
     right: svg('<path d="M3 8h10M9 4l4 4-4 4"/>'),
+    undo: svg('<path d="M4 6.5h6.5a3 3 0 0 1 0 6H7"/><path d="M6.5 4L4 6.5 6.5 9"/>'),
+    code: svg('<path d="M5.5 4.5L2 8l3.5 3.5M10.5 4.5L14 8l-3.5 3.5"/>'),
     pencil: svg('<path d="M10.5 2.5l3 3L6 13H3v-3z"/><path d="M9 4l3 3"/>'),
     external: svg('<path d="M9 2.5h4.5V7M13.5 2.5L7.5 8.5"/><path d="M12 9.5v3a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3"/>'),
     sideBySide: svg('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M8 2.5v11"/>'),
