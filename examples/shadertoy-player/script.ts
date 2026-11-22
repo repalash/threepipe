@@ -112,7 +112,7 @@ async function init() {
     const shaderText = await response.text()
     setShader(shaderText)
 
-    // the controls of the player in the example card (uiconfig configs; the card reads them again each frame)
+    // the player's controls in the example card
     createExampleCard(viewer, {
         description: 'Plays a Shadertoy shader as the screen shader of the viewer: an ExtendedShaderMaterial with the uniforms of Shadertoy (iTime, iFrame, iResolution, iMouse, iDate). Drag on the canvas for iMouse; Edit Shader changes the code live.',
         actions: [
