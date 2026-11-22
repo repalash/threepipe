@@ -146,10 +146,7 @@ interface Panel {
     setHovered(name: string): void
 }
 
-/**
- * The example card: the BVH toggle, the counts, the raycast times with and without the trees, the build time. The rows
- * read the plugin on each frame, so they also follow a change from the plugin's own UI or from code.
- */
+/** The example card: the BVH toggle, the counts and the raycast and build times, read from the plugin each frame */
 function setupPanel(viewer: ThreeViewer, bvh: BVHPlugin, field: Field): Panel {
     // the last raycasts of each kind, for the averages
     const times = {bvh: [] as number[], plain: [] as number[]}
