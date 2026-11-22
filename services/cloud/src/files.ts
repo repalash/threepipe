@@ -3,6 +3,7 @@ import type {CloudEnv} from './env'
 import {verifySigned} from './drive'
 import config from 'virtual:teenybase'
 import {isMarkdownPath, markdownResponse, wantsRenderedMarkdown} from './markdown.js'
+import {isVideoPath, videoResponse} from './video.js'
 import {MARKDOWN_RENDER_BYTES} from './limits'
 
 const HTML_SANDBOX = 'sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock allow-presentation'
@@ -17,7 +18,8 @@ const PASSIVE = /^(?:image\/(?:png|jpeg|gif|webp|avif|x-icon|ktx2)|(?:video|audi
  * request, no database. Owner, expiry, deletion and visibility are read from the object's metadata.
  * Everything but passive types (HTML, SVG, XHTML, a type given at upload) gets a sandbox CSP: its scripts run in an
  * opaque origin, away from the API host's sessions. A .md file opened in a browser renders to a page that runs no script
- * (src/markdown.js, from ij-share); curl and agents get the file as it is, and `?raw=1` shows it raw in a browser.
+ * (src/markdown.js, from ij-share); curl and agents get the file as it is, and `?raw=1` shows it raw in a browser. A video
+ * opened in a browser gets a player page the same way (src/video.js); its <video> reads the file, which takes one Range.
  *
  *   /<s|a|b|p>/<path>                  public
  *   /d/<handle>/<item>/<file>          a drive item shared as `link` (src/drive.ts)
@@ -62,7 +64,15 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
 
     // a rendered page has its own ETag, so the file's conditional and range headers do not apply to it
     const render = isMarkdownPath(key) && wantsRenderedMarkdown(c.req.raw, url)
-    let obj: R2Object | R2ObjectBody | null = await c.env.CLOUD_BUCKET.get(key, render ? {} : {onlyIf: c.req.raw.headers, range: c.req.raw.headers})
+    const player = !render && isVideoPath(key) && wantsRenderedMarkdown(c.req.raw, url)
+    // A Range is checked against the size before any byte is read: R2 answers a range past the end, several ranges or a
+    // malformed one with the whole object, and a 206 that carries the whole object corrupts resumed downloads.
+    const rangeHeader = render || player ? undefined : c.req.header('range')
+    const head = rangeHeader || player ? await c.env.CLOUD_BUCKET.head(key) : null
+    const range = rangeHeader && head ? parseRange(rangeHeader, head.size) : null
+    // declared wide: a head (no body) and a get (a body, or none when a precondition matched) both land here
+    let obj = (player || (rangeHeader && !range) ? head
+        : await c.env.CLOUD_BUCKET.get(key, render ? {} : {onlyIf: c.req.raw.headers, ...(range ? {range} : {})})) as R2Object | R2ObjectBody | null
     if (!obj && !key.split('/').pop()!.includes('.')) {
         // a folder without the trailing slash: redirect so its relative links resolve
         const index = await c.env.CLOUD_BUCKET.head(key + '/index.html')
@@ -73,10 +83,21 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     if (meta.deleted) return plain('gone: ' + meta.deleted, 410)
     if (meta.expires && Date.parse(meta.expires) < Date.now()) return plain('expired', 410)
     if (!allowed(meta)) return notFound()
+    if (player) {
+        const q = new URLSearchParams(url.search)
+        q.delete('render')
+        q.set('raw', '1')
+        return videoResponse(obj, c.req.raw, {path: key, rawHref: `${encodeURIComponent(key.split('/').pop()!)}?${q}`})
+    }
+    if (rangeHeader && !range) return unsatisfiable(obj.size)
     // too big to render: the file as it is, with the request's conditional and range headers after all
+    let tooBigRange: {offset: number, length: number} | null = null
     if (render && obj.size > MARKDOWN_RENDER_BYTES) {
         if ('body' in obj) await obj.body.cancel()
-        obj = await c.env.CLOUD_BUCKET.get(key, {onlyIf: c.req.raw.headers, range: c.req.raw.headers})
+        const header = c.req.header('range')
+        tooBigRange = header ? parseRange(header, obj.size) : null
+        if (header && !tooBigRange) return unsatisfiable(obj.size)
+        obj = await c.env.CLOUD_BUCKET.get(key, {onlyIf: c.req.raw.headers, ...(tooBigRange ? {range: tooBigRange} : {})})
         if (!obj) return notFound()
     } else if (render && 'body' in obj) {
         const q = new URLSearchParams(url.search)
@@ -97,14 +118,36 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     if (!PASSIVE.test((headers.get('content-type') || '').toLowerCase())) headers.set('content-security-policy', HTML_SANDBOX)
     // R2 answers a failed precondition without a body: If-None-Match/If-Modified-Since → 304, If-Match/If-Unmodified-Since → 412
     if (!('body' in obj)) return new Response(null, {status: c.req.header('if-match') || c.req.header('if-unmodified-since') ? 412 : 304, headers})
-    // R2 reports a range even when none was asked for: only a request with a Range header gets a 206
-    if (c.req.header('range') && obj.range && 'offset' in obj.range) {
-        const offset = obj.range.offset ?? 0
-        const length = obj.range.length ?? obj.size - offset
+    const part = range || tooBigRange
+    if (part) {
+        const {offset, length} = part
         headers.set('content-range', `bytes ${offset}-${offset + length - 1}/${obj.size}`)
         headers.set('content-length', String(length))
         return new Response(c.req.method === 'HEAD' ? null : obj.body, {status: 206, headers})
     }
     headers.set('content-length', String(obj.size))
     return new Response(c.req.method === 'HEAD' ? null : obj.body, {headers})
+}
+
+/** 416 for a range the file cannot answer, with its size, as RFC 9110 asks. */
+function unsatisfiable(size: number) {
+    return new Response(null, {status: 416, headers: {'content-range': `bytes */${size}`, 'accept-ranges': 'bytes', 'access-control-allow-origin': '*'}})
+}
+
+/**
+ * One Range only: `bytes=<start>-<end?>` or `bytes=-<suffix>`, clamped to the object; null → 416. The rule of ij-share's
+ * parseRange (ijewel-mono services/share-worker/src/worker.js).
+ */
+export function parseRange(header: string, size: number): {offset: number, length: number} | null {
+    if (!size) return null // nothing to slice; R2 rejects a zero-length range
+    const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim())
+    if (!m || (!m[1] && !m[2])) return null
+    if (!m[1]) {
+        const suffix = Number(m[2])
+        return suffix ? {offset: Math.max(0, size - suffix), length: Math.min(suffix, size)} : null
+    }
+    const start = Number(m[1])
+    const end = m[2] ? Math.min(Number(m[2]), size - 1) : size - 1
+    if (start >= size || end < start) return null
+    return {offset: start, length: end - start + 1}
 }

@@ -51,6 +51,24 @@ R=$(curl -s -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-uni
 [ "$(curl -s "$UURL")" = "hello share" ] && [ "$(curl -s "$A/_files/s/$U-uni/$(python3 -c "import urllib.parse;print(urllib.parse.quote('caf\u00e9 モデル.txt'))")")" = "hello share" ] && ok "unicode file names (NFC)" || bad "unicode: $R"
 [ "$(code -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-uni/$(python3 -c "import urllib.parse;print(urllib.parse.quote('x\u202egnp.exe'))")")" = "400" ] && [ "$(code -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-uni/a%23b.txt")" = "400" ] && ok "control/format characters and # are refused" || bad "bad names"
 [ "$(code "$SURL")" = "200" ] && [ "$(code -H 'Range: bytes=0-4' "$SURL")" = "206" ] && [ "$(curl -s -H 'Range: bytes=0-4' "$SURL")" = "hello" ] && ok "200, and 206 for a Range request" || bad "status / range"
+# the edges of Range: open-ended and suffix slices, 416 (with the size) for a range past the end or several ranges
+SZ=$(wc -c < $TMP/a.txt | tr -d ' ')
+RH=$(curl -s -D - -o /dev/null -H 'Range: bytes=6-' "$SURL" | tr -d '\r')
+echo "$RH" | grep -qi "^content-range: bytes 6-$((SZ-1))/$SZ" && [ "$(curl -s -H 'Range: bytes=-6' "$SURL")" = "share" ] && ok "open-ended and suffix ranges" || bad "open/suffix range: $RH"
+[ "$(code -H "Range: bytes=$SZ-" "$SURL")" = "416" ] && curl -s -D - -o /dev/null -H "Range: bytes=$SZ-" "$SURL" | tr -d '\r' | grep -qi "^content-range: bytes \*/$SZ" && ok "416 with content-range for a range past the end" || bad "range past the end: $(code -H "Range: bytes=$SZ-" "$SURL")"
+[ "$(code -H 'Range: bytes=0-1,3-4' "$SURL")" = "416" ] && [ "$(code -H 'Range: bytes=x-y' "$SURL")" = "416" ] && ok "416 for several ranges or a malformed one" || bad "multi/malformed range: $(code -H 'Range: bytes=0-1,3-4' "$SURL") $(code -H 'Range: bytes=x-y' "$SURL")"
+# a video opened in a browser: a player page (no script) that plays the file; <video>, curl and ?raw=1 get the bytes
+head -c 4000 /dev/urandom > $TMP/clip.mp4
+VURL=$(curl -s -X PUT -H "$H" -H 'content-type: video/mp4' --data-binary @$TMP/clip.mp4 "$A/api/v1/uploads/s/$U-video/clip.mp4" | j "['url']")
+VPAGE=$(curl -s -H 'sec-fetch-dest: document' "$VURL")
+echo "$VPAGE" | grep -q '<video controls playsinline preload="metadata" src="clip.mp4?raw=1">' && curl -sI -H 'sec-fetch-dest: document' "$VURL" | grep -qi "media-src 'self'" \
+  && [ "$(curl -s -H 'sec-fetch-dest: document' "$VURL?raw=1" | wc -c | tr -d ' ')" = "4000" ] && [ "$(code -H 'sec-fetch-dest: video' -H 'Range: bytes=0-99' "$VURL")" = "206" ] \
+  && ok "video: a player page for a browser, the bytes (with ranges) for <video> and ?raw=1" || bad "video page: $(head -c 300 <<< "$VPAGE")"
+# a video in a .md file plays: image syntax with a video link, or a raw <video>, and the page allows media
+printf '# Clip\n\n![The clip](clip.mp4)\n' > $TMP/clip.md
+CMURL=$(curl -s -X PUT -H "$H" --data-binary @$TMP/clip.md "$A/api/v1/uploads/s/$U-video/clip.md" | j "['url']")
+curl -s -H 'sec-fetch-dest: document' "$CMURL" | grep -q '<video controls playsinline preload="metadata" src="clip.mp4" title="The clip"></video>' \
+  && curl -sI -H 'sec-fetch-dest: document' "$CMURL" | grep -qi "media-src \* data: blob:" && ok ".md: a video link plays in the page" || bad ".md video"
 printf '<h1>page</h1>' > $TMP/index.html
 R=$(curl -s -X PUT -H "$H" -H 'content-type: text/html' --data-binary @$TMP/index.html "$A/api/v1/uploads/p/$U-page/index.html"); PURL=$(echo "$R" | j "['url']") && ok "upload p/" || bad "upload p/: $R"
 HDR=$(curl -sI "${PURL%index.html}"); echo "$HDR" | grep -qi "content-security-policy: sandbox" && ok "p/ folder serves index.html with sandbox CSP" || bad "p/ headers: $HDR"
