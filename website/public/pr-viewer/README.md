@@ -19,6 +19,8 @@ Open `?pr=owner/repo/123`, or paste a PR / commit / compare URL on the start pag
 - **Search Everywhere** (double Shift, or the search button): the changed files, every action and setting (toggles
   show ON/OFF), the commits, and on its tab the repository's pull requests. Ctrl/⌘+Shift+A opens it on Actions,
   Ctrl/⌘+P on Files. Fuzzy matching as in the IDE: word starts and runs, e.g. `uas` → UseAutosave.
+- **Themes**: the 10 Material Theme UI variants (Darker, Oceanic, Palenight, Deep Ocean, Forest, Space, Volcano,
+  Lighter, Sandy Beach, Sky Blue), from the gear menu or Search Everywhere ("Theme: …"); remembered per browser.
 - **Unified viewer**: Monaco's inline diff editor (the default on narrow screens).
 - **Log**: the PR's commits with a graph line and a text/hash filter; select a commit, or shift-select a range, to see
   its changed files and details; double-click, Enter or Show Diff opens it.
@@ -30,6 +32,18 @@ diff, selection, gutter and main syntax colors taken from the IDE's own scheme, 
 [Material Theme UI Lite](https://github.com/AtomMaterialUI/material-theme-ui-lite), MIT) inside [Monaco](https://microsoft.github.io/monaco-editor/), both from CDNs; languages load
 on demand. Diffs come from Monaco's diff algorithm (the one VS Code uses). No build step: the files here are served
 as they are.
+
+## Themes
+
+`js/themes.js` is generated from the plugin's own files in a checkout of Material Theme UI Lite: each variant's UI
+palette (`themes/regular/Material <Name>.theme.json`) colors the page, and its editor scheme
+(`colors/Material <Name>.xml`) gives the diff, selection, gutter and caret colors and the syntax colors (JetBrains
+attributes mapped to TextMate scopes in the script). To regenerate:
+
+```sh
+git clone --depth 1 https://github.com/AtomMaterialUI/material-theme-ui-lite /tmp/mtui
+node tools/material-themes.mjs /tmp/mtui
+```
 
 ## GitHub access
 

@@ -2,9 +2,8 @@
 // (no filler lines), line numbers of both sides in the middle, and a divider that connects each change on the left
 // to its counterpart on the right with curved shapes. Scrolling one side scrolls the other to the matching position.
 
-import {DIFF_COLORS, fullWidthSelection} from './editor.js'
+import {DIFF_COLORS, EDITOR_COLORS, fullWidthSelection} from './editor.js'
 
-const FILL = {mod: DIFF_COLORS.modified, ins: DIFF_COLORS.inserted, del: DIFF_COLORS.deleted}
 
 /**
  * Normalizes Monaco line changes (1-based, `*EndLineNumber` 0 for an empty side) to 0-based half-open ranges:
@@ -272,7 +271,7 @@ export class SideBySideViewer {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
         ctx.clearRect(0, 0, W, H)
         // separators to the editors, under the bands so a band crosses them unbroken
-        ctx.fillStyle = '#2b2b2b'
+        ctx.fillStyle = EDITOR_COLORS.separator
         ctx.fillRect(0, 0, 1, H)
         ctx.fillRect(W - 1, 0, 1, H)
         const lh = this.lineHeight
@@ -289,7 +288,7 @@ export class SideBySideViewer {
             if (emptyA) { a0 = Math.round(a0) - 1; a1 = a0 + 2 }
             if (emptyB) { b0 = Math.round(b0) - 1; b1 = b0 + 2 }
             if (Math.max(a1, b1) < -2 || Math.min(a0, b0) > H + 2) continue
-            ctx.fillStyle = FILL[c.type]
+            ctx.fillStyle = c.type === 'mod' ? DIFF_COLORS.modified : c.type === 'ins' ? DIFF_COLORS.inserted : DIFF_COLORS.deleted
             ctx.fillRect(0, a0, x0, a1 - a0)
             ctx.fillRect(x1, b0, W - x1, b1 - b0)
             const k = this.curveW * 0.55
@@ -313,7 +312,7 @@ export class SideBySideViewer {
             const last = Math.min(count, Math.ceil((s + H) / lh))
             ctx.textAlign = align
             for (let i = first; i < last; i++) {
-                ctx.fillStyle = i === caret ? '#616161' : '#424242'
+                ctx.fillStyle = i === caret ? EDITOR_COLORS.lineNumberCaret : EDITOR_COLORS.lineNumber
                 ctx.fillText(String(i + 1), x, i * lh - s + lh / 2 + 0.5)
             }
         }

@@ -5,49 +5,23 @@
 const MONACO_VERSION = '0.52.2'
 const MONACO_BASE = `https://cdn.jsdelivr.net/npm/monaco-editor@${MONACO_VERSION}/min`
 const SHIKI = 'https://esm.sh/shiki@4.6.0'
-const SHIKI_THEME = 'https://esm.sh/@shikijs/themes@4.6.0/material-theme-darker'
+const SHIKI_THEMES = 'https://esm.sh/@shikijs/themes@4.6.0'
 
-// Where the IDE's Material Darker colors differ from the VS Code theme's: from the IDE's own scheme, colors/Material
-// Darker.xml of Material Theme UI Lite (github.com/AtomMaterialUI/material-theme-ui-lite, MIT)
-const JETBRAINS_TOKEN_COLORS = [
-    // DEFAULT_LINE/BLOCK/DOC_COMMENT 616161 italic
-    {scope: ['comment', 'punctuation.definition.comment', 'comment.block.documentation'], settings: {foreground: '#616161', fontStyle: 'italic'}},
-    // DEFAULT_CLASS_NAME ffcb6b; DEFAULT_INTERFACE_NAME c3e88d italic
-    {scope: ['entity.name.type.class', 'entity.name.class', 'support.class', 'entity.other.inherited-class', 'new.expr entity.name.type'], settings: {foreground: '#FFCB6B'}},
-    {scope: ['entity.name.type.interface'], settings: {foreground: '#C3E88D', fontStyle: 'italic'}},
-    // DEFAULT_FUNCTION_DECLARATION / CALL / INSTANCE_METHOD 82aaff
-    {scope: ['entity.name.function', 'support.function', 'meta.function-call entity.name.function'], settings: {foreground: '#82AAFF', fontStyle: ''}},
-    // DEFAULT_OPERATION_SIGN, BRACES, BRACKETS, PARENTHS, DOT, COMMA, SEMICOLON, VALID_STRING_ESCAPE 89ddff
-    {scope: ['keyword.operator', 'punctuation', 'meta.brace', 'constant.character.escape'], settings: {foreground: '#89DDFF'}},
-    {scope: ['punctuation.definition.string', 'punctuation.definition.comment'], settings: {}},
-    // DEFAULT_NUMBER, DEFAULT_CONSTANT f78c6c
-    {scope: ['constant.numeric', 'constant.language'], settings: {foreground: '#F78C6C'}},
-    {scope: ['meta.object-literal.key', 'variable.other.property', 'variable.other.object.property', 'support.variable.property',
-        'variable.other.constant.property', 'entity.name.tag.yaml', 'support.type.property-name'], settings: {foreground: '#EEFFFF'}},
-    {scope: ['variable.parameter', 'meta.parameters variable.parameter'], settings: {foreground: '#F78C6C', fontStyle: ''}},
-    {scope: ['storage.type', 'storage.modifier', 'keyword.operator.new', 'keyword.operator.expression', 'keyword.control'], settings: {foreground: '#C792EA', fontStyle: 'italic'}},
-    {scope: ['support.type.primitive', 'support.type.builtin'], settings: {foreground: '#C792EA', fontStyle: 'italic'}},
-    {scope: ['storage.type.function.arrow'], settings: {foreground: '#C792EA', fontStyle: ''}},
-]
+import {THEMES} from './themes.js'
 
-export const THEME = 'material-theme-darker'
-export const MONACO_THEME = 'prv-material-darker'
+export {THEMES}
+export const DEFAULT_THEME = 'material-darker'
+
+/** The Monaco theme in use (named after the variant, e.g. prv-material-darker). */
+export let MONACO_THEME = 'prv-' + DEFAULT_THEME
 
 // JetBrains (Material Darker) diff colors, sampled from the IDE
-// The IDE's diff colors (Material Darker.xml: DIFF_MODIFIED 12404b, DIFF_INSERTED 264b33, DIFF_DELETED 41454b, and their
-// error stripes). A modified block's lines get the modified color softened over the background; its changed words the
-// full color. An inserted or deleted block gets its full color.
-export const DIFF_COLORS = {
-    modified: '#1d2d31', // 12404b at about 35% over 212121, as the IDE renders it
-    modifiedWord: '#12404b',
-    inserted: '#264b33',
-    insertedWord: '#264b33',
-    deleted: '#41454b',
-    deletedWord: '#41454b',
-    insertedRuler: '#447152',
-    modifiedRuler: '#43698d',
-    deletedRuler: '#656e76',
-}
+// The current variant's diff colors (from its IDE scheme: DIFF_MODIFIED, DIFF_INSERTED, DIFF_DELETED and their error
+// stripes). A modified block's lines get the modified color softened over the background, its changed words the full
+// color; an inserted or deleted block its full color. Replaced in place by applyTheme.
+export const DIFF_COLORS = {...THEMES[0].diff}
+/** The current variant's editor colors (line numbers, separators…), for what the page draws itself. */
+export const EDITOR_COLORS = {...THEMES[0].editor}
 
 // full-width multi-line selections, as in the IDE (Monaco stops a selected line at its end): see fullWidthSelection
 const selStyle = document.createElement('style')
@@ -109,7 +83,6 @@ export function loadMonaco() {
         }
         const monaco = await new Promise((resolve, reject) => window.require(['vs/editor/editor.main'], () => resolve(window.monaco), reject))
         await shikiReady
-        defineTheme(monaco)
         // the code font may arrive after Monaco measured it
         document.fonts?.ready.then(() => monaco.editor.remeasureFonts())
         return monaco
@@ -117,14 +90,12 @@ export function loadMonaco() {
 }
 
 async function loadShiki() {
-    const [{createHighlighter, bundledLanguagesInfo}, {createJavaScriptRegexEngine}, {default: baseTheme}] = await Promise.all([
+    const [{createHighlighter, bundledLanguagesInfo}, {createJavaScriptRegexEngine}] = await Promise.all([
         import(SHIKI),
         import(`${SHIKI}/engine/javascript`),
-        import(SHIKI_THEME),
     ])
-    const theme = {...baseTheme, name: THEME, tokenColors: [...(baseTheme.tokenColors || baseTheme.settings || []), ...JETBRAINS_TOKEN_COLORS]}
     highlighter = await createHighlighter({
-        themes: [theme],
+        themes: [],
         langs: [],
         engine: createJavaScriptRegexEngine({forgiving: true}),
     })
@@ -136,55 +107,111 @@ async function loadShiki() {
 
 const hex = (c) => (c || '').replace('#', '').slice(0, 6)
 
-function defineTheme(monaco) {
-    const {colorMap} = highlighter.setTheme(THEME)
-    const theme = highlighter.getTheme(THEME)
-    const fg = theme.fg || '#EEFFFF'
-    const rules = [{token: '', foreground: hex(fg)}]
+const baseThemes = {}
+/** Shiki's Material theme for the scopes the IDE scheme does not map (light or dark). */
+function baseTheme(dark) {
+    const id = dark ? 'material-theme-darker' : 'material-theme-lighter'
+    return baseThemes[id] ??= import(`${SHIKI_THEMES}/${id}`).then((m) => m.default)
+}
+
+export function themeById(id) {
+    return THEMES.find((t) => t.id === id) || THEMES[0]
+}
+
+function onColor(hexColor) {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hexColor.slice(i, i + 2), 16) / 255)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6 ? '#000000' : '#ffffff'
+}
+
+/** The page's colors (CSS variables) from a variant's UI palette and scheme. Works before Monaco loads. */
+export function applyThemeCss(theme) {
+    const u = theme.ui, e = theme.editor, d = theme.diff, st = theme.status
+    const a = (c, alpha) => (c.length === 7 ? c + alpha : c)
+    const vars = {
+        '--bg': u.bg, '--bg2': u.cs, '--bg-hover': u.button, '--bg-sel': u.tree, '--bg-sel-focus': u.table,
+        '--border': u.border, '--border2': u.hl, '--bg-on': u.hl, '--bg-tab': u.second, '--popup': u.second,
+        '--popup-sel': u.selBg, '--fg': u.fg, '--fg-strong': u.white, '--fg-dim': u.text, '--fg-faint': u.dis,
+        '--accent': u.accent, '--accent-bg': a(u.accent, '30'), '--on-accent': onColor(u.accent.slice(0, 7)),
+        '--icon': u.fg, '--icon-dim': u.text, '--added': st.added, '--modified': st.modified, '--deleted': st.deleted,
+        '--renamed': u.blue, '--danger': u.red, '--ed-bg': e.bg, '--sel': e.selection,
+        '--d-mod': d.modified, '--d-mod-w': d.modifiedWord, '--d-ins': d.inserted, '--d-ins-w': d.insertedWord,
+        '--d-del': d.deleted, '--d-del-w': d.deletedWord,
+    }
+    const root = document.documentElement
+    for (const [k, v] of Object.entries(vars)) if (v) root.style.setProperty(k, v)
+    root.style.colorScheme = theme.dark ? 'dark' : 'light'
+    root.dataset.theme = theme.dark ? 'dark' : 'light'
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', u.bg)
+    Object.assign(DIFF_COLORS, d)
+    Object.assign(EDITOR_COLORS, e)
+}
+
+/**
+ * Applies a Material variant: the page's colors, then (Monaco loaded) the code colors: Shiki's Material theme with
+ * the variant's IDE syntax rules on top, and a Monaco theme with its editor and diff colors. Open models keep their
+ * old tokens until they are tokenized again (the caller reopens the file).
+ */
+export async function applyTheme(monaco, theme) {
+    applyThemeCss(theme)
+    const name = 'prv-' + theme.id
+    if (!highlighter.getLoadedThemes().includes(name)) {
+        const base = await baseTheme(theme.dark)
+        await highlighter.loadTheme({
+            ...base, name, type: theme.dark ? 'dark' : 'light', fg: theme.editor.fg, bg: theme.editor.bg,
+            colors: {...base.colors, 'editor.background': theme.editor.bg, 'editor.foreground': theme.editor.fg},
+            tokenColors: [...(base.tokenColors || base.settings || []), ...theme.tokens],
+        })
+    }
+    const {colorMap} = highlighter.setTheme(name)
+    const rules = [{token: '', foreground: hex(theme.editor.fg)}]
     const styles = ['', 'italic', 'bold', 'italic bold', 'underline', 'italic underline', 'bold underline', 'italic bold underline']
     colorMap.forEach((c, i) => {
         if (!c) return
         rules.push({token: `c${i}`, foreground: hex(c)})
         for (let s = 1; s < 8; s++) rules.push({token: `c${i}.s${s}`, foreground: hex(c), fontStyle: styles[s]})
     })
-    const colors = {}
-    for (const [k, v] of Object.entries(theme.colors || {})) if (/^#[0-9a-f]{3,8}$/i.test(v)) colors[k] = v
-    monaco.editor.defineTheme(MONACO_THEME, {
-        base: 'vs-dark',
+    const e = theme.editor, d = theme.diff, u = theme.ui
+    const slider = theme.dark ? '#ffffff' : '#000000'
+    monaco.editor.defineTheme(name, {
+        base: theme.dark ? 'vs-dark' : 'vs',
         inherit: true,
         rules,
         colors: {
-            ...colors,
-            'editor.background': '#212121',
-            'editorGutter.background': '#212121',
+            'editor.background': e.bg,
+            'editor.foreground': e.fg,
+            'editorGutter.background': e.gutter,
             'editor.lineHighlightBackground': '#00000000',
             'editor.lineHighlightBorder': '#00000000',
-            'editorLineNumber.foreground': '#424242', // LINE_NUMBERS_COLOR
-            'editorLineNumber.activeForeground': '#616161', // LINE_NUMBER_ON_CARET_ROW_COLOR
-            'editor.selectionBackground': '#353535', // SELECTION_BACKGROUND
-            'editor.inactiveSelectionBackground': '#353535',
+            'editorLineNumber.foreground': e.lineNumber, // LINE_NUMBERS_COLOR
+            'editorLineNumber.activeForeground': e.lineNumberCaret, // LINE_NUMBER_ON_CARET_ROW_COLOR
+            'editor.selectionBackground': e.selection, // SELECTION_BACKGROUND
+            'editor.inactiveSelectionBackground': e.selection,
             'editor.selectionHighlightBackground': '#00000000',
-            'editorCursor.foreground': '#FFCC00', // CARET_COLOR
+            'editorCursor.foreground': e.caret, // CARET_COLOR
+            'editorIndentGuide.background1': e.indentGuide,
+            'editorWidget.background': u.second,
+            'editorWidget.border': u.hl,
             'scrollbar.shadow': '#00000000',
-            'scrollbarSlider.background': '#4a4a4a66',
-            'scrollbarSlider.hoverBackground': '#5a5a5a99',
-            'scrollbarSlider.activeBackground': '#6a6a6aaa',
+            'scrollbarSlider.background': slider + '1f',
+            'scrollbarSlider.hoverBackground': slider + '33',
+            'scrollbarSlider.activeBackground': slider + '44',
             'editorOverviewRuler.border': '#00000000',
-            'diffEditor.insertedLineBackground': DIFF_COLORS.inserted,
-            'diffEditor.insertedTextBackground': DIFF_COLORS.insertedWord + 'cc',
-            'diffEditor.removedLineBackground': DIFF_COLORS.deleted,
-            'diffEditor.removedTextBackground': DIFF_COLORS.deletedWord + 'cc',
-            'diffEditor.border': '#2b2b2b',
-            'diffEditor.diagonalFill': '#2a2a2a',
-            'diffEditor.unchangedRegionBackground': '#1a1a1a',
-            'diffEditor.unchangedRegionForeground': '#7a7a7a',
-            'diffEditorGutter.insertedLineBackground': DIFF_COLORS.inserted,
-            'diffEditorGutter.removedLineBackground': DIFF_COLORS.deleted,
-            'diffEditorOverview.insertedForeground': DIFF_COLORS.insertedRuler,
-            'diffEditorOverview.removedForeground': DIFF_COLORS.deletedRuler,
+            'diffEditor.insertedLineBackground': d.inserted,
+            'diffEditor.insertedTextBackground': d.insertedWord + 'cc',
+            'diffEditor.removedLineBackground': d.deleted,
+            'diffEditor.removedTextBackground': d.deletedWord + 'cc',
+            'diffEditor.border': e.separator,
+            'diffEditor.diagonalFill': u.border,
+            'diffEditor.unchangedRegionBackground': e.collapsed || u.cs,
+            'diffEditor.unchangedRegionForeground': u.text,
+            'diffEditorGutter.insertedLineBackground': d.inserted,
+            'diffEditorGutter.removedLineBackground': d.deleted,
+            'diffEditorOverview.insertedForeground': d.insertedRuler,
+            'diffEditorOverview.removedForeground': d.deletedRuler,
         },
     })
-    monaco.editor.setTheme(MONACO_THEME)
+    MONACO_THEME = name
+    monaco.editor.setTheme(name)
 }
 
 const EXT = {

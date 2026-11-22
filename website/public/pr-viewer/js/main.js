@@ -2,7 +2,10 @@ import {
     getFileContent, getToken, getViewedStates, GitHubError, loadChangeSet, paramsToTarget, parseTarget,
     listPullRequests, searchMyPullRequests, setFileViewed, setToken, targetToParams,
 } from './github.js'
-import {ensureLanguage, fullWidthSelection, languageForPath, languageName, loadMonaco, MONACO_THEME} from './editor.js'
+import {
+    applyTheme, applyThemeCss, DEFAULT_THEME, ensureLanguage, fullWidthSelection, languageForPath, languageName, loadMonaco,
+    MONACO_THEME, themeById, THEMES,
+} from './editor.js'
 import {SideBySideViewer} from './sbs.js'
 import {FileTree} from './tree.js'
 import {fileIcon, icons, isImagePath} from './icons.js'
@@ -28,6 +31,7 @@ const store = {
 const mobileQuery = window.matchMedia('(max-width: 760px)')
 const settings = {
     view: store.get('view', null), // null: side-by-side on wide screens, unified on phones
+    theme: store.get('theme', DEFAULT_THEME), // a Material Theme UI variant (themes.js)
     align: store.get('align', false), // "Align Changes In Side-by-Side Diff"
     syncScroll: store.get('syncScroll', true),
     ignore: store.get('ignore', 'none'), // 'none' | 'trim' | 'all'
@@ -270,7 +274,9 @@ async function openTarget(target, file) {
 
 async function ensureMonaco() {
     if (state.monaco) return state.monaco
-    state.monaco = await loadMonaco()
+    const monaco = await loadMonaco()
+    await applyTheme(monaco, themeById(settings.theme))
+    state.monaco = monaco
     return state.monaco
 }
 
@@ -565,6 +571,7 @@ function settingsMenu(anchor) {
         {html: 'Highlighting Differences'},
         hl('lines'), hl('words'), hl('none'),
         '-',
+        {label: `Theme: ${esc(themeById(settings.theme).name)} ▸`, keepOpen: true, action: () => themeMenu(anchor)},
         {label: 'Collapse Unchanged Fragments', checked: settings.collapseUnchanged, disabled: renderer() !== 'monaco', action: () => { set('collapseUnchanged', !settings.collapseUnchanged); applyMonacoOptions() }},
         {label: 'Soft-Wrap', checked: settings.wordWrap, disabled: renderer() !== 'monaco', action: () => { set('wordWrap', !settings.wordWrap); applyMonacoOptions() }},
         {label: `Increase Font Size <span class="dim">(${fontSize()}px)</span>`, hint: `${MOD}=`, action: () => changeFont(1)},
@@ -584,6 +591,29 @@ function changeFont(delta) {
     store.set('fontSize', settings.fontSize)
     applyFont()
     toast(`Editor font ${fontSize()}px`, 'info', 1200)
+}
+
+function themeMenu(anchor) {
+    const item = (t) => ({label: esc(t.name), checked: t.id === settings.theme, action: () => setThemeId(t.id)})
+    openMenu(anchor, [
+        {html: 'Dark'}, ...THEMES.filter((t) => t.dark).map(item),
+        '-',
+        {html: 'Light'}, ...THEMES.filter((t) => !t.dark).map(item),
+    ], {align: 'right'})
+}
+
+/** Switches the Material variant: page colors at once, code colors once Monaco is there (the open file is retokenized). */
+async function setThemeId(id) {
+    const theme = themeById(id)
+    settings.theme = theme.id
+    store.set('theme', theme.id)
+    applyThemeCss(theme)
+    if (state.monaco) {
+        await applyTheme(state.monaco, theme)
+        state.sbs?.draw()
+        reopenFile(true)
+    }
+    toast(theme.name, 'info', 1200)
 }
 
 function applyHighlight() {
@@ -1046,6 +1076,7 @@ function actionItems() {
         A('Open on GitHub', () => window.open($('#btn-github').href, '_blank', 'noopener'), {ic: icons.github}),
         f && A('Open File on GitHub', () => window.open($('#btn-open-file').href, '_blank', 'noopener'), {ic: icons.external}),
         A('Reload', () => reloadTarget(), {ic: icons.refresh}),
+        ...THEMES.map((th) => A(`Theme: ${th.name}`, () => setThemeId(th.id), {toggle: settings.theme === th.id, sub: th.dark ? 'dark' : 'light'})),
         A('GitHub Token…', tokenDialog, {ic: icons.lock}),
         A('Open Another Pull Request', () => { history.pushState(null, '', location.pathname); route() }, {ic: icons.folder}),
     ].filter(Boolean)
@@ -1087,5 +1118,6 @@ function setupPalette() {
     $('#btn-search').onclick = () => state.palette.open()
 }
 
+applyThemeCss(themeById(settings.theme))
 window.addEventListener('popstate', () => route())
 route()
