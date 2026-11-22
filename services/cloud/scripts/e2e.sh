@@ -35,9 +35,9 @@ CODE=${URL#*/api/v1/access/agents.md#}; [ "$CODE" != "$URL" ] && [ ${#CODE} -ge 
 MD=$(curl -s "$URL"); echo "$MD" | head -1 | grep -q "threepipe cloud" && echo "$MD" | grep -q "valid for 30 days" && echo "$MD" | grep -q "(max 90 MB)" && echo "$MD" | grep -q "$A/api/v1/access/key" && ok "agents.md (limits from src/limits.ts)" || bad "agents.md: $MD"
 KEY=$(printf %s "$CODE" | curl -s --data-binary @- "$A/api/v1/access/key"); [ ${#KEY} -gt 50 ] && ok "key (${#KEY} chars)" || bad "key: $KEY"
 [ "$(printf %s "{\"code\":\"$CODE\"}" | code --data-binary @- "$A/api/v1/access/key")" = "404" ] && curl -s -X POST "$A/api/v1/access/key" | grep -q "send only the code" && ok "wrong body -> 404 that says what to send" || bad "wrong body"
-# the old routes, the code in the path, are gone; the worker's log lines (not wrangler's own, which production does not have) show the code as …
+# the old form, the code in the path: 410 with the new form; the worker's log lines (not wrangler's own, which production does not have) show the code as …
 OLDURL=$(curl -s -X POST $A/api/v1/access-links -H "Authorization: Bearer $TOK" -H 'content-type: application/json' -d '{"name":"old"}' | j "['url']"); OLDCODE=${OLDURL#*#}
-[ "$(code "$A/api/v1/access/$OLDCODE/agents.md")" = "404" ] && [ "$(code "$A/api/v1/access/$OLDCODE/key")" = "404" ] && ok "old routes -> 404" || bad "old routes"
+[ "$(code "$A/api/v1/access/$OLDCODE/agents.md")" = "410" ] && curl -s "$A/api/v1/access/$OLDCODE/key" | grep -q "format has changed: it is now $A/api/v1/access/agents.md#<code>" && ok "old form -> 410 with the new form" || bad "old form"
 H="Authorization: Bearer $KEY"
 echo "hello share" > $TMP/a.txt
 R=$(curl -s -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-share/a.txt"); SURL=$(echo "$R" | j "['url']") && ok "upload s/ -> $SURL" || bad "upload s/: $R"

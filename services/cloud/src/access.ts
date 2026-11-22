@@ -1,4 +1,4 @@
-import type {Hono} from 'hono'
+import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
 import {apiOrigin, filesOrigin, jsonBody, randomCode, sha256Hex} from './env'
@@ -15,6 +15,7 @@ import {ACCESS_KEY_SECONDS, DAY, LABEL_MAX, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, 
  *   DELETE /api/v1/access-links/<id>      revokes it: its keys stop working at once
  *   GET  /api/v1/access/agents.md#<code>                              (the code is the credential)
  *   POST /api/v1/access/key  <code>     → the key, text/plain
+ *   GET  /api/v1/access/<code>/agents.md or /key (the old form) → 410, one line with the new form
  *
  * The /account page lists and revokes them. (teenybase's /api/v1/table/access_links/… works too, owner only.)
  */
@@ -64,6 +65,10 @@ export function accessRoutes(app: Hono<CloudEnv>) {
         touchLink(c, link.id)
         return c.text(key, 200, {'cache-control': 'no-store'})
     })
+
+    const moved = (c: Context<CloudEnv>) => c.text(`This link's format has changed: it is now ${apiOrigin(c)}/api/v1/access/agents.md#<code>, with the same code. Update it wherever you saved it.\n`, 410, {'cache-control': 'no-store'})
+    app.get('/api/v1/access/:code/agents.md', moved)
+    app.get('/api/v1/access/:code/key', moved)
 }
 
 function agentsMd(api: string, files: string): string {
