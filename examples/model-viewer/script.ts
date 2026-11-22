@@ -200,7 +200,7 @@ async function init() {
     const credit = document.createElement('p')
     credit.style.margin = '0'
     const swatches = document.createElement('div')
-    // a sample is loading: the Sample dropdown is disabled, so an earlier sample cannot finish last and replace the one picked
+    // disables the Sample dropdown, so an earlier sample cannot finish last and replace the one picked
     let loadingSample = false
     const loadSample = async(i: number) => {
         if (loadingSample) return
@@ -214,8 +214,7 @@ async function init() {
         }
         promptDiv.style.display = 'none'
     }
-    // after a drop or Open file/URL: a model replaces the sample; an HDR or an image only changes the environment or the
-    // background, so the sample and its credit stay
+    // a dropped or opened model replaces the sample; an HDR or an image keeps it and its credit
     const onLoaded = (assets?: any[]) => {
         if (!assets?.length) return // nothing imported
         promptDiv.style.display = 'none'
@@ -237,7 +236,6 @@ async function init() {
             {type: 'button', label: 'Open file…', icon: 'file-code', value: () => dropzone.promptForFile()},
             // promptForUrl does not send a drop event: its result is the loaded assets
             {type: 'button', label: 'Open URL…', icon: 'link', value: async() => onLoaded(await dropzone.promptForUrl())},
-            // "Your file" shows after a model is dropped or opened (or came from ?m=)
             {type: 'dropdown', label: 'Sample', icon: 'box', children: [...SAMPLES.map((m, i) => ({label: m.label, value: i})), {label: 'Your file', value: -1}],
                 getValue: () => sample, setValue: (i: number) => i >= 0 && loadSample(i), disabled: () => loadingSample},
             {type: 'monitor', label: 'Meshes', getValue: () => stats.meshes.toLocaleString()},
@@ -245,10 +243,9 @@ async function init() {
         ],
         content: [credit, swatches],
     })
-    // the swatches of a model with material variations or switch nodes (the watch) go in the card too
+    // the swatches of material variations and switch nodes go in the card too
     viewer.getPlugin(GridItemListPlugin)!.container = swatches
 
-    // a drop, and Open file (the file input of the drop zone)
     dropzone.addEventListener('drop', (e) => {
         console.log('Dropped Event:', e)
         onLoaded(e.assets)

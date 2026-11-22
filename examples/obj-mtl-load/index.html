@@ -37,8 +37,7 @@
         const viewer = new ThreeViewer({
             canvas: document.getElementById('mcanvas'),
             msaa: true,
-            // drop a file on the page (or Open file in the card) to load it in place of this one; drop the .mtl and
-            // the textures with the .obj, the drop zone only keeps the files of these types
+            // drop a file on the page (or Open file in the card) to load it in place of this one, with its .mtl and textures
             dropzone: {allowedExtensions: ['obj', 'mtl', 'png', 'jpg', 'jpeg', 'webp'], addOptions: {disposeSceneObjects: true, autoCenter: true, autoScale: true}},
         })
 
