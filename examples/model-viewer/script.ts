@@ -201,18 +201,20 @@ async function init() {
     credit.style.margin = '0'
     const swatches = document.createElement('div')
     // disables the Sample dropdown, so an earlier sample cannot finish last and replace the one picked
-    let loadingSample = false
+    let loadingSample: number | undefined
     const loadSample = async(i: number) => {
-        if (loadingSample) return
-        loadingSample = true
-        sample = i
-        credit.textContent = SAMPLES[i].credit ?? ''
+        if (loadingSample !== undefined) return
+        loadingSample = i
         try {
-            await dropzone.load(SAMPLES[i].url)
+            const assets = await dropzone.load(SAMPLES[i].url)
+            // a failed load leaves the model, so the sample and its credit stay too
+            if (!assets?.some(a => a?.isObject3D)) return
+            sample = i
+            credit.textContent = SAMPLES[i].credit ?? ''
+            promptDiv.style.display = 'none'
         } finally {
-            loadingSample = false
+            loadingSample = undefined
         }
-        promptDiv.style.display = 'none'
     }
     // a dropped or opened model replaces the sample; an HDR or an image keeps it and its credit
     const onLoaded = (assets?: any[]) => {
@@ -237,7 +239,7 @@ async function init() {
             // promptForUrl does not send a drop event: its result is the loaded assets
             {type: 'button', label: 'Open URL…', icon: 'link', value: async() => onLoaded(await dropzone.promptForUrl())},
             {type: 'dropdown', label: 'Sample', icon: 'box', children: [...SAMPLES.map((m, i) => ({label: m.label, value: i})), {label: 'Your file', value: -1}],
-                getValue: () => sample, setValue: (i: number) => i >= 0 && loadSample(i), disabled: () => loadingSample},
+                getValue: () => loadingSample ?? sample, setValue: (i: number) => i >= 0 && loadSample(i), disabled: () => loadingSample !== undefined},
             {type: 'monitor', label: 'Meshes', getValue: () => stats.meshes.toLocaleString()},
             {type: 'monitor', label: 'Triangles', getValue: () => stats.triangles.toLocaleString()},
         ],
