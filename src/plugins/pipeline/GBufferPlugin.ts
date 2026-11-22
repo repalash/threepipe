@@ -16,7 +16,7 @@ import {GBufferRenderPass} from '../../postprocessing'
 import {ThreeViewer, ViewerRenderManager} from '../../viewer'
 import {MaterialExtension} from '../../materials'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
-import {uiFolderContainer, uiImage} from 'uiconfig.js'
+import {uiFolderContainer, uiImage, uiToggle} from 'uiconfig.js'
 import {shaderReplaceString} from '../../utils'
 import GBufferUnpack from './shaders/GBufferPlugin.unpack.glsl'
 import {ICamera, IMaterial, IObject3D, IRenderManager, IScene, ITexture} from '../../core'
@@ -62,6 +62,71 @@ export class GBufferPlugin
 
     // @uiConfig() // not supported in this material yet
     material?: GBufferMaterial
+
+    /**
+     * Draw each kind of opaque material with its own GBufferMaterial (a variant per key of the shader inputs: maps and
+     * their UV sets, normal, bump and displacement maps, side, alpha test, extensions), forced on its objects for the
+     * pass. A variant keeps its program, so three.js reuses it at once. Off, the shared {@link material} draws every
+     * object and reconfigures itself for each draw: three.js then rebuilds the program parameters and the cache key of
+     * every draw (getParameters, getProgramCacheKey), ~2 KB of garbage a draw. Transparent, transmissive and
+     * multi-material objects, objects with a `customGBufferMaterial` or a `forcedOverrideMaterial` use the shared
+     * material either way.
+     */
+    @uiToggle('Material variants')
+        materialVariants = true
+
+    private readonly _variants = new Map<string, GBufferMaterial>()
+    /** The extensions of the shared material the variants were made with (a change drops them). */
+    private _variantsBase = ''
+
+    /** The key of the variant for a source material: what changes the program of a GBufferMaterial drawing it. */
+    protected _variantKey(m: IMaterial) {
+        const channel = (t?: any) => t ? t.channel || 0 : -1
+        const ext = (list?: MaterialExtension[]) => (list || []).map(e => e.uuid || '').join(',')
+        return [channel(m.map), channel(m.alphaMap), m.userData.inverseAlphaMap ? 1 : 0, m.side,
+            m.bumpMap ? 1 : 0, m.normalMap ? 1 : 0, (m as any).normalMapType ?? '', m.flatShading ? 1 : 0, m.displacementMap ? 1 : 0,
+            m.wireframe ? 1 : 0, (m.alphaTest ?? 0) > 0 ? 1 : 0, m.alphaHash ? 1 : 0,
+            m.userData.ALPHA_I_RGBA_PACKING ? 1 : 0, m.userData.forcedLinearDepth ?? '', ext(m.materialExtensions)].join('|')
+    }
+
+    /**
+     * The variant that draws the object in this pass, or undefined for the shared material: only a mesh with one
+     * opaque material that the pass draws (not transparent or transmissive, not left out with `renderToDepth` /
+     * `renderToGBuffer` false or `pluginsDisabled`), which nothing else overrides.
+     */
+    protected _variantFor(object: IObject3D): GBufferMaterial | undefined {
+        // an upgraded object (its `material` is `forcedOverrideMaterial ?? currentMaterial`): a plain three.js object would
+        // not draw a forced material
+        if (!this.materialVariants || !this.material || !object.isMesh || object.forcedOverrideMaterial !== undefined || object.currentMaterial === undefined) return undefined
+        const m = object.material
+        if (!m || Array.isArray(m) || m.allowOverride === false || (m as any).isGBufferMaterial) return undefined
+        if (m.transparent || Math.abs(m.transmission || 0) > 0 || m.userData.pluginsDisabled) return undefined
+        if ((m.userData.renderToDepth ?? m.userData.renderToGBuffer) === false) return undefined
+        const base = (this.material.materialExtensions || []).map(e => e.uuid || '').join(',')
+        if (base !== this._variantsBase) { this._disposeVariants(); this._variantsBase = base }
+        const key = this._variantKey(m)
+        let v = this._variants.get(key)
+        if (!v) {
+            v = this.createMaterial()
+            v.userData.isGBufferMaterial = true
+            v.stableSource = true
+            v.allowOverride = false
+            // opaque: drawn with the opaque objects, as its source material is (the shared material is transparent, but
+            // the render list sorts the objects by their own materials there)
+            v.transparent = false
+            v.flagUpdaters = this.material.flagUpdaters
+            v.flagsOnlyMaterials = this.material.flagsOnlyMaterials
+            const exts = [...this.material.materialExtensions || [], ...m.materialExtensions || []]
+            if (exts.length) v.registerMaterialExtensions(exts)
+            this._variants.set(key, v)
+        }
+        return v
+    }
+
+    private _disposeVariants() {
+        for (const v of this._variants.values()) v.dispose()
+        this._variants.clear()
+    }
 
     // @onChange(GBufferPlugin.prototype._depthPackingChanged)
     // @uiDropdown('Depth Packing', threeConstMappings.DepthPackingStrategies.uiConfig) packing: DepthPackingStrategies
@@ -239,6 +304,11 @@ export class GBufferPlugin
                 }
                 return mat as IMaterial
             }
+            const variant = this._variantFor(object)
+            if (variant) {
+                pass.forceObjectMaterial(object, variant)
+                return variant as IMaterial
+            }
             // return preprocessObject(object)
             return object.material
         }
@@ -290,6 +360,7 @@ export class GBufferPlugin
         this._disposeTarget()
         this.material?.dispose()
         this.material = undefined
+        this._disposeVariants()
         return super.onRemove(viewer)
     }
 
