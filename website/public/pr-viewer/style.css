@@ -182,7 +182,9 @@ body.side-hidden .side, body.side-hidden .splitter { display: none; }
 .tag-add { background: #2a3d22; color: var(--added); }
 .sbs-body { display: flex; flex: 1; min-height: 0; border-top: 1px solid var(--border); }
 .sbs-ed { flex: 1; min-width: 0; position: relative; }
-.sbs-divider { flex-shrink: 0; height: 100%; display: block; border-left: 1px solid var(--border); border-right: 1px solid var(--border); background: var(--bg); touch-action: none; }
+/* a whole-pixel width: Monaco lays out in whole pixels, and a fractional editor edge leaves a hairline gap in the bands */
+.sbs-left { flex: none; width: calc((100% - var(--prv-divw, 0px)) / 2); width: round(down, calc((100% - var(--prv-divw, 0px)) / 2), 1px); }
+.sbs-divider { flex-shrink: 0; height: 100%; display: block; background: var(--bg); touch-action: none; }
 .uni-head { display: flex; flex-direction: column; align-items: stretch; height: auto; padding: 2px 8px; gap: 1px; }
 .uni-head > span { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; height: 20px; }
 .uni-head.aligned { display: grid; grid-template-columns: 1fr 1fr; height: 24px; padding: 0 6px; }
@@ -194,9 +196,11 @@ body.side-hidden .side, body.side-hidden .splitter { display: none; }
 .monaco-editor .dl-mod { background: #1a2e33; }
 .monaco-editor .dl-ins { background: #264c34; }
 .monaco-editor .dl-del { background: #3a3a3a; }
-.monaco-editor .dw-mod { background: #2a4b56; border-radius: 2px; }
-.monaco-editor .dw-ins { background: #2f6340; border-radius: 2px; }
-.monaco-editor .dw-del { background: #555; border-radius: 2px; }
+/* word highlights fill the whole line height, as in the IDE (vertical padding on an inline box paints without moving text) */
+.monaco-editor .dw-mod, .monaco-editor .dw-ins, .monaco-editor .dw-del { padding: calc((var(--prv-lh, 20px) - 1.32em) / 2) 0; }
+.monaco-editor .dw-mod { background: #2a4b56; }
+.monaco-editor .dw-ins { background: #2f6340; }
+.monaco-editor .dw-del { background: #555; }
 .monaco-editor .dl-pt-bot.dl-pt-ins { box-shadow: inset 0 -1px 0 #3f7d52; }
 .monaco-editor .dl-pt-top.dl-pt-ins { box-shadow: inset 0 1px 0 #3f7d52; }
 .monaco-editor .dl-pt-bot.dl-pt-del { box-shadow: inset 0 -1px 0 #5a5a5a; }

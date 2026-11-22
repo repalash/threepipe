@@ -564,12 +564,23 @@ function settingsMenu(anchor) {
         '-',
         {label: 'Collapse Unchanged Fragments', checked: settings.collapseUnchanged, disabled: renderer() !== 'monaco', action: () => { set('collapseUnchanged', !settings.collapseUnchanged); applyMonacoOptions() }},
         {label: 'Soft-Wrap', checked: settings.wordWrap, disabled: renderer() !== 'monaco', action: () => { set('wordWrap', !settings.wordWrap); applyMonacoOptions() }},
-        {label: 'Increase Font Size', hint: `${fontSize()}px`, action: () => { set('fontSize', Math.min(22, fontSize() + 1)); applyFont() }},
-        {label: 'Decrease Font Size', action: () => { set('fontSize', Math.max(9, fontSize() - 1)); applyFont() }},
+        {label: `Increase Font Size <span class="dim">(${fontSize()}px)</span>`, hint: `${MOD}=`, action: () => changeFont(1)},
+        {label: 'Decrease Font Size', hint: `${MOD}−`, action: () => changeFont(-1)},
+        {label: 'Reset Font Size', hint: `${MOD}0`, action: () => changeFont(0)},
         '-',
         {label: 'GitHub Token…', action: tokenDialog},
-        {label: 'F7 / ⇧F7 differences · Alt+→ / Alt+← files · V viewed', disabled: true},
+        {label: `F7 / ⇧F7 differences · Alt+→ / Alt+← files · V viewed · ${MOD}= / ${MOD}− / ${MOD}0 editor font`, disabled: true},
     ], {align: 'right'})
+}
+
+const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+'
+
+/** Editor text size only (code and diff line numbers); the rest of the UI keeps its size. 0 resets. */
+function changeFont(delta) {
+    settings.fontSize = delta === 0 ? null : Math.max(8, Math.min(24, fontSize() + delta))
+    store.set('fontSize', settings.fontSize)
+    applyFont()
+    toast(`Editor font ${fontSize()}px`, 'info', 1200)
 }
 
 function applyHighlight() {
@@ -961,6 +972,13 @@ function setLoading(on) {
 function onKey(e) {
     if ($('#dialog').open) return
     if (e.target.closest?.('input, textarea') && !e.target.closest('.monaco-editor')) return
+    const mod = e.metaKey || e.ctrlKey
+    // the editor font: Ctrl/⌘ + = − 0 (instead of zooming the page), or Alt+Shift+. / , as in JetBrains IDEs
+    if ((mod && !e.altKey && (e.key === '=' || e.key === '+' || e.key === '-' || e.key === '_' || e.key === '0'))
+        || (e.altKey && e.shiftKey && (e.code === 'Period' || e.code === 'Comma'))) {
+        e.preventDefault()
+        return changeFont(e.key === '0' ? 0 : (e.key === '=' || e.key === '+' || e.code === 'Period') ? 1 : -1)
+    }
     if (e.key === 'F7') {
         e.preventDefault()
         stepDiff(e.shiftKey ? -1 : 1)

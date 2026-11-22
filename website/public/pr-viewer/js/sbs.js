@@ -63,6 +63,7 @@ export class SideBySideViewer {
                 </div>
             </div>`
         this.root = container.firstElementChild
+        this.root.style.setProperty('--prv-lh', lineHeight + 'px')
         this.headLeft = this.root.querySelector('.sbs-head-left')
         this.headRight = this.root.querySelector('.sbs-head-right')
         this.canvas = this.root.querySelector('.sbs-divider')
@@ -158,6 +159,7 @@ export class SideBySideViewer {
         this.curveW = 34
         const w = this.numW * 2 + this.curveW
         this.canvas.style.width = w + 'px'
+        this.root.style.setProperty('--prv-divw', w + 'px')
         // the right header starts at the right line numbers, as in the IDE
         this.root.querySelector('.sbs-head').style.gridTemplateColumns = `minmax(0,1fr) ${this.numW + this.curveW}px ${this.numW}px minmax(0,1fr)`
     }
@@ -184,14 +186,16 @@ export class SideBySideViewer {
         const lc = this.left.getModel().getLineCount(), rc = this.right.getModel().getLineCount()
         // a point (empty side) is drawn as a line on the boundary: below line `at`, or above line 1 when at === 0
         const point = (arr, at, count, type) => {
-            if (at <= 0) arr.push({range: new m.Range(1, 1, 1, 1), options: {isWholeLine: true, className: `dl-pt-top dl-pt-${type}`}})
-            else arr.push({range: new m.Range(Math.min(at, count), 1, Math.min(at, count), 1), options: {isWholeLine: true, className: `dl-pt-bot dl-pt-${type}`}})
+            const cls = at <= 0 ? `dl-pt-top dl-pt-${type}` : `dl-pt-bot dl-pt-${type}`
+            const line = at <= 0 ? 1 : Math.min(at, count)
+            arr.push({range: new m.Range(line, 1, line, 1), options: {isWholeLine: true, className: cls, marginClassName: cls}})
         }
         for (const c of this.changes) {
             const t = c.type
-            if (c.l1 > c.l0) L.push({range: new m.Range(c.l0 + 1, 1, c.l1, 1), options: {isWholeLine: true, className: `dl-${t}`, overviewRuler: {color: ruler[t], position: lane}}})
+            // marginClassName too: the band covers the gutter, so it runs on unbroken from the divider into the code
+            if (c.l1 > c.l0) L.push({range: new m.Range(c.l0 + 1, 1, c.l1, 1), options: {isWholeLine: true, className: `dl-${t}`, marginClassName: `dl-${t}`, overviewRuler: {color: ruler[t], position: lane}}})
             else if (!this.emptyL) point(L, c.l0, lc, t)
-            if (c.r1 > c.r0) R.push({range: new m.Range(c.r0 + 1, 1, c.r1, 1), options: {isWholeLine: true, className: `dl-${t}`, overviewRuler: {color: ruler[t], position: lane}}})
+            if (c.r1 > c.r0) R.push({range: new m.Range(c.r0 + 1, 1, c.r1, 1), options: {isWholeLine: true, className: `dl-${t}`, marginClassName: `dl-${t}`, overviewRuler: {color: ruler[t], position: lane}}})
             else {
                 if (!this.emptyR) point(R, c.r0, rc, t)
                 R.push({range: new m.Range(Math.max(1, Math.min(c.r0, rc)), 1, Math.max(1, Math.min(c.r0, rc)), 1), options: {overviewRuler: {color: ruler[t], position: lane}}})
@@ -258,6 +262,10 @@ export class SideBySideViewer {
         const ctx = this.ctx
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
         ctx.clearRect(0, 0, W, H)
+        // separators to the editors, under the bands so a band crosses them unbroken
+        ctx.fillStyle = '#2b2b2b'
+        ctx.fillRect(0, 0, 1, H)
+        ctx.fillRect(W - 1, 0, 1, H)
         const lh = this.lineHeight
         const sL = this.left.getScrollTop(), sR = this.right.getScrollTop()
         const nW = this.numW, x0 = nW, x1 = W - nW
@@ -369,6 +377,7 @@ export class SideBySideViewer {
     setFont(fontSize, lineHeight) {
         this.fontSize = fontSize
         this.lineHeight = lineHeight
+        this.root.style.setProperty('--prv-lh', lineHeight + 'px')
         this.left.updateOptions({fontSize, lineHeight})
         this.right.updateOptions({fontSize, lineHeight})
         this._layoutDivider()
