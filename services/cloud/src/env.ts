@@ -76,5 +76,7 @@ export function logError(what: string, data: Record<string, unknown> = {}) {
     console.error(redactLog(JSON.stringify({alert: `[cloud] ${what}`, ...data})))
 }
 
-/** An access code in a URL is a credential (src/access.ts): logs show it as `…`. */
-export const redactLog = (line: string) => line.replace(/(\/api\/v1\/access\/)[\w-]{16,}/g, '$1…')
+/** Credentials in a URL, an access code (src/access.ts) and a signed drive URL's signature (src/drive.ts): logs show them as `…`. */
+export const redactLog = (line: string) => line
+    .replace(/(\/api\/v1\/access\/)[\w-]{16,}/g, '$1…')
+    .replace(/(\/t\/)\d+\.[\w-]{16,}/g, '$1…')
