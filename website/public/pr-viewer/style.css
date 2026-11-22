@@ -358,3 +358,59 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
     .la { display: none; }
     .ld { width: auto; font-size: 12px; color: var(--fg-dim); }
 }
+
+/* IDE PR view: the sidebar header */
+.side.is-pr .side-head:not(.prs) .side-title { display: none; }
+@media (min-width: 761px) { .side.is-pr .side-head:not(.prs) { display: none; } }
+.pr-head { padding: 14px 14px 6px 16px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+.pr-title { font-size: 17px; line-height: 1.3; font-weight: 600; color: var(--fg-strong); word-break: break-word; }
+.pr-title .dim { font-weight: 400; }
+.pr-link { color: var(--accent); text-decoration: none; width: fit-content; }
+.pr-link:hover { text-decoration: underline; }
+.pr-from { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-weight: 600; color: var(--fg-strong); min-width: 0; white-space: nowrap; }
+.pr-commits, .pr-branch { display: inline-flex; align-items: center; gap: 3px; color: var(--accent); font-weight: 400; min-width: 0; }
+.pr-commits { border: 0; background: none; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.pr-commits .ic { width: 13px; height: 13px; color: var(--fg); }
+.pr-branch { overflow: hidden; }
+.pr-branch span { overflow: hidden; text-overflow: ellipsis; }
+.pr-branch .ic { width: 14px; height: 14px; }
+
+/* Viewed slot in the tree: blue dot until viewed, a box on hover */
+.tvd { margin-left: auto; width: 22px; height: 18px; display: grid; place-items: center; flex-shrink: 0; cursor: pointer; padding-left: 6px; }
+.tvd-dot { width: 7px; height: 7px; border-radius: 50%; background: #4a8fe0; }
+.tvd-box { display: none; width: 14px; height: 14px; border: 1px solid #5a5a5a; border-radius: 3px; place-items: center; color: var(--fg-strong); }
+.tvd-box .ic { width: 11px; height: 11px; }
+.tr.viewed .tvd-dot { display: none; }
+.tr.viewed .tvd-box { display: grid; border-color: transparent; color: #6a8a5e; }
+.tr:hover .tvd-dot { display: none; }
+.tr:hover .tvd-box { display: grid; border-color: #6a6a6a; }
+@media (hover: none) { .tr .tvd { width: 34px; } }
+
+/* menus with a search box */
+.menu-search { display: flex; align-items: center; gap: 8px; padding: 6px 10px 8px; margin-bottom: 4px; border-bottom: 1px solid #3c3c3c; color: var(--fg-dim); position: sticky; top: -5px; background: #2b2b2b; }
+.menu-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: var(--fg-strong); font: inherit; }
+.menu-sub code { font-size: 11px; }
+
+/* single pane for an added or deleted file */
+.sbs.one-L .sbs-right, .sbs.one-L .sbs-divider, .sbs.one-R .sbs-left, .sbs.one-R .sbs-divider { display: none; }
+.sbs.one-L .sbs-head, .sbs.one-R .sbs-head { grid-template-columns: 1fr !important; }
+.sbs.one-L .sbs-head-left, .sbs.one-R .sbs-head-left { grid-column: 1; }
+.sbs.one-L .sbs-head-right, .sbs.one-R .sbs-head-right { display: none; }
+
+/* repository pull requests */
+.prl { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.prl-tools { padding: 4px 10px 6px; }
+.prl-tools .log-search { width: 100%; }
+.prl-filters { display: flex; align-items: center; gap: 6px; padding: 0 10px 6px; }
+.prl-state { display: inline-flex; align-items: center; gap: 4px; border: 0; background: #2e2e2e; border-radius: 5px; padding: 3px 8px; cursor: pointer; color: var(--fg-strong); }
+.prl-state .ic { width: 12px; height: 12px; }
+.prl-list { flex: 1; overflow: auto; padding: 0 6px 12px; }
+.prl-item { display: block; padding: 6px 8px; border-radius: 6px; text-decoration: none; color: var(--fg-strong); }
+.prl-item:hover { background: var(--bg-hover); }
+.prl-item.sel { background: var(--bg-sel-focus); }
+.prl-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.prl-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prl-draft { font-size: 10.5px; padding: 0 5px; border-radius: 3px; background: #333; color: var(--fg); flex-shrink: 0; }
+.prl-com { display: inline-flex; align-items: center; gap: 4px; color: var(--fg); flex-shrink: 0; font-size: 12px; }
+.prl-com .ic { width: 14px; height: 14px; }
+.prl-meta { color: var(--fg-dim); font-size: 12px; margin-top: 1px; }

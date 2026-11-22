@@ -1,12 +1,12 @@
 import {
     getFileContent, getToken, getViewedStates, GitHubError, loadChangeSet, paramsToTarget, parseTarget,
-    searchMyPullRequests, setFileViewed, setToken, targetToParams,
+    listPullRequests, searchMyPullRequests, setFileViewed, setToken, targetToParams,
 } from './github.js'
 import {ensureLanguage, languageForPath, languageName, loadMonaco, MONACO_THEME} from './editor.js'
 import {SideBySideViewer} from './sbs.js'
 import {FileTree} from './tree.js'
 import {fileIcon, icons, isImagePath} from './icons.js'
-import {LogView} from './log.js'
+import {formatWhen, LogView} from './log.js'
 
 const $ = (s, el = document) => el.querySelector(s)
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c])
@@ -52,9 +52,9 @@ function toast(message, kind = 'info', ms = 4000) {
     setTimeout(() => el.remove(), ms + 400)
 }
 
-function openMenu(anchor, items, {align = 'left'} = {}) {
+function openMenu(anchor, items, {align = 'left', search = null} = {}) {
     const menu = $('#menu')
-    menu.innerHTML = items.map((it, i) => it === '-' ? '<div class="menu-sep"></div>'
+    menu.innerHTML = (search ? `<label class="menu-search">${icons.search}<input placeholder="${esc(search)}" spellcheck="false" autocomplete="off"></label>` : '') + items.map((it, i) => it === '-' ? '<div class="menu-sep"></div>'
         : it.html ? `<div class="menu-html">${it.html}</div>`
             : `<button class="menu-item${it.checked ? ' checked' : ''}${it.active ? ' active' : ''}" data-i="${i}" ${it.disabled ? 'disabled' : ''}>
                 <span class="menu-check">${it.checked ? icons.check : ''}</span>
@@ -67,6 +67,14 @@ function openMenu(anchor, items, {align = 'left'} = {}) {
     menu.style.left = x + 'px'
     menu.style.top = Math.min(r.bottom + 4, window.innerHeight - 60) + 'px'
     menu.style.maxHeight = (window.innerHeight - r.bottom - 16) + 'px'
+    const input = $('.menu-search input', menu)
+    if (input) {
+        input.oninput = () => {
+            const q = input.value.trim().toLowerCase()
+            for (const b of menu.querySelectorAll('.menu-item')) b.hidden = !!q && !b.textContent.toLowerCase().includes(q)
+        }
+        if (!mobileQuery.matches) input.focus()
+    }
     menu.onclick = (e) => {
         const b = e.target.closest('.menu-item')
         if (!b) return
@@ -286,12 +294,21 @@ function buildShell() {
         <div class="main">
             <nav class="strip hide-mobile">
                 <button class="strip-btn active" id="strip-changes" title="Changes">${icons.commit}</button>
+                <button class="strip-btn" id="strip-prs" title="Pull requests of the repository">${icons.pr}</button>
                 <button class="strip-btn" id="strip-home" title="Open another pull request">${icons.folder}</button>
             </nav>
             <aside class="side" id="side">
                 <div class="side-head">
                     <button class="side-title" id="side-title" title="Choose a commit"><span id="side-title-text">Changes</span>${icons.chevronDown}</button>
                     <button class="tb-btn only-mobile" id="btn-drawer-close" title="Close">${icons.close}</button>
+                </div>
+                <div class="pr-head" id="pr-head" hidden>
+                    <div class="pr-title" id="pr-title"></div>
+                    <a class="pr-link" id="pr-link" target="_blank" rel="noopener">View on GitHub</a>
+                    <div class="pr-from"><span>Changes from</span>
+                        <button class="pr-commits" id="pr-commits"></button>
+                        <span class="pr-branch" id="pr-branch"></span>
+                    </div>
                 </div>
                 <div class="side-tools">
                     <button class="tb-btn" id="btn-expand" title="Expand All">${icons.expand}</button>
@@ -301,6 +318,13 @@ function buildShell() {
                     <span class="viewed-count" id="viewed-count" title="Files marked as viewed"></span>
                 </div>
                 <div class="tree" id="tree"></div>
+                <div class="prl" id="prl" hidden>
+                    <div class="prl-tools">
+                        <label class="log-search">${icons.search}<input id="prl-search" placeholder="Search pull requests" spellcheck="false" autocomplete="off"></label>
+                    </div>
+                    <div class="prl-filters"><button class="prl-state" id="prl-state"></button><span class="spacer"></span><button class="tb-btn" id="prl-reload" title="Reload">${icons.refresh}</button></div>
+                    <div class="prl-list" id="prl-list"></div>
+                </div>
             </aside>
             <div class="splitter hide-mobile" id="splitter"></div>
             <div class="scrim only-mobile" id="scrim"></div>
@@ -341,7 +365,26 @@ function buildShell() {
             <span id="st-lang"></span><span class="spacer"></span><span id="st-stat"></span><span id="st-pos"></span>
         </footer>`
 
-    state.tree = new FileTree($('#tree'), {onSelect: (path) => { selectFile(path); closeDrawer() }})
+    state.tree = new FileTree($('#tree'), {
+        onSelect: (path) => { selectFile(path); closeDrawer() },
+        onToggleViewed: (path) => { const f = state.order.find((x) => x.path === path); if (f) toggleViewed(f, !state.viewed.has(path)) },
+    })
+    $('#pr-commits').onclick = (e) => commitMenu(e.currentTarget)
+    $('#strip-prs').onclick = () => setSidePanel(state.sidePanel === 'prs' ? 'changes' : 'prs')
+    $('#prl-state').onclick = (e) => openMenu(e.currentTarget, ['open', 'closed', 'merged', 'all'].map((v) => ({
+        label: v[0].toUpperCase() + v.slice(1), checked: state.prlState === v, action: () => { state.prlState = v; loadPrList() },
+    })))
+    $('#prl-reload').onclick = () => loadPrList()
+    let prlTimer
+    $('#prl-search').oninput = () => { clearTimeout(prlTimer); prlTimer = setTimeout(loadPrList, 450) }
+    $('#prl-list').onclick = (e) => {
+        const a = e.target.closest('.prl-item')
+        if (!a) return
+        e.preventDefault()
+        setSidePanel('changes')
+        closeDrawer()
+        navigate({type: 'pr', owner: state.target.owner, repo: state.target.repo, number: +a.dataset.n})
+    }
     $('#btn-prev-diff').onclick = () => stepDiff(-1)
     $('#btn-next-diff').onclick = () => stepDiff(1)
     $('#btn-prev-file').onclick = () => stepFile(-1)
@@ -355,14 +398,18 @@ function buildShell() {
     $('#btn-reload').onclick = () => reloadTarget()
     $('#tab-log').onclick = () => setTab('log')
     $('#tab-changes').onclick = () => setTab('changes')
-    $('#side-title').onclick = (e) => commitMenu(e.currentTarget)
+    $('#side-title').onclick = (e) => state.sidePanel !== 'prs' && commitMenu(e.currentTarget)
     $('#chk-viewed').onchange = (e) => toggleViewed(state.order[state.index], e.target.checked)
     $('#btn-drawer').onclick = openDrawer
     $('#btn-drawer-close').onclick = closeDrawer
     $('#scrim').onclick = closeDrawer
-    $('#strip-changes').onclick = () => document.body.classList.toggle('side-hidden')
+    $('#strip-changes').onclick = () => {
+        if (state.sidePanel === 'prs') return setSidePanel('changes')
+        document.body.classList.toggle('side-hidden')
+    }
     $('#strip-home').onclick = () => { history.pushState(null, '', './'); route() }
-    $('#proj').onclick = (e) => { e.preventDefault(); history.pushState(null, '', location.pathname); route() }
+    // the project chip opens the repository's pull requests, as the IDE's Pull Requests tool window
+    $('#proj').onclick = (e) => { e.preventDefault(); setSidePanel('prs'); openDrawer() }
     setupSplitter()
     window.addEventListener('keydown', onKey, true)
     mobileQuery.addEventListener('change', () => {
@@ -388,6 +435,49 @@ function setupSplitter() {
         sp.addEventListener('pointermove', move)
         sp.addEventListener('pointerup', up)
     })
+}
+
+function setSidePanel(which) {
+    state.sidePanel = which
+    const prs = which === 'prs'
+    document.body.classList.remove('side-hidden')
+    $('#strip-changes').classList.toggle('active', !prs)
+    $('#strip-prs').classList.toggle('active', prs)
+    $('#prl').hidden = !prs
+    for (const id of ['#tree', '.side-tools']) $(id).hidden = prs
+    $('#pr-head').hidden = prs || !state.cs?.pr
+    $('.side-head').classList.toggle('prs', prs)
+    $('#side-title-text').textContent = prs ? `Pull Requests · ${state.target.repo}` : sideTitle()
+    $('#side-title').classList.toggle('no-menu', prs || !state.cs?.commits?.length)
+    if (prs) loadPrList()
+}
+
+async function loadPrList() {
+    const t = state.target
+    state.prlState ??= 'open'
+    $('#prl-state').innerHTML = `${state.prlState[0].toUpperCase() + state.prlState.slice(1)} ${icons.chevronDown}`
+    const id = (state.prlLoad = (state.prlLoad || 0) + 1)
+    const list = $('#prl-list')
+    list.innerHTML = '<div class="tree-msg dim">Loading…</div>'
+    try {
+        const prs = await listPullRequests(t.owner, t.repo, {state: state.prlState, text: $('#prl-search').value})
+        if (id !== state.prlLoad) return
+        list.innerHTML = prs.map((p) => `
+            <a class="prl-item${t.type === 'pr' && t.number === p.number ? ' sel' : ''}" data-n="${p.number}" href="?pr=${esc(`${t.owner}/${t.repo}/${p.number}`)}">
+                <div class="prl-row"><span class="prl-title">${esc(p.title)}</span>${p.draft ? '<span class="prl-draft">DRAFT</span>' : ''}
+                    <span class="prl-com" title="Comments">${icons.comment}${p.comments}</span></div>
+                <div class="prl-meta">#${p.number} · created ${esc(dayOf(p.created))}, by ${esc(p.user || '')}${p.state !== 'open' ? ` · ${p.state}` : ''}</div>
+            </a>`).join('') || '<div class="tree-msg dim">No pull requests</div>'
+    } catch (e) {
+        if (id === state.prlLoad) list.innerHTML = `<div class="tree-msg dim">${esc(e.message)}</div>`
+    }
+}
+
+function dayOf(iso) {
+    const d = new Date(iso), now = new Date()
+    const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+    const days = Math.round((day(now) - day(d)) / 86400000)
+    return days === 0 ? 'Today' : days === 1 ? 'Yesterday' : d.toLocaleDateString(undefined, {year: '2-digit', month: '2-digit', day: '2-digit'})
 }
 
 function openDrawer() { document.body.classList.add('drawer-open') }
@@ -417,8 +507,25 @@ function renderHeader() {
         state.log ??= new LogView($('#log-host'), {onOpen: openCommitSpec})
         state.log.setCommits(cs.commits, {owner: target.owner, repo: target.repo, selected: target.commit || (target.type === 'commit' ? target.sha : null), headRef: pr?.head.ref})
     }
-    $('#side-title-text').textContent = what
+    state.sideTitle = what
+    $('#side-title-text').textContent = state.sidePanel === 'prs' ? $('#side-title-text').textContent : what
     $('#side-title').classList.toggle('no-menu', !(cs.commits?.length))
+    // the IDE's PR view: the title, then "Changes from N commits ▾" and the branch
+    $('#side').classList.toggle('is-pr', !!pr)
+    $('#pr-head').hidden = !pr || state.sidePanel === 'prs'
+    if (pr) {
+        $('#pr-title').innerHTML = `${esc(pr.title)} <span class="dim">#${pr.number}</span>`
+        $('#pr-link').href = pr.html_url
+        const n = cs.commits?.length || 0
+        $('#pr-commits').innerHTML = (cs.range ? `${short(cs.range[0])}..${short(cs.range[1])}`
+            : cs.commit ? `commit ${short(cs.headSha)}` : `${n} commit${n === 1 ? '' : 's'}`) + icons.chevronDown
+        $('#pr-branch').innerHTML = `${icons.tag}<span>${esc(pr.head.ref)}</span>`
+        $('#pr-branch').title = `${pr.head.label} → ${pr.base.label}`
+    }
+}
+
+function sideTitle() {
+    return state.sideTitle || 'Changes'
 }
 
 function commitMenu(anchor) {
@@ -426,20 +533,18 @@ function commitMenu(anchor) {
     if (!cs?.commits?.length) return
     const items = []
     if (target.type === 'pr') {
-        items.push({label: `All changes <span class="dim">(${cs.commits.length} commit${cs.commits.length === 1 ? '' : 's'})</span>`, checked: !target.commit,
-            action: () => navigate({...target, commit: undefined})})
+        items.push({label: `All commits (${cs.commits.length})`, checked: !target.commit, action: () => navigate({...target, commit: undefined})})
         items.push('-')
     }
-    for (const c of [...cs.commits].reverse()) {
+    for (const c of cs.commits) {
         const msg = c.commit.message.split('\n')[0]
-        const when = new Date(c.commit.author?.date || c.commit.committer?.date).toLocaleDateString()
         items.push({
-            label: `<code class="sha">${short(c.sha)}</code> ${esc(msg)}<div class="menu-sub">${esc(c.author?.login || c.commit.author?.name || '')} · ${esc(when)}</div>`,
+            label: `${esc(msg)}<div class="menu-sub">${esc(c.author?.login || c.commit.author?.name || '')}, ${esc(formatWhen(c.commit.author?.date || c.commit.committer?.date))} · <code>${short(c.sha)}</code></div>`,
             checked: !!(target.commit || (target.type === 'commit' && target.sha)) && c.sha.startsWith(target.commit || target.sha),
             action: () => target.type === 'pr' ? navigate({...target, commit: c.sha}) : navigate({type: 'commit', owner: target.owner, repo: target.repo, sha: c.sha}),
         })
     }
-    openMenu(anchor, items)
+    openMenu(anchor, items, {search: 'Search commits'})
 }
 
 function settingsMenu(anchor) {
@@ -572,7 +677,7 @@ async function openFileAt(i, push = true, keepScroll = false) {
         history.replaceState(null, '', '?' + p.toString())
     }
     const name = f.path.split('/').pop()
-    $('#tab-label').textContent = `Changes: ${name}`
+    $('#tab-label').textContent = state.target.type === 'pr' ? `Diff for Pull Request #${state.target.number}` : `Changes: ${name}`
     $('#tab-label').title = f.path
     $('#file-pos').textContent = `${i + 1}/${state.order.length} files`
     $('#st-lang').innerHTML = `${fileIcon(f.path)}<span>${esc(languageName(languageForPath(f.path)))}</span>`
@@ -600,7 +705,7 @@ async function openFileAt(i, push = true, keepScroll = false) {
     if (id !== state.fileLoadId) return
 
     const leftLabel = `${icons.lock}<span class="sha">${f.status === 'added' ? '∅' : short(cs.baseSha) || '∅'}</span><span class="path">${esc(origPath)}</span>`
-    const rightLabel = `<span class="sha">${f.status === 'removed' ? 'Deleted' : short(cs.headSha)}</span>${state.target.type === 'pr' && !cs.commit && !cs.range ? '<span class="dim">Head of the pull request</span>' : ''}${f.prevPath ? `<span class="path">${esc(f.path)}</span>` : ''}${f.status === 'added' ? '<span class="tag tag-add">new file</span>' : ''}`
+    const rightLabel = `${f.status === 'added' ? icons.lock : ''}<span class="sha">${f.status === 'removed' ? 'Deleted' : short(cs.headSha)}</span>${state.target.type === 'pr' && !cs.commit && !cs.range ? '<span class="dim">Head of the pull request</span>' : ''}${f.prevPath ? `<span class="path">${esc(f.path)}</span>` : ''}${f.status === 'added' ? '<span class="tag tag-add">new file</span>' : ''}`
 
     if (orig.binary || mod.binary) {
         setLoading(false)

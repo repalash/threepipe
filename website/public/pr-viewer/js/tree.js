@@ -51,15 +51,20 @@ const esc = (s) => s.replace(/[&<>"]/g, (c) => ({'&': '&amp;', '<': '&lt;', '>':
 const STATUS_LABEL = {added: 'Added', removed: 'Deleted', modified: 'Modified', renamed: 'Renamed', copied: 'Copied', changed: 'Changed'}
 
 export class FileTree {
-    constructor(el, {onSelect}) {
+    constructor(el, {onSelect, onToggleViewed = null}) {
         this.el = el
         this.onSelect = onSelect
+        this.onToggleViewed = onToggleViewed // set: a Viewed slot on each file (blue dot: not viewed yet)
         this.collapsed = new Set()
         this.selected = null
         this.viewed = new Set()
         el.addEventListener('click', (e) => {
             const row = e.target.closest('.tr')
             if (!row) return
+            if (e.target.closest('.tvd') && this.onToggleViewed) {
+                e.stopPropagation()
+                return this.onToggleViewed(row.dataset.file)
+            }
             if (row.dataset.dir !== undefined) {
                 const p = row.dataset.dir
                 this.collapsed.has(p) ? this.collapsed.delete(p) : this.collapsed.add(p)
@@ -123,7 +128,8 @@ export class FileTree {
                 const viewed = this.viewed.has(f.path)
                 const title = `${STATUS_LABEL[f.status] || f.status}: ${f.prevPath ? f.prevPath + ' → ' : ''}${f.path}  (+${f.additions} −${f.deletions})`
                 rows.push(`<div class="tr tr-file st-${f.status}${f.path === this.selected ? ' sel' : ''}${viewed ? ' viewed' : ''}" data-file="${esc(f.path)}" style="--d:${depth}" title="${esc(title)}">
-                    <span class="tw"></span>${fileIcon(f.path)}<span class="tn">${esc(name)}</span>${viewed ? `<span class="tv">${icons.check}</span>` : ''}
+                    <span class="tw"></span>${fileIcon(f.path)}<span class="tn">${esc(name)}</span>${this.onToggleViewed
+                        ? `<span class="tvd" title="${viewed ? 'Viewed: click to unmark' : 'Mark as viewed'}"><i class="tvd-dot"></i><i class="tvd-box">${viewed ? icons.check : ''}</i></span>` : ''}
                 </div>`)
             }
         }

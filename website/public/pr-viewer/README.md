@@ -13,6 +13,9 @@ Open `?pr=owner/repo/123`, or paste a PR / commit / compare URL on the start pag
 - **Settings** (gear), as in the IDE: Align Changes In Side-by-Side Diff (Monaco's padded side-by-side), Synchronize
   Scrolling, Ignore Differences (none / trim / all whitespace), Highlighting Differences (lines / words / none),
   collapse unchanged fragments and soft-wrap (unified and aligned), font size.
+- **PR view** (as in the IDE's Pull Requests tool window): the PR title and "Changes from N commits ▾" (searchable)
+  over the tree, a blue dot on each file until it is viewed, and the repository's pull requests (the project badge or
+  the strip) with a search and an Open / Closed / Merged / All filter. Added and deleted files show as one editor.
 - **Unified viewer**: Monaco's inline diff editor (the default on narrow screens).
 - **Log**: the PR's commits with a graph line and a text/hash filter; select a commit, or shift-select a range, to see
   its changed files and details; double-click, Enter or Show Diff opens it.

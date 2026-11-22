@@ -135,8 +135,14 @@ export class SideBySideViewer {
         this.right.setModel(modified)
         this.emptyL = original.getValueLength() === 0
         this.emptyR = modified.getValueLength() === 0
-        this.headLeft.innerHTML = labels.left || ''
-        this.headRight.innerHTML = labels.right || ''
+        // an added or deleted file shows as one editor with its own line numbers, as in the IDE
+        const one = this.emptyL && !this.emptyR ? 'R' : this.emptyR && !this.emptyL ? 'L' : null
+        this.root.classList.toggle('one-L', one === 'L')
+        this.root.classList.toggle('one-R', one === 'R')
+        this.left.updateOptions({lineNumbers: one === 'L' ? 'on' : 'off', lineNumbersMinChars: one === 'L' ? 4 : 0})
+        this.right.updateOptions({lineNumbers: one === 'R' ? 'on' : 'off', lineNumbersMinChars: one === 'R' ? 4 : 0})
+        this.headLeft.innerHTML = one === 'R' ? labels.right || '' : labels.left || ''
+        this.headRight.innerHTML = one ? '' : labels.right || ''
         this._layoutDivider()
         this._decorate()
         this.left.setScrollPosition({scrollTop: 0, scrollLeft: 0})

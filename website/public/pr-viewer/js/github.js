@@ -265,6 +265,20 @@ export async function searchMyPullRequests() {
     })
 }
 
+/** A repository's pull requests (search API: has comment counts and drafts). state: open | closed | merged | all. */
+export async function listPullRequests(owner, repo, {state = 'open', text = ''} = {}) {
+    const parts = [`repo:${owner}/${repo}`, 'is:pr']
+    if (state === 'open') parts.push('is:open')
+    else if (state === 'closed') parts.push('is:closed', 'is:unmerged')
+    else if (state === 'merged') parts.push('is:merged')
+    if (text.trim()) parts.push(text.trim())
+    const res = await json(`/search/issues?q=${encodeURIComponent(parts.join(' '))}&sort=created&order=desc&per_page=50`)
+    return res.items.map((it) => ({
+        number: it.number, title: it.title, user: it.user?.login, created: it.created_at, comments: it.comments,
+        draft: it.draft, state: it.pull_request?.merged_at ? 'merged' : it.state,
+    }))
+}
+
 export async function getViewer() {
     return json('/user')
 }
