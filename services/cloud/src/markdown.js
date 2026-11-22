@@ -1,4 +1,4 @@
-// Copied verbatim from ijewel-mono services/share-worker/src/markdown.js @ 54d43285.
+// Copied verbatim from ijewel-mono services/share-worker/src/markdown.js @ 1b5cd38e (ijewel3d/ijewel-mono PR 978).
 // Markdown rendering for browser viewers.
 //
 // A .md share opened in a browser is unreadable as plain text, but curl, wget
@@ -13,6 +13,7 @@
 // a .md file stays as harmless as serving it as text.
 
 import { marked } from 'marked'
+import { isVideoPath } from './video.js'
 
 const MD_EXT = new Set(['md', 'markdown'])
 
@@ -79,6 +80,14 @@ marked.use({
 			headings.push({ depth, id, text, plain })
 			return `<h${depth} id="${id}">${text}<a class="anchor" href="#${id}" aria-label="Link to this section">#</a></h${depth}>\n`
 		},
+		// `![caption](clip.mp4)` plays: an image whose link is a video becomes a player
+		// (IJ-1506). Its request is a media load, so the share answers with the bytes
+		// and honours Range: the video seeks.
+		image({ href, title, text }) {
+			if (!href || !isVideoPath(href.split(/[?#]/)[0])) return false
+			const t = title || text
+			return `<video controls playsinline preload="metadata" src="${escapeHtml(href)}"${t ? ` title="${escapeHtml(t)}"` : ''}></video>`
+		},
 	},
 })
 
@@ -135,6 +144,7 @@ table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%}
 th,td{border:1px solid var(--line);padding:.4rem .75rem;text-align:left}
 th{background:var(--code-bg);font-weight:600}
 img{max-width:100%}
+video{display:block;width:100%;max-height:80vh;background:#000;border-radius:6px;margin:8px 0}
 hr{height:1px;border:0;background:var(--line);margin:2rem 0}
 .toc{background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:.5rem 1rem}
 .toc summary{cursor:pointer;font-weight:600;font-size:.875rem}
@@ -198,7 +208,7 @@ export async function markdownResponse(obj, request, { path, rawHref }) {
 		// nothing is fetched cross-origin, and an external image cannot carry
 		// the internal URL to its host.
 		'content-security-policy':
-			"default-src 'none'; script-src 'none'; img-src * data: blob:; style-src 'unsafe-inline'; font-src * data:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'",
+			"default-src 'none'; script-src 'none'; img-src * data: blob:; media-src * data: blob:; style-src 'unsafe-inline'; font-src * data:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'",
 		'referrer-policy': 'no-referrer',
 		'x-content-type-options': 'nosniff',
 	}
