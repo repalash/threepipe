@@ -287,19 +287,11 @@ export class SideBySideViewer {
             ctx.bezierCurveTo(x1 - k, b1, x0 + k, a1, x0, a1)
             ctx.closePath()
             ctx.fill()
-            if (a1 === a0 || b1 === b0) {
-                // an empty side: outline the band so the insertion/deletion point reads clearly
-                ctx.strokeStyle = EDGE[c.type]
-                ctx.lineWidth = 1
-                ctx.beginPath()
-                if (a1 === a0) { ctx.moveTo(0, a0 + 0.5); ctx.lineTo(x0, a0 + 0.5) }
-                if (b1 === b0) { ctx.moveTo(x1, b0 + 0.5); ctx.lineTo(W, b0 + 0.5) }
-                ctx.moveTo(x0, a0 + 0.5)
-                ctx.bezierCurveTo(x0 + k, a0 + 0.5, x1 - k, b0 + 0.5, x1, b0 + 0.5)
-                ctx.moveTo(x0, a1 + 0.5)
-                ctx.bezierCurveTo(x0 + k, a1 + 0.5, x1 - k, b1 + 0.5, x1, b1 + 0.5)
-                ctx.stroke()
-            }
+            // an empty side: a line at the insertion/deletion point, continuing the editor's line up to the curve's tip
+            // (the curve itself is only filled, as in the IDE; an outline would stop where the other side's band starts)
+            ctx.fillStyle = EDGE[c.type]
+            if (a1 === a0) ctx.fillRect(0, Math.round(a0) - 1, x0 + 1, 1)
+            if (b1 === b0) ctx.fillRect(x1 - 1, Math.round(b0) - 1, W - x1 + 1, 1)
         }
 
         // line numbers
