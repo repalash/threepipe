@@ -7,6 +7,7 @@ import {SideBySideViewer} from './sbs.js'
 import {FileTree} from './tree.js'
 import {fileIcon, icons, isImagePath} from './icons.js'
 import {formatWhen, LogView} from './log.js'
+import {onDoubleShift, Palette} from './palette.js'
 
 const $ = (s, el = document) => el.querySelector(s)
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c])
@@ -288,6 +289,7 @@ function buildShell() {
             <span class="tb-title" id="title"></span>
             <span class="state-pill" id="state-pill"></span>
             <span class="spacer"></span>
+            <button class="tb-btn" id="btn-search" title="Search Everywhere (Double Shift)">${icons.search}</button>
             <a class="tb-btn" id="btn-github" target="_blank" rel="noopener" title="Open on GitHub">${icons.github}</a>
             <button class="tb-btn" id="btn-token" title="GitHub token">${icons.lock}</button>
         </header>
@@ -411,6 +413,7 @@ function buildShell() {
     // the project chip opens the repository's pull requests, as the IDE's Pull Requests tool window
     $('#proj').onclick = (e) => { e.preventDefault(); setSidePanel('prs'); openDrawer() }
     setupSplitter()
+    setupPalette()
     window.addEventListener('keydown', onKey, true)
     mobileQuery.addEventListener('change', () => {
         if (!settings.view) applyView()
@@ -970,7 +973,13 @@ function setLoading(on) {
 }
 
 function onKey(e) {
-    if ($('#dialog').open) return
+    if ($('#dialog').open || state.palette?.isOpen) return
+    const k = e.key.toLowerCase()
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && ((e.shiftKey && k === 'a') || (!e.shiftKey && (k === 'p' || k === 'k')) || (e.shiftKey && k === 'o'))) {
+        // Find Action (Ctrl/⌘+Shift+A), Go to File (Ctrl/⌘+P, Ctrl/⌘+Shift+O), Search Everywhere (Ctrl/⌘+K)
+        e.preventDefault()
+        return state.palette.open(k === 'a' ? 'actions' : k === 'k' ? 'all' : 'files')
+    }
     if (e.target.closest?.('input, textarea') && !e.target.closest('.monaco-editor')) return
     const mod = e.metaKey || e.ctrlKey
     // the editor font: Ctrl/⌘ + = − 0 (instead of zooming the page), or Alt+Shift+. / , as in JetBrains IDEs
@@ -992,6 +1001,87 @@ function onKey(e) {
         closeMenu()
         closeDrawer()
     }
+}
+
+// --- Search Everywhere (double Shift) ---
+
+function setSetting(k, v) {
+    settings[k] = v
+    store.set(k, v)
+}
+
+function actionItems() {
+    const s = settings
+    const f = state.order[state.index]
+    const t = state.target
+    const A = (label, run, extra = {}) => ({label, run, icon: `<span class="fi fi-glyph pal-ai">${extra.ic || icons.gear}</span>`, ...extra})
+    return [
+        A('Next Difference', () => stepDiff(1), {hint: 'F7', ic: icons.down}),
+        A('Previous Difference', () => stepDiff(-1), {hint: '⇧F7', ic: icons.up}),
+        A('Next File', () => stepFile(1), {hint: 'Alt+→', ic: icons.right}),
+        A('Previous File', () => stepFile(-1), {hint: 'Alt+←', ic: icons.left}),
+        f && A(state.viewed.has(f.path) ? 'Unmark File as Viewed' : 'Mark File as Viewed', () => toggleViewed(f, !state.viewed.has(f.path)), {hint: 'V', ic: icons.check}),
+        A('Side-by-Side Viewer', () => setView('sbs'), {toggle: viewMode() === 'sbs', ic: icons.sideBySide}),
+        A('Unified Viewer', () => setView('unified'), {toggle: viewMode() === 'unified', ic: icons.unified}),
+        A('Align Changes In Side-by-Side Diff', () => { setSetting('align', !s.align); applyView() }, {toggle: s.align}),
+        A('Synchronize Scrolling', () => { setSetting('syncScroll', !s.syncScroll); state.sbs?.setOptions({syncScroll: s.syncScroll}) }, {toggle: s.syncScroll}),
+        ...[['none', 'None'], ['trim', 'Trim Whitespaces'], ['all', 'Ignore Whitespaces']].map(([v, l]) =>
+            A(`Ignore Differences: ${l}`, () => { setSetting('ignore', v); reopenFile(true) }, {toggle: s.ignore === v})),
+        ...[['lines', 'Lines'], ['words', 'Words'], ['none', 'None']].map(([v, l]) =>
+            A(`Highlighting Differences: ${l}`, () => { setSetting('highlight', v); applyHighlight() }, {toggle: s.highlight === v})),
+        A('Collapse Unchanged Fragments', () => { setSetting('collapseUnchanged', !s.collapseUnchanged); applyMonacoOptions() }, {toggle: s.collapseUnchanged}),
+        A('Soft-Wrap', () => { setSetting('wordWrap', !s.wordWrap); applyMonacoOptions() }, {toggle: s.wordWrap}),
+        A('Increase Font Size', () => changeFont(1), {hint: `${MOD}=`, sub: `editor, now ${fontSize()}px`}),
+        A('Decrease Font Size', () => changeFont(-1), {hint: `${MOD}−`}),
+        A('Reset Font Size', () => changeFont(0), {hint: `${MOD}0`}),
+        A('Expand All', () => state.tree.collapseAll(false), {ic: icons.expand}),
+        A('Collapse All', () => state.tree.collapseAll(true), {ic: icons.collapse}),
+        state.cs?.commits?.length && A('Show Log', () => setTab('log'), {ic: icons.log}),
+        A('Show Diff', () => setTab('changes'), {ic: icons.changes}),
+        A('Pull Requests', () => { setSidePanel('prs'); openDrawer() }, {sub: `${t.owner}/${t.repo}`, ic: icons.pr}),
+        A('Changed Files', () => { setSidePanel('changes'); openDrawer() }, {ic: icons.commit}),
+        A('Open on GitHub', () => window.open($('#btn-github').href, '_blank', 'noopener'), {ic: icons.github}),
+        f && A('Open File on GitHub', () => window.open($('#btn-open-file').href, '_blank', 'noopener'), {ic: icons.external}),
+        A('Reload', () => reloadTarget(), {ic: icons.refresh}),
+        A('GitHub Token…', tokenDialog, {ic: icons.lock}),
+        A('Open Another Pull Request', () => { history.pushState(null, '', location.pathname); route() }, {ic: icons.folder}),
+    ].filter(Boolean)
+}
+
+function setupPalette() {
+    const sources = {
+        files: {
+            title: 'Files', limit: 8,
+            items: () => state.order.map((f) => {
+                const parts = f.path.split('/')
+                const name = parts.pop()
+                return {label: name, sub: parts.join('/'), alt: f.path, icon: fileIcon(f.path), cls: `st-${f.status}`,
+                    hint: state.viewed.has(f.path) ? '✓ viewed' : '', run: () => selectFile(f.path)}
+            }),
+        },
+        actions: {title: 'Actions', limit: 8, items: actionItems},
+        commits: {
+            title: 'Commits', limit: 5,
+            items: () => (state.cs?.commits || []).map((c) => ({
+                label: c.commit.message.split('\n')[0],
+                sub: `${short(c.sha)} · ${c.author?.login || c.commit.author?.name || ''} · ${formatWhen(c.commit.author?.date || c.commit.committer?.date)}`,
+                alt: c.sha, icon: `<span class="fi fi-glyph pal-ai">${icons.commit}</span>`, run: () => openCommitSpec(c.sha),
+            })),
+        },
+        prs: {
+            title: 'Pull Requests', remote: true,
+            items: async (q) => (await listPullRequests(state.target.owner, state.target.repo, {state: 'open', text: q})).map((p) => ({
+                label: p.title, sub: `#${p.number} · ${p.user || ''}${p.draft ? ' · draft' : ''}`, icon: `<span class="fi fi-glyph pal-ai">${icons.pr}</span>`,
+                run: () => navigate({type: 'pr', owner: state.target.owner, repo: state.target.repo, number: p.number}),
+            })),
+        },
+    }
+    state.palette = new Palette(sources, {tabs: [
+        {key: 'all', title: 'All'}, {key: 'files', title: 'Files'}, {key: 'actions', title: 'Actions'},
+        {key: 'commits', title: 'Commits'}, {key: 'prs', title: 'Pull Requests'},
+    ]})
+    onDoubleShift(() => { if (!$('#app').hidden && !$('#dialog').open) state.palette.toggle() })
+    $('#btn-search').onclick = () => state.palette.open()
 }
 
 window.addEventListener('popstate', () => route())

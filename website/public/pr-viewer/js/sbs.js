@@ -5,7 +5,6 @@
 import {DIFF_COLORS} from './editor.js'
 
 const FILL = {mod: DIFF_COLORS.modified, ins: DIFF_COLORS.inserted, del: DIFF_COLORS.deleted}
-const EDGE = {mod: '#2f5560', ins: '#3f7d52', del: '#5a5a5a'}
 
 /**
  * Normalizes Monaco line changes (1-based, `*EndLineNumber` 0 for an empty side) to 0-based half-open ranges:
@@ -186,9 +185,10 @@ export class SideBySideViewer {
         const lc = this.left.getModel().getLineCount(), rc = this.right.getModel().getLineCount()
         // a point (empty side) is drawn as a line on the boundary: below line `at`, or above line 1 when at === 0
         const point = (arr, at, count, type) => {
-            const cls = at <= 0 ? `dl-pt-top dl-pt-${type}` : `dl-pt-bot dl-pt-${type}`
-            const line = at <= 0 ? 1 : Math.min(at, count)
-            arr.push({range: new m.Range(line, 1, line, 1), options: {isWholeLine: true, className: cls, marginClassName: cls}})
+            // 1px at the bottom of the line above and 1px at the top of the line below: a 2px line on the boundary
+            const add = (line, cls) => arr.push({range: new m.Range(line, 1, line, 1), options: {isWholeLine: true, className: cls, marginClassName: cls}})
+            if (at >= 1) add(Math.min(at, count), `dl-pt-bot dl-pt-${type}`)
+            if (at + 1 <= count) add(at + 1, `dl-pt-top dl-pt-${type}`)
         }
         for (const c of this.changes) {
             const t = c.type
@@ -274,11 +274,15 @@ export class SideBySideViewer {
 
         // change shapes: number-column bands joined by a curved band
         for (const c of this.highlight === 'none' ? [] : this.changes) {
-            const a0 = yL(c.l0), a1 = yL(c.l1), b0 = yR(c.r0), b1 = yR(c.r1)
+            let a0 = yL(c.l0), a1 = yL(c.l1), b0 = yR(c.r0), b1 = yR(c.r1)
+            // an empty side is the 2px line on the boundary: the curve starts at that thickness, not from a point
+            const emptyA = a1 === a0, emptyB = b1 === b0
+            if (emptyA) { a0 = Math.round(a0) - 1; a1 = a0 + 2 }
+            if (emptyB) { b0 = Math.round(b0) - 1; b1 = b0 + 2 }
             if (Math.max(a1, b1) < -2 || Math.min(a0, b0) > H + 2) continue
             ctx.fillStyle = FILL[c.type]
-            if (a1 > a0) ctx.fillRect(0, a0, x0, a1 - a0)
-            if (b1 > b0) ctx.fillRect(x1, b0, W - x1, b1 - b0)
+            ctx.fillRect(0, a0, x0, a1 - a0)
+            ctx.fillRect(x1, b0, W - x1, b1 - b0)
             const k = this.curveW * 0.55
             ctx.beginPath()
             ctx.moveTo(x0, a0)
@@ -287,11 +291,6 @@ export class SideBySideViewer {
             ctx.bezierCurveTo(x1 - k, b1, x0 + k, a1, x0, a1)
             ctx.closePath()
             ctx.fill()
-            // an empty side: a line at the insertion/deletion point, continuing the editor's line up to the curve's tip
-            // (the curve itself is only filled, as in the IDE; an outline would stop where the other side's band starts)
-            ctx.fillStyle = EDGE[c.type]
-            if (a1 === a0) ctx.fillRect(0, Math.round(a0) - 1, x0 + 1, 1)
-            if (b1 === b0) ctx.fillRect(x1 - 1, Math.round(b0) - 1, W - x1 + 1, 1)
         }
 
         // line numbers

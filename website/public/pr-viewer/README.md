@@ -9,13 +9,16 @@ Open `?pr=owner/repo/123`, or paste a PR / commit / compare URL on the start pag
 - **Changes**: the changed files grouped by directory (compacted, with file counts, names colored by status), and a
   full-file side-by-side diff: two editors that are not padded to line up, line numbers of both sides in the middle,
   curved connectors between matching changes, synced scrolling (`js/sbs.js`). F7 / Shift+F7 move between
-  differences (on to the next file at the end), Alt+→ / Alt+← between files.
+  differences (on to the next file at the end), Alt+→ / Alt+← between files, Ctrl/⌘ + = / − / 0 the editor font.
 - **Settings** (gear), as in the IDE: Align Changes In Side-by-Side Diff (Monaco's padded side-by-side), Synchronize
   Scrolling, Ignore Differences (none / trim / all whitespace), Highlighting Differences (lines / words / none),
   collapse unchanged fragments and soft-wrap (unified and aligned), font size.
 - **PR view** (as in the IDE's Pull Requests tool window): the PR title and "Changes from N commits ▾" (searchable)
   over the tree, a blue dot on each file until it is viewed, and the repository's pull requests (the project badge or
   the strip) with a search and an Open / Closed / Merged / All filter. Added and deleted files show as one editor.
+- **Search Everywhere** (double Shift, or the search button): the changed files, every action and setting (toggles
+  show ON/OFF), the commits, and on its tab the repository's pull requests. Ctrl/⌘+Shift+A opens it on Actions,
+  Ctrl/⌘+P on Files. Fuzzy matching as in the IDE: word starts and runs, e.g. `uas` → UseAutosave.
 - **Unified viewer**: Monaco's inline diff editor (the default on narrow screens).
 - **Log**: the PR's commits with a graph line and a text/hash filter; select a commit, or shift-select a range, to see
   its changed files and details; double-click, Enter or Show Diff opens it.
