@@ -34,7 +34,6 @@ async function init() {
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(EditorCameraPlugin, {expanded: true})
 
-    // a checkbox is a toggle button in the card, pressed while the value is true
     createExampleCard(viewer, {
         description: 'Edit with a free editor camera, or View through the start view that a visitor gets. With sync on, a move in View changes the start view. C switches, Ctrl+Z undoes.',
         actions: [
