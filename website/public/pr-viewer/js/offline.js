@@ -2,7 +2,7 @@
 // contents, its commits and their contents, its conversation, and the PR lists), so the service worker (sw.js) and
 // the page's contents cache have it all when there is no network. Also: what is downloaded, and how to remove it.
 
-import {getFileContent, getTimeline, listPullRequests, loadChangeSet} from './github.js'
+import {getFileContent, getTimeline, listOpenPulls, listPullRequests, loadChangeSet} from './github.js'
 import {languageForPath, loadMonaco, preloadForOffline} from './editor.js'
 import {loadMarkdown} from './markdown.js'
 
@@ -51,7 +51,8 @@ export async function downloadRepo(owner, repo, {numbers = null, commits = true,
     // the lists (the PR panel's filters) and the open PRs
     const lists = {}
     for (const state of ['open', 'closed', 'merged', 'all']) lists[state] = await listPullRequests(owner, repo, {state}).catch(() => [])
-    const prs = (numbers ? lists.all.filter((p) => numbers.includes(p.number)) : lists.open)
+    // every open PR (the search lists above stop at 50)
+    const prs = numbers ? lists.all.filter((p) => numbers.includes(p.number)) : await listOpenPulls(owner, repo).catch(() => lists.open)
     for (const n of numbers || []) if (!prs.some((p) => p.number === n)) prs.push({number: n, title: `#${n}`})
     tick('Pull request lists')
 

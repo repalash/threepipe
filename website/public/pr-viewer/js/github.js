@@ -430,3 +430,8 @@ export async function getTimeline(owner, repo, number) {
     ])
     return {comments, reviews, inline}
 }
+
+/** All open pull requests of a repository ({number, title}), from the REST list (no search limit). */
+export async function listOpenPulls(owner, repo) {
+    return (await paginate(`/repos/${owner}/${repo}/pulls?state=open`, (x) => x, 10)).map((p) => ({number: p.number, title: p.title}))
+}
