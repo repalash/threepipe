@@ -63,6 +63,13 @@ limit, add a token (the titlebar gear → GitHub token): a fine-grained token wi
 (write is only for Viewed), plus *Contents: read and write* to commit edits, or a classic token with `repo`. It is stored in this browser's `localStorage` and sent
 only to `api.github.com`. File contents at a commit never change, so they are cached in Cache Storage.
 
+## Offline
+
+The page is an installable offline app (`sw.js`, `manifest.webmanifest`): once loaded, it opens with no network, and
+every pull request opened (or downloaded with *Download for offline*: titlebar gear → Offline) shows from the saved
+copy, with its commits, contents and conversation. Edits and Viewed marks made offline stay on the device. The saved
+data belongs to the page's address (origin): download on the same address you will open offline.
+
 ## Snapshots
 
 To try the page without a token (e.g. on a phone), record a PR's API responses and open it with `&snap=<name>`:

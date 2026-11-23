@@ -76,10 +76,10 @@ export function loadMonaco() {
         const shikiReady = loadShiki()
         await loadScript(`${MONACO_BASE}/vs/loader.js`)
         window.require.config({paths: {vs: `${MONACO_BASE}/vs`}})
-        // Workers cannot be created cross-origin; start them from a data: URL that imports the CDN worker script.
+        // Workers cannot be created cross-origin; a worker of this page's own origin imports the CDN worker script
+        // (and so works offline through the service worker)
         window.MonacoEnvironment = {
-            getWorkerUrl: () => `data:text/javascript;charset=utf-8,${encodeURIComponent(
-                `self.MonacoEnvironment={baseUrl:'${MONACO_BASE}/'};importScripts('${MONACO_BASE}/vs/base/worker/workerMain.js');`)}`,
+            getWorkerUrl: () => new URL(`./monaco-worker.js?base=${encodeURIComponent(MONACO_BASE + '/')}`, import.meta.url).href,
         }
         const monaco = await new Promise((resolve, reject) => window.require(['vs/editor/editor.main'], () => resolve(window.monaco), reject))
         await shikiReady
@@ -299,4 +299,10 @@ export async function highlightCode(code, lang) {
     } catch {
         return null
     }
+}
+
+/** Loads what the viewer may need later, for offline use: both base themes and the grammars of `languages`. */
+export async function preloadForOffline(monaco, languages) {
+    await Promise.all([baseTheme(true), baseTheme(false)])
+    for (const id of new Set(languages)) await ensureLanguage(monaco, id).catch(() => {})
 }

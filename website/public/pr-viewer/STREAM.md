@@ -71,25 +71,39 @@ each list. Status: ✅ done (commit), 🔨 in progress, 📋 planned, 💤 parke
       change; `uas` ranks UseAutosave first; picking a commit keeps the open file; README token text; per-PR UI state
       (unchecked files, closed tabs) resets on another PR.
 
+29. ✅ Offline app: a service worker (`sw.js`) keeps the page, Monaco, Shiki, Markdown and fonts, and every GitHub
+    response the page fetched (network first, the saved copy when offline or slow; an "Offline" badge says so).
+    Installable (manifest, icons; Add to Home Screen). Monaco's worker starts from the page's origin so it works
+    offline too.
+30. ✅ Download for offline (titlebar gear → Offline, or Search Everywhere): a repository's open PRs (or one) with
+    their files, contents, each commit's changes, conversations and avatars, the PR lists, and the grammars they need;
+    progress, Stop, Update, Remove, storage used. Downloaded PRs are listed on the start page.
+31. ✅ Offline edits and Viewed: edits are kept in localStorage (they survive closing the browser); Commit and Push
+    offline says to retry online; Viewed marks made offline are sent to GitHub on the next online load.
+
 ## In progress
 
 (none)
 
 ## Planned
 
-29. 📋 Git operations from the Log's context menu, first batch (no merge needed): Copy Revision Number, View in
+- 📋 Offline, next: cached preview builds to run shader-flow-editor PRs offline; export / import an offline pack
+  between devices (download on the laptop, open on the phone); a branch picker (compare any branch with another or
+  with where it forked).
+
+32. 📋 Git operations from the Log's context menu, first batch (no merge needed): Copy Revision Number, View in
     browser, Create Patch, Go to Parent / Child, New Branch / Tag, Compare with PR head, Edit Commit Message (F2),
     Squash / Fixup into the previous commit, Undo Commit (head), Reset Current Branch to Here. All rewrites check the
     branch first and offer Undo.
-30. 📋 GitHub-style URLs, as github.dev does: replace `github.com` in a PR / commit / compare link with the viewer's
+33. 📋 GitHub-style URLs, as github.dev does: replace `github.com` in a PR / commit / compare link with the viewer's
     address, e.g. `…/pr-viewer/<owner>/<repo>/pull/<n>/files`. Needs the host to serve the page for any path under
     `/pr-viewer/` (a 404 fallback that forwards the path to `?pr=` works on static hosts).
 
 ## Parked
 
-31. 💤 Open the viewer in the chat app's side panel through the iJewel MCP `open`: the app shows it inline and the
+34. 💤 Open the viewer in the chat app's side panel through the iJewel MCP `open`: the app shows it inline and the
     frame stays blank (an outside site in its frame); needs the page served as an MCP App by the server.
-32. 💤 Merge-based Git operations (Drop, Cherry-Pick, Revert in general, reorder): possible with GitHub's merge API
+35. 💤 Merge-based Git operations (Drop, Cherry-Pick, Revert in general, reorder): possible with GitHub's merge API
     but fail on conflicts with no way to resolve them here.
 
 ## Notes

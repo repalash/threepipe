@@ -62,6 +62,8 @@ async function request(path, {accept = 'application/vnd.github+json', method = '
     if (token) headers.Authorization = `Bearer ${token}`
     if (body) headers['Content-Type'] = 'application/json'
     const res = await fetch(path.startsWith('http') ? path : API + path, {method, headers, body: body && JSON.stringify(body)})
+    // a saved copy from the offline app (sw.js)
+    if (res.headers.get('x-prv-offline')) window.dispatchEvent(new CustomEvent('prv-offline'))
     if (!res.ok) {
         let message = res.statusText || `HTTP ${res.status}`
         try { message = (await res.json()).message || message } catch { /* not json */ }

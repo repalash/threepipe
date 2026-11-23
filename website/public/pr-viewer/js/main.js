@@ -12,6 +12,7 @@ import {fileIcon, icons, isImagePath} from './icons.js'
 import {formatWhen, LogView} from './log.js'
 import {onDoubleShift, Palette} from './palette.js'
 import {installTooltips} from './tooltip.js'
+import {appOffline, clearOffline, downloadRepo, offlineRepos, removeRepo, storageUse} from './offline.js'
 import {highlightBlocks, renderMarkdown, repoResolvers, richSource, sanitize} from './markdown.js'
 
 const $ = (s, el = document) => el.querySelector(s)
@@ -177,6 +178,8 @@ function showLanding(error) {
             <div class="land-row">
                 <button class="btn btn-ghost" id="land-token">${icons.lock} ${getToken() ? 'GitHub token saved: change' : 'Add a GitHub token (private repositories)'}</button>
             </div>
+            ${offlineRepos().length ? `<h3>${icons.download} Available offline</h3><div class="land-list">${offlineRepos().map((r) => r.prs.map((p) => `
+                <a class="land-item" href="?pr=${esc(`${r.owner}/${r.repo}/${p.number}`)}"><span class="li-label">${esc(`${r.owner}/${r.repo}#${p.number}`)}</span><span class="li-title">${esc(p.title || '')}</span></a>`).join('')).join('')}</div>` : ''}
             <div id="land-mine"></div>
             ${rec.length ? `<h3>Recent</h3><div class="land-list">${rec.map((r) => `
                 <a class="land-item" href="?${esc(r.key)}"><span class="li-label">${esc(r.label)}</span><span class="li-title">${esc(r.title || '')}</span></a>`).join('')}</div>` : ''}
@@ -194,7 +197,7 @@ function showLanding(error) {
             $('#land-mine').innerHTML = `<h3>Your open pull requests</h3><div class="land-list">${prs.length ? prs.map((p) => `
                 <a class="land-item" href="?pr=${esc(`${p.owner}/${p.repo}/${p.number}`)}"><span class="li-label">${esc(`${p.owner}/${p.repo}#${p.number}`)}${p.draft ? ' <i>draft</i>' : ''}</span><span class="li-title">${esc(p.title)}</span></a>`).join('')
                 : '<div class="dim small">None</div>'}</div>`
-        }).catch((e) => { $('#land-mine').innerHTML = `<div class="dim small">Could not list your pull requests: ${esc(e.message)}</div>` })
+        }).catch((e) => { $('#land-mine').innerHTML = !navigator.onLine || e.status === 503 ? '' : `<div class="dim small">Could not list your pull requests: ${esc(e.message)}</div>` })
     }
 }
 
@@ -322,6 +325,7 @@ function buildShell() {
             <span class="tb-title" id="title"></span>
             <span class="state-pill" id="state-pill"></span>
             <span class="spacer"></span>
+            <button class="offline-pill" id="offline-pill" title="Showing saved copies: no network" hidden>${icons.download}<span>Offline</span></button>
             <button class="tb-btn" id="btn-search" title="Search Everywhere (Double Shift)">${icons.search}</button>
             <a class="tb-btn" id="btn-github" target="_blank" rel="noopener" title="Open the pull request on GitHub">${icons.github}</a>
             <button class="tb-btn" id="btn-app" title="Settings: theme, editor font, GitHub token">${icons.gear}</button>
@@ -481,6 +485,8 @@ function buildShell() {
     $('#btn-settings').onclick = (e) => settingsMenu(e.currentTarget)
     $('#btn-open-file').onclick = (e) => openMenu(e.currentTarget, openOnGitHubItems())
     $('#btn-app').onclick = (e) => appMenu(e.currentTarget)
+    $('#offline-pill').onclick = () => offlineDialog()
+    renderOffline()
     $('#btn-expand').onclick = () => state.tree.collapseAll(false)
     $('#btn-collapse').onclick = () => state.tree.collapseAll(true)
     $('#btn-reload').onclick = () => reloadTarget()
@@ -741,6 +747,7 @@ function appMenu(anchor) {
         {html: 'GitHub'},
         {label: `${icons.lock} ${getToken() ? 'Token saved: change or remove…' : 'Add a Token…'}`, action: tokenDialog},
         {label: `${icons.folder} Open Another Pull Request…`, action: openPrDialog},
+        {label: `${icons.download} Offline: Download and Saved Data…`, action: offlineDialog},
         '-',
         {label: `Double Shift: Search Everywhere · F7 / ⇧F7: differences · Alt+→ / Alt+←: files · V: viewed`, disabled: true},
     ], {align: 'right'})
@@ -853,6 +860,13 @@ async function loadViewed() {
         if (id !== state.loadId) return
         state.viewedRemote = {id: prId}
         state.viewed = new Set([...states].filter(([, s]) => s === 'VIEWED').map(([p]) => p))
+        // Viewed marks made offline go to GitHub now
+        const pending = store.get(viewedKey() + '.pending', {})
+        for (const [path, v] of Object.entries(pending)) {
+            v ? state.viewed.add(path) : state.viewed.delete(path)
+            setFileViewed(prId, path, v).catch(() => {})
+        }
+        store.set(viewedKey() + '.pending', {})
         renderViewed()
     } catch (e) {
         console.warn('Viewed state from GitHub unavailable; keeping it in this browser', e)
@@ -873,15 +887,22 @@ async function toggleViewed(file, viewed) {
     if (!file) return
     viewed ? state.viewed.add(file.path) : state.viewed.delete(file.path)
     renderViewed()
+    const offline = (e) => e instanceof TypeError || e?.status === 503 || !navigator.onLine
+    const pend = () => { const p = store.get(viewedKey() + '.pending', {}); p[file.path] = viewed; store.set(viewedKey() + '.pending', p) }
     if (state.viewedRemote) {
         try {
             await setFileViewed(state.viewedRemote.id, file.path, viewed)
         } catch (e) {
+            if (offline(e)) { pend(); store.set(viewedKey(), [...state.viewed]); return }
             toast(`GitHub did not save Viewed: ${e.message}`, 'error')
             viewed ? state.viewed.delete(file.path) : state.viewed.add(file.path)
             renderViewed()
         }
-    } else store.set(viewedKey(), [...state.viewed])
+    } else {
+        store.set(viewedKey(), [...state.viewed])
+        // with a token, a mark made offline is sent to GitHub next time
+        if (getToken() && state.target?.type === 'pr') pend()
+    }
 }
 
 // --- files ---
@@ -1319,6 +1340,84 @@ async function timelineHtml(cs, {comments, reviews, inline}, desc) {
     </div>`
 }
 
+// --- offline ---
+
+let lastOfflineCopy = 0
+window.addEventListener('prv-offline', () => { lastOfflineCopy = Date.now(); renderOffline() })
+window.addEventListener('online', () => renderOffline())
+window.addEventListener('offline', () => renderOffline())
+function renderOffline() {
+    const pill = $('#offline-pill')
+    if (!pill) return
+    pill.hidden = navigator.onLine && Date.now() - lastOfflineCopy > 60000
+}
+
+const mb = (b) => b == null ? '?' : b > 1e9 ? `${(b / 1e9).toFixed(1)} GB` : `${(b / 1e6).toFixed(b > 1e7 ? 0 : 1)} MB`
+
+/** Download a repository's PRs for offline use; what is saved; remove. */
+async function offlineDialog() {
+    const dlg = $('#dialog')
+    const t = state.target
+    const render = async () => {
+        const repos = offlineRepos()
+        const use = await storageUse()
+        const here = t && !repos.some((r) => r.owner === t.owner && r.repo === t.repo)
+        dlg.innerHTML = `
+            <form class="dlg dlg-wide" method="dialog">
+                <h2>Offline</h2>
+                <p class="dim">${appOffline() ? `${icons.check} The app works offline in this browser.` : 'The app becomes available offline after this page loads once more.'}
+                Downloaded pull requests open with no network, with their files, commits and conversations. Everything you open is kept too.
+                Edits and Viewed marks made offline stay on this device; Commit and Push, and Viewed sync, once you are online.</p>
+                <div class="off-list">${repos.length ? repos.map((r) => `
+                    <div class="off-row"><div class="off-name"><b>${esc(r.owner)}/${esc(r.repo)}</b><span class="dim">${r.prs.length} pull request${r.prs.length === 1 ? '' : 's'}${r.commits ? ', with commits' : ''} · ${esc(formatWhen(new Date(r.at).toISOString()))}</span></div>
+                        <button type="button" class="btn btn-small" data-update="${esc(r.owner)}/${esc(r.repo)}">Update</button>
+                        <button type="button" class="btn btn-small btn-ghost" data-remove="${esc(r.owner)}/${esc(r.repo)}">Remove</button></div>`).join('')
+                    : '<div class="dim small">Nothing downloaded yet.</div>'}</div>
+                ${t ? `<div class="off-new">
+                    <div><b>${esc(t.owner)}/${esc(t.repo)}</b> <span class="dim">${here ? '' : '(downloaded: Update fetches new PRs and changes)'}</span></div>
+                    <label class="cmt-amend"><input type="checkbox" id="off-commits" checked><span>Each commit's changes too (more data)</span></label>
+                    <div class="dlg-row"><button type="button" class="btn btn-primary" id="off-go">${icons.download} Download open pull requests</button>
+                    ${t.type === 'pr' ? `<button type="button" class="btn" id="off-one">Only #${t.number}</button>` : ''}</div>
+                </div>` : ''}
+                <div class="off-progress" id="off-progress" hidden><div class="off-bar"><i></i></div><span class="dim small" id="off-step"></span></div>
+                <p class="dim small">${use ? `Storage used: ${mb(use.usage)} of ${mb(use.quota)}.` : ''} On iPhone and iPad, add the page to the Home Screen (Share → Add to Home Screen) so the saved data stays; Safari may clear the data of sites not opened for a few weeks.</p>
+                <div class="dlg-actions">
+                    <button type="button" class="btn btn-ghost" id="off-clear" ${repos.length ? '' : 'disabled'}>Remove all saved data</button>
+                    <span class="spacer"></span>
+                    <button type="button" class="btn" id="off-close">Close</button>
+                </div>
+            </form>`
+        $('#off-close', dlg).onclick = () => dlg.close()
+        $('#off-clear', dlg).onclick = async () => { if (confirm('Remove all saved pull requests from this device?')) { await clearOffline(); toast('Saved data removed'); render() } }
+        dlg.querySelectorAll('[data-remove]').forEach((b) => b.onclick = async () => { const [o, r] = b.dataset.remove.split('/'); await removeRepo(o, r); render() })
+        dlg.querySelectorAll('[data-update]').forEach((b) => b.onclick = () => { const [o, r] = b.dataset.update.split('/'); run(o, r) })
+        if ($('#off-go', dlg)) $('#off-go', dlg).onclick = () => run(t.owner, t.repo)
+        if ($('#off-one', dlg)) $('#off-one', dlg).onclick = () => run(t.owner, t.repo, [t.number])
+    }
+    const run = async (owner, repo, numbers = null) => {
+        if (!navigator.onLine) return toast('No network to download from', 'error')
+        const commits = $('#off-commits', dlg)?.checked ?? true
+        for (const b of dlg.querySelectorAll('button')) if (b.id !== 'off-close') b.disabled = true
+        const prog = $('#off-progress', dlg)
+        prog.hidden = false
+        const ctl = new AbortController()
+        $('#off-close', dlg).textContent = 'Stop'
+        $('#off-close', dlg).onclick = () => ctl.abort()
+        try {
+            const r = await downloadRepo(owner, repo, {numbers, commits, signal: ctl.signal, onProgress: ({done, total, step}) => {
+                $('.off-bar i', dlg).style.width = `${Math.min(100, Math.round(done / Math.max(1, total) * 100))}%`
+                $('#off-step', dlg).textContent = `${step} · ${done} / ${total}`
+            }})
+            toast(r.aborted ? 'Download stopped' : `${owner}/${repo}: ${r.prs} pull request${r.prs === 1 ? '' : 's'} saved for offline${r.failed ? ` (${r.failed} item${r.failed === 1 ? '' : 's'} failed)` : ''}`, r.failed ? 'error' : 'info', 6000)
+        } catch (e) {
+            toast(`Download failed: ${e.message}`, 'error', 8000)
+        }
+        if (dlg.open) render()
+    }
+    dlg.showModal()
+    await render()
+}
+
 // --- quick edits, committed to the PR's branch ---
 
 /** Edits belong to one head of one PR; null when not showing a PR's full changes. */
@@ -1384,14 +1483,14 @@ function renderEdits() {
     saveEdits()
 }
 
-// Edits are kept per PR, with the head they were made on, for the tab's session (sessionStorage): opening another PR
-// and coming back, or reloading, keeps them.
+// Edits are kept per PR, with the head they were made on, in this browser (localStorage): opening another PR and
+// coming back, reloading, or closing the browser (offline on a flight) keeps them.
 const EDITS_KEY = 'prv.edits2'
 function editStore() {
-    try { return JSON.parse(sessionStorage.getItem(EDITS_KEY) || '{}') || {} } catch { return {} }
+    try { return JSON.parse(localStorage.getItem(EDITS_KEY) || '{}') || {} } catch { return {} }
 }
 function writeEditStore(all) {
-    try { sessionStorage.setItem(EDITS_KEY, JSON.stringify(all)) } catch { /* too large or no storage */ }
+    try { localStorage.setItem(EDITS_KEY, JSON.stringify(all)) } catch { /* too large or no storage */ }
 }
 let saveTimer
 function saveEdits() {
@@ -1621,7 +1720,8 @@ async function doCommit() {
         reloadTarget()
     } catch (err) {
         let m = err.message
-        if (err.status === 403 || err.status === 404) m += `. The token needs Contents: write on ${pr.head.repo.full_name}.`
+        if (err.status === 503 || err instanceof TypeError || !navigator.onLine) m = 'No network: your edits are kept on this device. Commit and Push once you are online again.'
+        else if (err.status === 403 || err.status === 404) m += `. The token needs Contents: write on ${pr.head.repo.full_name}.`
         $('#cmt-err').textContent = m
         $('#cmt-err').hidden = false
     } finally {
@@ -1943,6 +2043,7 @@ function actionItems() {
         A('Markdown Preview', () => toggleMdPreview(), {toggle: s.mdPreview, ic: icons.eye}),
         state.cs?.commits?.length && A('Show Log', () => showLog(), {ic: icons.log}),
         A('Open Another Pull Request…', () => openPrDialog(), {ic: icons.folder}),
+        A('Download for Offline…', () => offlineDialog(), {ic: icons.download}),
         state.cs?.pr && A('View Timeline', () => openTimeline(), {ic: icons.comment}),
         state.edits.size && A('Commit…', () => openCommitPanel(), {ic: icons.commit}),
         state.editableFile && A(state.editing ? 'Stop Editing' : 'Edit File', () => setEditing(!state.editing), {ic: icons.pencil}),
@@ -2001,5 +2102,7 @@ function setupPalette() {
 
 applyThemeCss(themeById(settings.theme))
 installTooltips()
+// the offline app (sw.js): the page, its libraries, and the GitHub data it fetched
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('No offline app', e))
 window.addEventListener('popstate', () => route())
 route()
