@@ -708,3 +708,6 @@ dialog:has(.dlg-wide) { width: min(560px, calc(100vw - 24px)); max-width: none; 
 .off-bar { height: 4px; border-radius: 2px; background: var(--bg-on); overflow: hidden; }
 .off-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 .land h3 .ic { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+.land-snap { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding: 14px; margin: 18px 0 6px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent-bg); }
+.land-snap .ic { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; }
+.land h3 .dim { font-weight: 400; }

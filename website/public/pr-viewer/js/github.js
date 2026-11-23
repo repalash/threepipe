@@ -26,8 +26,9 @@ export class GitHubError extends Error {
 const SNAP = (() => {
     try {
         const s = new URLSearchParams(location.search).get('snap')
-        if (s !== null) s ? sessionStorage.setItem('prv.snap', s) : sessionStorage.removeItem('prv.snap')
-        return sessionStorage.getItem('prv.snap') || ''
+        // kept in localStorage: an installed app starts at ./ (no ?snap=), offline on a flight too
+        if (s !== null) s ? localStorage.setItem('prv.snap', s) : localStorage.removeItem('prv.snap')
+        return localStorage.getItem('prv.snap') || ''
     } catch { return '' }
 })()
 export const snapshotName = () => SNAP
@@ -434,4 +435,13 @@ export async function getTimeline(owner, repo, number) {
 /** All open pull requests of a repository ({number, title}), from the REST list (no search limit). */
 export async function listOpenPulls(owner, repo) {
     return (await paginate(`/repos/${owner}/${repo}/pulls?state=open`, (x) => x, 10)).map((p) => ({number: p.number, title: p.title}))
+}
+
+/** The repositories a snapshot holds ([{owner, repo, prs}]), when it was recorded with --repos; else null. */
+export async function snapshotRepos() {
+    if (!SNAP) return null
+    try {
+        const r = await fetch(new URL(`../snap/${encodeURIComponent(SNAP)}/repos.json`, import.meta.url))
+        return r.ok ? await r.json() : null
+    } catch { return null }
 }

@@ -1,6 +1,6 @@
 import {
     commitFiles, getFileContent, getPullHead, getTimeline, getViewer, moveBranch, getToken, getViewedStates, GitHubError, loadChangeSet, paramsToTarget, parseTarget,
-    listPullRequests, searchMyPullRequests, setFileViewed, setToken, targetToParams,
+    listPullRequests, searchMyPullRequests, setFileViewed, setToken, snapshotName, snapshotRepos, targetToParams,
 } from './github.js'
 import {
     applyTheme, applyThemeCss, DEFAULT_THEME, ensureLanguage, fullWidthSelection, languageForPath, languageName, loadMonaco,
@@ -180,6 +180,7 @@ function showLanding(error) {
             </div>
             ${offlineRepos().length ? `<h3>${icons.download} Available offline</h3><div class="land-list">${offlineRepos().map((r) => r.prs.map((p) => `
                 <a class="land-item" href="?pr=${esc(`${r.owner}/${r.repo}/${p.number}`)}"><span class="li-label">${esc(`${r.owner}/${r.repo}#${p.number}`)}</span><span class="li-title">${esc(p.title || '')}</span></a>`).join('')).join('')}</div>` : ''}
+            <div id="land-snap"></div>
             <div id="land-mine"></div>
             ${rec.length ? `<h3>Recent</h3><div class="land-list">${rec.map((r) => `
                 <a class="land-item" href="?${esc(r.key)}"><span class="li-label">${esc(r.label)}</span><span class="li-title">${esc(r.title || '')}</span></a>`).join('')}</div>` : ''}
@@ -191,6 +192,22 @@ function showLanding(error) {
         navigate(t)
     }
     $('#land-token').onclick = tokenDialog
+    // a snapshot link (recorded pull requests): download it all for offline, and its PRs to open
+    snapshotRepos().then((repos) => {
+        if (!repos?.length || !$('#land-snap')) return
+        const n = repos.reduce((a, r) => a + r.prs.length, 0)
+        const saved = new Set(offlineRepos().map((r) => `${r.owner}/${r.repo}`))
+        const all = repos.every((r) => saved.has(`${r.owner}/${r.repo}`))
+        $('#land-snap').innerHTML = `
+            <div class="land-snap">
+                <div><b>${n} pull requests</b> from ${repos.map((r) => esc(`${r.owner}/${r.repo}`)).join(' and ')}, recorded for reading offline.</div>
+                <div class="dim small">${all ? `${icons.check} Saved on this device: they open with no network.` : 'Download them once on this device (online), then they open with no network.'}</div>
+                <button class="btn ${all ? '' : 'btn-primary'}" id="land-snap-go">${icons.download} ${all ? 'Update the download' : 'Download everything for offline'}</button>
+            </div>
+            ${repos.map((r) => `<h3>${esc(`${r.owner}/${r.repo}`)} <span class="dim">(${r.prs.length})</span></h3><div class="land-list">${r.prs.map((p) => `
+                <a class="land-item" href="?pr=${esc(`${r.owner}/${r.repo}/${p.number}`)}"><span class="li-label">#${p.number}</span><span class="li-title">${esc(p.title || '')}</span></a>`).join('')}</div>`).join('')}`
+        $('#land-snap-go').onclick = () => offlineDialog({all: repos})
+    })
     if (getToken()) {
         $('#land-mine').innerHTML = '<h3>Your open pull requests</h3><div class="land-list dim small">Loading…</div>'
         searchMyPullRequests().then((prs) => {
@@ -1355,9 +1372,10 @@ function renderOffline() {
 const mb = (b) => b == null ? '?' : b > 1e9 ? `${(b / 1e9).toFixed(1)} GB` : `${(b / 1e6).toFixed(b > 1e7 ? 0 : 1)} MB`
 
 /** Download a repository's PRs for offline use; what is saved; remove. */
-async function offlineDialog() {
+async function offlineDialog({all = null} = {}) {
     const dlg = $('#dialog')
     const t = state.target
+    const snap = all || await snapshotRepos()
     const render = async () => {
         const repos = offlineRepos()
         const use = await storageUse()
@@ -1373,7 +1391,11 @@ async function offlineDialog() {
                         <button type="button" class="btn btn-small" data-update="${esc(r.owner)}/${esc(r.repo)}">Update</button>
                         <button type="button" class="btn btn-small btn-ghost" data-remove="${esc(r.owner)}/${esc(r.repo)}">Remove</button></div>`).join('')
                     : '<div class="dim small">Nothing downloaded yet.</div>'}</div>
-                ${t ? `<div class="off-new">
+                ${snap?.length ? `<div class="off-new">
+                    <div><b>This link's recorded pull requests</b> <span class="dim">(${snap.map((r) => `${esc(r.repo)}: ${r.prs.length}`).join(', ')})</span></div>
+                    <div class="dlg-row"><button type="button" class="btn btn-primary" id="off-all">${icons.download} Download everything for offline</button></div>
+                </div>` : ''}
+                ${t && !snap?.length ? `<div class="off-new">
                     <div><b>${esc(t.owner)}/${esc(t.repo)}</b> <span class="dim">${here ? '' : '(downloaded: Update fetches new PRs and changes)'}</span></div>
                     <label class="cmt-amend"><input type="checkbox" id="off-commits" checked><span>Each commit's changes too (more data)</span></label>
                     <div class="dlg-row"><button type="button" class="btn btn-primary" id="off-go">${icons.download} Download open pull requests</button>
@@ -1392,7 +1414,34 @@ async function offlineDialog() {
         dlg.querySelectorAll('[data-remove]').forEach((b) => b.onclick = async () => { const [o, r] = b.dataset.remove.split('/'); await removeRepo(o, r); render() })
         dlg.querySelectorAll('[data-update]').forEach((b) => b.onclick = () => { const [o, r] = b.dataset.update.split('/'); run(o, r) })
         if ($('#off-go', dlg)) $('#off-go', dlg).onclick = () => run(t.owner, t.repo)
+        if ($('#off-all', dlg)) $('#off-all', dlg).onclick = () => runAll(snap)
         if ($('#off-one', dlg)) $('#off-one', dlg).onclick = () => run(t.owner, t.repo, [t.number])
+    }
+    // every repository of the snapshot, one after the other, as one progress
+    const runAll = async (list) => {
+        if (!navigator.onLine) return toast('No network to download from', 'error')
+        for (const b of dlg.querySelectorAll('button')) if (b.id !== 'off-close') b.disabled = true
+        $('#off-progress', dlg).hidden = false
+        const ctl = new AbortController()
+        $('#off-close', dlg).textContent = 'Stop'
+        $('#off-close', dlg).onclick = () => ctl.abort()
+        let prs = 0, failed = 0
+        try {
+            for (const [i, r] of list.entries()) {
+                if (ctl.signal.aborted) break
+                const res = await downloadRepo(r.owner, r.repo, {numbers: r.prs.map((p) => p.number), commits: true, signal: ctl.signal, onProgress: ({done, total, step}) => {
+                    $('.off-bar i', dlg).style.width = `${Math.min(100, Math.round(((i + done / Math.max(1, total)) / list.length) * 100))}%`
+                    $('#off-step', dlg).textContent = `${r.repo} (${i + 1} of ${list.length}): ${step} · ${done} / ${total}`
+                }})
+                prs += res.prs
+                failed += res.failed
+            }
+            toast(ctl.signal.aborted ? 'Download stopped' : `${prs} pull requests saved for offline${failed ? ` (${failed} item${failed === 1 ? '' : 's'} failed)` : ''}`, failed ? 'error' : 'info', 8000)
+        } catch (e) {
+            toast(`Download failed: ${e.message}`, 'error', 8000)
+        }
+        if (dlg.open) render()
+        if (!$('#landing').hidden) showLanding()
     }
     const run = async (owner, repo, numbers = null) => {
         if (!navigator.onLine) return toast('No network to download from', 'error')

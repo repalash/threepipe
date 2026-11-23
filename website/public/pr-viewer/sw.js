@@ -7,7 +7,7 @@
 //   carry `x-prv-offline: 1`, so the page can say it shows a saved copy.
 // File contents at a commit are kept by the page itself (Cache Storage, prv-contents-v1), not here.
 
-const VERSION = 'v1'
+const VERSION = 'v2'
 const SHELL = 'prv-shell-' + VERSION
 const LIBS = 'prv-libs'
 const API = 'prv-api'
@@ -56,10 +56,11 @@ async function shell(req) {
         return res
     })
     const first = await Promise.race([net.catch(() => null), timeout(3000)])
-    if (first && first !== 'timeout') return first
+    // only a good answer wins over the saved copy (a dead tunnel or proxy answers with an error page)
+    if (first && first !== 'timeout' && first.ok) return first
     const hit = await cache.match(stripQuery(req)) || await cache.match(req, {ignoreSearch: true})
     if (hit) return hit
-    return net
+    return first && first !== 'timeout' ? first : net
 }
 
 // `index.html?pr=…` and `./?pr=…` are the same page

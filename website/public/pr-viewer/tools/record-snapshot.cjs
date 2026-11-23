@@ -4,31 +4,40 @@
 // contents of each, the PR lists and the PR's conversation.
 //
 //   node tools/record-snapshot.cjs http://localhost:8000/pr-viewer/ owner/repo/123 [name]
+//   node tools/record-snapshot.cjs http://localhost:8000/pr-viewer/ --repos owner/a,owner/b [name]
+//     (every open PR of each repository, with each commit: what Download for offline fetches; the page then offers
+//     "Download everything" for the snapshot, so a device without a token can save it all for offline)
 //
 // A snapshot of a private repository holds its code: do not commit or publish it (snap/ is git-ignored).
 
 const {chromium} = require('playwright')
-const {execFileSync} = require('child_process')
+const {execFile} = require('child_process')
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
 
 ;(async () => {
-    const [, , pageUrl, pr, name = 'demo'] = process.argv
+    const [, , pageUrl, pr] = process.argv
+    const name = (pr === '--repos' ? process.argv[5] : process.argv[4]) || 'demo'
     if (!pageUrl || !pr) throw new Error('usage: record-snapshot.cjs <page url> <owner/repo/number> [name]')
     const out = path.join(__dirname, '..', 'snap', name)
     fs.mkdirSync(out, {recursive: true})
     const index = {}
     const browser = await chromium.launch()
-    const ctx = await browser.newContext()
+    const ctx = await browser.newContext({serviceWorkers: 'block'})
     await ctx.route('https://api.github.com/**', async (route) => {
         const req = route.request()
         const cors = {'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*'}
         if (req.method() === 'OPTIONS') return route.fulfill({status: 204, headers: cors})
         if (req.method() !== 'GET') return route.fulfill({status: 403, headers: cors, body: '{}'})
-        const args = ['-s', '-i', '-H', 'Accept: ' + (req.headers()['accept'] || 'application/json'), req.url()]
+        const u0 = new URL(req.url())
+        const seen = index[u0.pathname + u0.search]
+        // a URL asked again (a commit's PR, a list) is answered from what was recorded
+        if (seen && seen.status === 200) return route.fulfill({status: 200, body: fs.readFileSync(path.join(out, seen.file)), headers: {...cors, 'content-type': seen.type}})
+        const args = ['-s', '-i', '--retry', '3', '-H', 'Accept: ' + (req.headers()['accept'] || 'application/json'), req.url()]
         if (process.env.GITHUB_TOKEN) args.push('-H', 'Authorization: Bearer ' + process.env.GITHUB_TOKEN)
-        let rest = execFileSync('curl', args, {maxBuffer: 1 << 28})
+        // in parallel (the page asks several at once)
+        let rest = await new Promise((resolve, reject) => execFile('curl', args, {maxBuffer: 1 << 28, encoding: 'buffer'}, (e, out) => e ? reject(e) : resolve(out)))
         let head = ''
         // skip a proxy's "Connection established" block and any 1xx
         while (rest.slice(0, 5).toString() === 'HTTP/') {
@@ -46,6 +55,27 @@ const crypto = require('crypto')
     })
     const page = await ctx.newPage()
     await page.goto(pageUrl)
+    if (pr === '--repos') {
+        const repos = process.argv[4].split(',')
+        const summary = []
+        for (const full of repos) {
+            const [owner, repo] = full.split('/')
+            const r = await page.evaluate(async ([owner, repo]) => {
+                const off = await import('./js/offline.js')
+                const t0 = Date.now()
+                const res = await off.downloadRepo(owner, repo, {commits: true})
+                const saved = off.offlineRepos().find((x) => x.owner === owner && x.repo === repo)
+                return {owner, repo, prs: saved?.prs || [], failed: res.failed, s: Math.round((Date.now() - t0) / 1000)}
+            }, [owner, repo])
+            console.log(`${full}: ${r.prs.length} PRs, ${r.failed} failed, ${r.s}s`)
+            summary.push({owner: r.owner, repo: r.repo, prs: r.prs})
+        }
+        fs.writeFileSync(path.join(out, 'index.json'), JSON.stringify(index))
+        fs.writeFileSync(path.join(out, 'repos.json'), JSON.stringify(summary))
+        console.log(`${name}: ${Object.keys(index).length} responses in ${out}`)
+        await browser.close()
+        return
+    }
     const summary = await page.evaluate(async (pr) => {
         const gh = await import('./js/github.js')
         const [owner, repo, number] = pr.split('/')
