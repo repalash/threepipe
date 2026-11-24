@@ -99,7 +99,7 @@ export async function downloadRepo(owner, repo, {numbers = null, commits = true,
     total += 1
     try {
         const monaco = await loadMonaco()
-        await Promise.all([preloadForOffline(monaco, [...languages, 'markdown', 'typescript', 'javascript', 'json', 'css', 'html', 'glsl', 'yaml', 'shellscript']), loadMarkdown()])
+        await Promise.all([preloadForOffline(monaco, [...languages, 'markdown', 'typescript', 'javascript', 'json', 'css', 'html', 'glsl', 'yaml', 'shellscript']), loadMarkdown(), cacheFonts()])
     } catch { failed++ }
     tick('Editor and languages')
 
@@ -193,10 +193,22 @@ export async function importPack(file, onProgress = () => {}) {
             const langs = new Set(['markdown', 'typescript', 'javascript', 'json', 'css', 'html', 'glsl', 'yaml'])
             await preloadForOffline(await loadMonaco(), [...langs])
             await loadMarkdown()
+            await cacheFonts()
         } catch { /* later */ }
     }
     // the imported repositories count as downloaded
     const list = offlineRepos().filter((r) => !repos.some((n) => n.owner === r.owner && n.repo === r.repo))
     saveRepos([...repos.map((r) => ({...r, commits: true, at: Date.now(), pack: true})), ...list])
     return {repos, files: files.length, persisted: !!cache}
+}
+
+/** Fetches the page's web fonts (the stylesheet and its font files), so the service worker keeps them for offline. */
+export async function cacheFonts() {
+    for (const link of document.querySelectorAll('link[rel="stylesheet"][href^="https://fonts.googleapis.com"]')) {
+        try {
+            const css = await (await fetch(link.href)).text()
+            const urls = [...css.matchAll(/url\((https:[^)]+)\)/g)].map((m) => m[1])
+            await Promise.all(urls.map((u) => fetch(u, {mode: 'cors'}).catch(() => {})))
+        } catch { /* offline: later */ }
+    }
 }

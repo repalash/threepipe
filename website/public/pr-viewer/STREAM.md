@@ -81,6 +81,17 @@ each list. Status: ✅ done (commit), 🔨 in progress, 📋 planned, 💤 parke
 31. ✅ Offline edits and Viewed: edits are kept in localStorage (they survive closing the browser); Commit and Push
     offline says to retry online; Viewed marks made offline are sent to GitHub on the next online load.
 
+32. ✅ Snapshots for a flight: `record-snapshot.cjs --repos` records whole repositories (every open PR, each commit,
+    contents from raw.githubusercontent.com outside the API limit); the start page and the Offline dialog offer
+    Download everything; snapshot mode is remembered; `?snap=` takes a cloud URL too.
+33. ✅ Offline packs: `tools/make-pack.py` makes one .zip per repository (split in parts under 80 MB); import from the
+    start page, the Offline dialog, by dropping a .zip, or with `?packs=<folder with packs.json>` (downloads and
+    imports them; a second visit skips it). Kept in Cache Storage, or in memory on a sandboxed page (threepipe cloud
+    pages: online only).
+34. ✅ Works on files.threepipe.org (sandboxed, opaque origin): no service worker or storage there, and nothing breaks;
+    in-page links open in place (no reload). Offline fixes: Monaco's worker, its icon font and the web fonts are
+    saved during an import or download.
+
 ## In progress
 
 (none)

@@ -7,7 +7,7 @@
 //   carry `x-prv-offline: 1`, so the page can say it shows a saved copy.
 // File contents at a commit are kept by the page itself (Cache Storage, prv-contents-v1), not here.
 
-const VERSION = 'v4'
+const VERSION = 'v6'
 const SHELL = 'prv-shell-' + VERSION
 const LIBS = 'prv-libs'
 const API = 'prv-api'
@@ -42,6 +42,8 @@ self.addEventListener('fetch', (e) => {
     } else if (url.host === 'api.github.com') {
         // contents at a commit are cached by the page; the rest is kept here
         if (!(req.headers.get('accept') || '').includes('raw')) e.respondWith(api(req))
+    } else if (url.pathname.endsWith('.zip')) {
+        // offline packs are imported into their own cache: not kept twice
     } else if (LIB_HOSTS.has(url.host)) {
         e.respondWith(lib(req))
     }
@@ -60,7 +62,8 @@ async function shell(req) {
     // only a good answer wins over the saved copy (a dead tunnel or proxy answers with an error page)
     if (first && first !== 'timeout' && first.ok) return first
     const hit = await cache.match(stripQuery(req)) || await cache.match(req, {ignoreSearch: true})
-    if (hit) return hit
+    // a new Response keeps the requested URL (a saved one would carry the URL it was saved under)
+    if (hit) return new Response(hit.body, {status: hit.status, statusText: hit.statusText, headers: hit.headers})
     return first && first !== 'timeout' ? first : net
 }
 

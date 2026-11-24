@@ -2,7 +2,7 @@
 // grammars and a VS Code theme through Shiki (like shader-flow-editor's monacoSetup.ts). Languages load lazily, by
 // file name, the first time a file needs them.
 
-const MONACO_VERSION = '0.52.2'
+const MONACO_VERSION = '0.52.2' // also in monaco-worker.js
 const MONACO_BASE = `https://cdn.jsdelivr.net/npm/monaco-editor@${MONACO_VERSION}/min`
 const SHIKI = 'https://esm.sh/shiki@4.6.0'
 const SHIKI_THEMES = 'https://esm.sh/@shikijs/themes@4.6.0'
@@ -79,7 +79,7 @@ export function loadMonaco() {
         // Workers cannot be created cross-origin; a worker of this page's own origin imports the CDN worker script
         // (and so works offline through the service worker)
         window.MonacoEnvironment = {
-            getWorkerUrl: () => new URL(`./monaco-worker.js?base=${encodeURIComponent(MONACO_BASE + '/')}`, import.meta.url).href,
+            getWorkerUrl: () => new URL(`./monaco-worker.js?v=${MONACO_VERSION}`, import.meta.url).href,
         }
         const monaco = await new Promise((resolve, reject) => window.require(['vs/editor/editor.main'], () => resolve(window.monaco), reject))
         await shikiReady
@@ -303,6 +303,9 @@ export async function highlightCode(code, lang) {
 
 /** Loads what the viewer may need later, for offline use: both base themes and the grammars of `languages`. */
 export async function preloadForOffline(monaco, languages) {
-    await Promise.all([baseTheme(true), baseTheme(false)])
+    // Monaco's worker script is fetched only when a diff is first computed: fetch it now, for the saved copy
+    await Promise.all([baseTheme(true), baseTheme(false), fetch(`${MONACO_BASE}/vs/base/worker/workerMain.js`).catch(() => {}),
+        fetch(`${MONACO_BASE}/vs/base/browser/ui/codicons/codicon/codicon.ttf`).catch(() => {}),
+        fetch(new URL(`./monaco-worker.js?v=${MONACO_VERSION}`, import.meta.url)).catch(() => {})])
     for (const id of new Set(languages)) await ensureLanguage(monaco, id).catch(() => {})
 }

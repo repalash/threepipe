@@ -260,6 +260,8 @@ function reloadTarget() {
 
 async function route(force = false) {
     const params = new URLSearchParams(location.search)
+    // ?packs=<folder URL with packs.json>: download and import those offline packs first
+    if (params.get('packs') && !state.packsLoading) return loadPacksFrom(params.get('packs'))
     const target = paramsToTarget(params)
     if (!target) {
         state.cs = null
@@ -1483,24 +1485,77 @@ function pickPack() {
     input.click()
 }
 
-async function loadPacks(files) {
-    files = files.filter((f) => /\.zip$/i.test(f.name) || f.type.includes('zip'))
-    if (!files.length) return
+/** Downloads the packs listed in <folder>/packs.json (e.g. a threepipe cloud share) and imports them. */
+async function loadPacksFrom(folder) {
+    const base = folder.endsWith('/') ? folder : folder + '/'
+    // already imported on this device (e.g. the link opened again on the flight): no download
+    let done = null
+    try { done = localStorage.getItem('prv.packsFrom') } catch { /* no storage */ }
+    if (done === base && snapshotName() === 'pack') {
+        history.replaceState(null, '', location.pathname)
+        return route()
+    }
+    state.packsLoading = true
+    showLanding()
     const t = document.createElement('div')
     t.className = 'toast'
     $('#toasts').appendChild(t)
     try {
-        let total = 0, persisted = true, repos = []
-        for (const f of files) {
-            const r = await importPack(f, (step, i, n) => { t.textContent = `${f.name}: ${step}${n > 1 ? ` ${i} / ${n}` : '…'}` })
-            total += r.repos.reduce((a, x) => a + x.prs.length, 0)
-            repos.push(...r.repos.map((x) => x.repo))
-            persisted &&= r.persisted
+        const list = await (await fetch(base + 'packs.json')).json()
+        const blobs = []
+        for (const [i, name] of list.entries()) {
+            const res = await fetch(base + name)
+            if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`)
+            const total = +res.headers.get('content-length') || 0
+            const reader = res.body.getReader()
+            const chunks = []
+            let got = 0
+            for (;;) {
+                const {done, value} = await reader.read()
+                if (done) break
+                chunks.push(value)
+                got += value.length
+                t.textContent = `Downloading ${i + 1} of ${list.length}: ${name} · ${(got / 1e6).toFixed(0)}${total ? ` / ${(total / 1e6).toFixed(0)}` : ''} MB`
+            }
+            const blob = new Blob(chunks)
+            blob.name = name
+            blobs.push(blob)
         }
         t.remove()
-        toast(`Imported ${total} pull requests (${repos.join(', ')})${persisted ? ', kept on this device' : ': this page cannot keep data, keep the tab open'}`, 'info', 8000)
+        const persisted = await loadPacks(blobs)
+        // kept on this device: the link need not download again (a sandboxed page keeps it in memory only)
+        if (persisted) {
+            try { localStorage.setItem('prv.packsFrom', base) } catch { /* no storage */ }
+            history.replaceState(null, '', location.pathname)
+        }
+    } catch (e) {
+        t.remove()
+        toast(`Could not download the packs: ${e.message}`, 'error', 10000)
+    } finally {
+        state.packsLoading = false
+    }
+}
+
+async function loadPacks(files) {
+    files = files.filter((f) => /\.zip$/i.test(f.name || '') || (f.type || '').includes('zip'))
+    if (!files.length) return false
+    const t = document.createElement('div')
+    t.className = 'toast'
+    $('#toasts').appendChild(t)
+    try {
+        let persisted = true
+        const prsOf = new Map()
+        for (const f of files) {
+            const r = await importPack(f, (step, i, n) => { t.textContent = `${f.name}: ${step}${n > 1 ? ` ${i} / ${n}` : '…'}` })
+            for (const x of r.repos) prsOf.set(x.repo, x.prs.length)
+            persisted &&= r.persisted
+        }
+        const total = [...prsOf.values()].reduce((a, n) => a + n, 0), repos = [...prsOf.keys()]
+        t.remove()
+        toast(`Imported ${total} pull requests (${[...new Set(repos)].join(', ')})${persisted ? ', kept on this device' : ': this page cannot keep data, keep the tab open'}`, 'info', 8000)
         if (!state.cs) showLanding()
         else { history.pushState(null, '', location.pathname); route() }
+        return persisted
     } catch (e) {
         t.remove()
         toast(`Could not import: ${e.message}`, 'error', 8000)
