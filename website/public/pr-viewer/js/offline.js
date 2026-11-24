@@ -2,7 +2,7 @@
 // contents, its commits and their contents, its conversation, and the PR lists), so the service worker (sw.js) and
 // the page's contents cache have it all when there is no network. Also: what is downloaded, and how to remove it.
 
-import {getFileContent, getTimeline, listOpenPulls, listPullRequests, loadChangeSet} from './github.js'
+import {getFileContent, getTimeline, listOpenPulls, listPullRequests, loadChangeSet, PACK_CACHE, packMemory, packUrl, setSnapshot} from './github.js'
 import {languageForPath, loadMonaco, preloadForOffline} from './editor.js'
 import {loadMarkdown} from './markdown.js'
 
@@ -130,6 +130,9 @@ export async function removeRepo(owner, repo) {
 export async function clearOffline() {
     await caches.delete('prv-api')
     await caches.delete('prv-contents-v1')
+    await caches.delete(PACK_CACHE)
+    packMemory.clear()
+    setSnapshot('')
     saveRepos([])
 }
 
@@ -141,4 +144,59 @@ export async function storageUse() {
 /** Whether the app itself is ready offline (a service worker controls the page). */
 export function appOffline() {
     try { return !!navigator.serviceWorker?.controller } catch { return false }
+}
+
+const FFLATE = 'https://esm.sh/fflate@0.8.2'
+
+/**
+ * Imports an offline pack: a .zip of a recorded snapshot (index.json, repos.json and the response files, at its root
+ * or in one folder; tools/make-pack.py makes them). Packs merge, so several repositories can be imported one by
+ * one. Kept in Cache Storage, or in memory where the page has none (a sandboxed page: until the tab closes).
+ * Returns {repos, files, persisted}.
+ */
+export async function importPack(file, onProgress = () => {}) {
+    const {unzip, unzipSync} = await import(FFLATE)
+    const buf = new Uint8Array(await file.arrayBuffer())
+    onProgress('Unpacking', 0, 1)
+    const entries = await new Promise((resolve, reject) => {
+        try { unzip(buf, (err, data) => err ? reject(err) : resolve(data)) } catch { try { resolve(unzipSync(buf)) } catch (e) { reject(e) } }
+    })
+    const indexPath = Object.keys(entries).find((k) => /(^|\/)index\.json$/.test(k) && !k.startsWith('__MACOSX'))
+    if (!indexPath) throw new Error('Not an offline pack (no index.json)')
+    const prefix = indexPath.slice(0, -'index.json'.length)
+    const json = (k) => JSON.parse(new TextDecoder().decode(entries[prefix + k]))
+    const index = json('index.json')
+    const repos = entries[prefix + 'repos.json'] ? json('repos.json') : []
+    let cache = null
+    try { cache = await caches.open(PACK_CACHE) } catch { /* sandboxed: memory */ }
+    const read = async (k) => {
+        if (packMemory.has(k)) return JSON.parse(new TextDecoder().decode(packMemory.get(k)))
+        const hit = cache && await cache.match(packUrl(k))
+        return hit ? hit.json() : null
+    }
+    const put = async (k, bytes) => cache ? cache.put(packUrl(k), new Response(bytes)) : packMemory.set(k, bytes)
+    const files = Object.keys(entries).filter((k) => k.startsWith(prefix) && !k.endsWith('/') && !k.endsWith('index.json') && !k.endsWith('repos.json'))
+    for (let i = 0; i < files.length; i++) {
+        await put(files[i].slice(prefix.length), entries[files[i]])
+        if (i % 200 === 0) onProgress('Saving', i, files.length)
+    }
+    // merge with packs imported before
+    const oldIndex = await read('index.json') || {}
+    const oldRepos = (await read('repos.json') || []).filter((r) => !repos.some((n) => n.owner === r.owner && n.repo === r.repo))
+    const enc = (v) => new TextEncoder().encode(JSON.stringify(v))
+    await put('index.json', enc({...oldIndex, ...index}))
+    await put('repos.json', enc([...oldRepos, ...repos]))
+    setSnapshot('pack')
+    // the editor and the grammars, while online (offline they come from the saved app)
+    if (navigator.onLine) {
+        try {
+            const langs = new Set(['markdown', 'typescript', 'javascript', 'json', 'css', 'html', 'glsl', 'yaml'])
+            await preloadForOffline(await loadMonaco(), [...langs])
+            await loadMarkdown()
+        } catch { /* later */ }
+    }
+    // the imported repositories count as downloaded
+    const list = offlineRepos().filter((r) => !repos.some((n) => n.owner === r.owner && n.repo === r.repo))
+    saveRepos([...repos.map((r) => ({...r, commits: true, at: Date.now(), pack: true})), ...list])
+    return {repos, files: files.length, persisted: !!cache}
 }

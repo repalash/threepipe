@@ -1,6 +1,6 @@
 import {
     commitFiles, getFileContent, getPullHead, getTimeline, getViewer, moveBranch, getToken, getViewedStates, GitHubError, loadChangeSet, paramsToTarget, parseTarget,
-    listPullRequests, searchMyPullRequests, setFileViewed, setToken, snapshotName, snapshotRepos, targetToParams,
+    listPullRequests, packMemory, searchMyPullRequests, setFileViewed, setToken, snapshotName, snapshotRepos, targetToParams,
 } from './github.js'
 import {
     applyTheme, applyThemeCss, DEFAULT_THEME, ensureLanguage, fullWidthSelection, languageForPath, languageName, loadMonaco,
@@ -12,7 +12,7 @@ import {fileIcon, icons, isImagePath} from './icons.js'
 import {formatWhen, LogView} from './log.js'
 import {onDoubleShift, Palette} from './palette.js'
 import {installTooltips} from './tooltip.js'
-import {appOffline, clearOffline, downloadRepo, offlineRepos, removeRepo, storageUse} from './offline.js'
+import {appOffline, clearOffline, downloadRepo, importPack, offlineRepos, removeRepo, storageUse} from './offline.js'
 import {highlightBlocks, renderMarkdown, repoResolvers, richSource, sanitize} from './markdown.js'
 
 const $ = (s, el = document) => el.querySelector(s)
@@ -176,6 +176,7 @@ function showLanding(error) {
             <p class="dim small">Also takes <code>owner/repo#123</code>, commit URLs and compare URLs (<code>…/compare/main...feature</code>).</p>
             ${error ? `<div class="land-error">${esc(error)}</div>` : ''}
             <div class="land-row">
+                <button class="btn btn-ghost" id="land-pack" title="An offline pack: a .zip of recorded pull requests (you can also drop it on this page)">${icons.download} Import offline pack (.zip)</button>
                 <button class="btn btn-ghost" id="land-token">${icons.lock} ${getToken() ? 'GitHub token saved: change' : 'Add a GitHub token (private repositories)'}</button>
             </div>
             ${offlineRepos().length ? `<h3>${icons.download} Available offline</h3><div class="land-list">${offlineRepos().map((r) => r.prs.map((p) => `
@@ -192,21 +193,23 @@ function showLanding(error) {
         navigate(t)
     }
     $('#land-token').onclick = tokenDialog
+    $('#land-pack').onclick = () => pickPack()
     // a snapshot link (recorded pull requests): download it all for offline, and its PRs to open
     snapshotRepos().then((repos) => {
         if (!repos?.length || !$('#land-snap')) return
         const n = repos.reduce((a, r) => a + r.prs.length, 0)
         const saved = new Set(offlineRepos().map((r) => `${r.owner}/${r.repo}`))
-        const all = repos.every((r) => saved.has(`${r.owner}/${r.repo}`))
+        const pack = snapshotName() === 'pack'
+        const all = pack || repos.every((r) => saved.has(`${r.owner}/${r.repo}`))
         $('#land-snap').innerHTML = `
             <div class="land-snap">
-                <div><b>${n} pull requests</b> from ${repos.map((r) => esc(`${r.owner}/${r.repo}`)).join(' and ')}, recorded for reading offline.</div>
-                <div class="dim small">${all ? `${icons.check} Saved on this device: they open with no network.` : 'Download them once on this device (online), then they open with no network.'}</div>
-                <button class="btn ${all ? '' : 'btn-primary'}" id="land-snap-go">${icons.download} ${all ? 'Update the download' : 'Download everything for offline'}</button>
+                <div><b>${n} pull requests</b> from ${repos.map((r) => esc(`${r.owner}/${r.repo}`)).join(' and ')}, ${pack ? 'from offline packs' : 'recorded for reading offline'}.</div>
+                <div class="dim small">${all ? `${icons.check} ${pack && packMemory.size ? 'Loaded in this tab: this page cannot keep data, so keep the tab open (no reload).' : 'On this device: they open with no network.'}` : 'Download them once on this device (online), then they open with no network.'}</div>
+                ${pack ? '' : `<button class="btn ${all ? '' : 'btn-primary'}" id="land-snap-go">${icons.download} ${all ? 'Update the download' : 'Download everything for offline'}</button>`}
             </div>
             ${repos.map((r) => `<h3>${esc(`${r.owner}/${r.repo}`)} <span class="dim">(${r.prs.length})</span></h3><div class="land-list">${r.prs.map((p) => `
                 <a class="land-item" href="?pr=${esc(`${r.owner}/${r.repo}/${p.number}`)}"><span class="li-label">#${p.number}</span><span class="li-title">${esc(p.title || '')}</span></a>`).join('')}</div>`).join('')}`
-        $('#land-snap-go').onclick = () => offlineDialog({all: repos})
+        if ($('#land-snap-go')) $('#land-snap-go').onclick = () => offlineDialog({all: repos})
     })
     if (getToken()) {
         $('#land-mine').innerHTML = '<h3>Your open pull requests</h3><div class="land-list dim small">Loading…</div>'
@@ -1401,6 +1404,7 @@ async function offlineDialog({all = null} = {}) {
                     <div class="dlg-row"><button type="button" class="btn btn-primary" id="off-go">${icons.download} Download open pull requests</button>
                     ${t.type === 'pr' ? `<button type="button" class="btn" id="off-one">Only #${t.number}</button>` : ''}</div>
                 </div>` : ''}
+                <div class="dlg-row"><button type="button" class="btn" id="off-pack">${icons.download} Import offline pack (.zip)</button></div>
                 <div class="off-progress" id="off-progress" hidden><div class="off-bar"><i></i></div><span class="dim small" id="off-step"></span></div>
                 <p class="dim small">${use ? `Storage used: ${mb(use.usage)} of ${mb(use.quota)}.` : ''} On iPhone and iPad, add the page to the Home Screen (Share → Add to Home Screen) so the saved data stays; Safari may clear the data of sites not opened for a few weeks.</p>
                 <div class="dlg-actions">
@@ -1415,6 +1419,7 @@ async function offlineDialog({all = null} = {}) {
         dlg.querySelectorAll('[data-update]').forEach((b) => b.onclick = () => { const [o, r] = b.dataset.update.split('/'); run(o, r) })
         if ($('#off-go', dlg)) $('#off-go', dlg).onclick = () => run(t.owner, t.repo)
         if ($('#off-all', dlg)) $('#off-all', dlg).onclick = () => runAll(snap)
+        $('#off-pack', dlg).onclick = () => { dlg.close(); pickPack() }
         if ($('#off-one', dlg)) $('#off-one', dlg).onclick = () => run(t.owner, t.repo, [t.number])
     }
     // every repository of the snapshot, one after the other, as one progress
@@ -1466,6 +1471,60 @@ async function offlineDialog({all = null} = {}) {
     dlg.showModal()
     await render()
 }
+
+// --- offline packs (.zip of recorded pull requests) ---
+
+function pickPack() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.zip,application/zip'
+    input.multiple = true
+    input.onchange = () => loadPacks([...input.files])
+    input.click()
+}
+
+async function loadPacks(files) {
+    files = files.filter((f) => /\.zip$/i.test(f.name) || f.type.includes('zip'))
+    if (!files.length) return
+    const t = document.createElement('div')
+    t.className = 'toast'
+    $('#toasts').appendChild(t)
+    try {
+        let total = 0, persisted = true, repos = []
+        for (const f of files) {
+            const r = await importPack(f, (step, i, n) => { t.textContent = `${f.name}: ${step}${n > 1 ? ` ${i} / ${n}` : '…'}` })
+            total += r.repos.reduce((a, x) => a + x.prs.length, 0)
+            repos.push(...r.repos.map((x) => x.repo))
+            persisted &&= r.persisted
+        }
+        t.remove()
+        toast(`Imported ${total} pull requests (${repos.join(', ')})${persisted ? ', kept on this device' : ': this page cannot keep data, keep the tab open'}`, 'info', 8000)
+        if (!state.cs) showLanding()
+        else { history.pushState(null, '', location.pathname); route() }
+    } catch (e) {
+        t.remove()
+        toast(`Could not import: ${e.message}`, 'error', 8000)
+    }
+}
+
+// links to other views of this page (?pr=…) open in place: no reload (a pack held in memory stays, and it is faster)
+document.addEventListener('click', (e) => {
+    const a = e.target.closest?.('a[href^="?"]')
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target === '_blank') return
+    e.preventDefault()
+    closeDrawer()
+    history.pushState(null, '', a.getAttribute('href'))
+    route()
+})
+
+// drop a pack anywhere on the page
+window.addEventListener('dragover', (e) => { if ([...(e.dataTransfer?.items || [])].some((i) => i.kind === 'file')) e.preventDefault() })
+window.addEventListener('drop', (e) => {
+    const files = [...(e.dataTransfer?.files || [])].filter((f) => /\.zip$/i.test(f.name))
+    if (!files.length) return
+    e.preventDefault()
+    loadPacks(files)
+})
 
 // --- quick edits, committed to the PR's branch ---
 

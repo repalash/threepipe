@@ -23,10 +23,11 @@ export class GitHubError extends Error {
 // --- snapshots: `?snap=<name>` answers from recorded API responses (`snap/<name>/`, written by
 // tools/record-snapshot.cjs), to try the page with no token or network to GitHub. Kept for the tab's session.
 
-// `snap` is a name (snap/<name>/ next to the page) or an https URL of a snapshot folder (e.g. on threepipe cloud).
+// `snap` is a name (snap/<name>/ next to the page), an https URL of a snapshot folder (e.g. on threepipe cloud), or
+// `pack`: offline packs (.zip) imported on this device (Cache Storage 'prv-pack', or memory in a sandboxed page).
 // Kept in localStorage (an installed app starts at ./ with no ?snap=), or in window.name where a sandboxed page has
 // no storage (it lasts while the tab navigates).
-const SNAP = (() => {
+let SNAP = (() => {
     const s = new URLSearchParams(location.search).get('snap')
     try {
         if (s !== null) s ? localStorage.setItem('prv.snap', s) : localStorage.removeItem('prv.snap')
@@ -40,6 +41,27 @@ const SNAP = (() => {
 const snapFile = (f) => /^https:\/\//.test(SNAP) ? new URL(f, SNAP.endsWith('/') ? SNAP : SNAP + '/') : new URL(`../snap/${encodeURIComponent(SNAP)}/${f}`, import.meta.url)
 export const snapshotName = () => SNAP
 
+export const PACK_CACHE = 'prv-pack'
+export const packUrl = (f) => `https://prv.pack/${f}`
+/** Packs held in memory (a sandboxed page has no Cache Storage): file -> bytes. */
+export const packMemory = new Map()
+async function snapFetch(f) {
+    if (SNAP !== 'pack') return fetch(snapFile(f))
+    if (packMemory.has(f)) return new Response(packMemory.get(f))
+    try {
+        const hit = await (await caches.open(PACK_CACHE)).match(packUrl(f))
+        if (hit) return hit
+    } catch { /* no Cache Storage */ }
+    return new Response('', {status: 404})
+}
+
+/** Switches the snapshot (e.g. to 'pack' after an import), remembered like ?snap=. */
+export function setSnapshot(v) {
+    SNAP = v || ''
+    snapIndex = null
+    try { v ? localStorage.setItem('prv.snap', v) : localStorage.removeItem('prv.snap') } catch { window.name = v ? 'prv.snap=' + v : '' }
+}
+
 /** The snapshot key of an API request: its path and query, and the method when it is not GET. */
 export function snapKey(url, method = 'GET') {
     const u = new URL(url, API)
@@ -48,14 +70,14 @@ export function snapKey(url, method = 'GET') {
 
 let snapIndex
 async function snapRequest(url, method) {
-    snapIndex ??= fetch(snapFile('index.json')).then((r) => {
+    snapIndex ??= snapFetch('index.json').then((r) => {
         if (!r.ok) throw new GitHubError(`Snapshot "${SNAP}" not found`, r.status)
         return r.json()
     })
     const index = await snapIndex
     const e = index[snapKey(url, method)]
     if (!e) throw new GitHubError('Not in this snapshot (it has only what was recorded)', 404)
-    const res = await fetch(snapFile(e.file))
+    const res = await snapFetch(e.file)
     return new Response(await res.arrayBuffer(), {status: e.status, headers: {'Content-Type': e.type}})
 }
 
@@ -372,7 +394,7 @@ export async function setFileViewed(prNodeId, path, viewed) {
 const refPath = (branch) => `heads/${branch.split('/').map(encodeURIComponent).join('/')}`
 
 function canWrite() {
-    if (SNAP) throw new GitHubError('This is a snapshot: open the page without ?snap= and with a token to commit', 400)
+    if (SNAP) throw new GitHubError('This is a snapshot (recorded data): open the page without ?snap= and with a token to commit', 400)
     if (!getToken()) throw new GitHubError('Committing needs a GitHub token', 401)
 }
 
@@ -448,7 +470,7 @@ export async function listOpenPulls(owner, repo) {
 export async function snapshotRepos() {
     if (!SNAP) return null
     try {
-        const r = await fetch(snapFile('repos.json'))
+        const r = await snapFetch('repos.json')
         return r.ok ? await r.json() : null
     } catch { return null }
 }

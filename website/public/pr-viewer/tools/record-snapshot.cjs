@@ -34,7 +34,12 @@ const crypto = require('crypto')
         const seen = index[u0.pathname + u0.search]
         // a URL asked again (a commit's PR, a list) is answered from what was recorded
         if (seen && seen.status === 200) return route.fulfill({status: 200, body: fs.readFileSync(path.join(out, seen.file)), headers: {...cors, 'content-type': seen.type}})
-        const args = ['-s', '-i', '--retry', '3', '-H', 'Accept: ' + (req.headers()['accept'] || 'application/json'), req.url()]
+        // file contents at a commit come from raw.githubusercontent.com: they do not count against the API's hourly
+        // limit, which large PRs (thousands of files and commits) would use up
+        const m = u0.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/contents\/(.+)$/)
+        const ref = u0.searchParams.get('ref')
+        const target = m && ref && (req.headers()['accept'] || '').includes('raw') ? `https://raw.githubusercontent.com/${m[1]}/${m[2]}/${encodeURIComponent(ref)}/${m[3]}` : req.url()
+        const args = ['-s', '-i', '--retry', '3', '-H', 'Accept: ' + (req.headers()['accept'] || 'application/json'), target]
         if (process.env.GITHUB_TOKEN) args.push('-H', 'Authorization: Bearer ' + process.env.GITHUB_TOKEN)
         // in parallel (the page asks several at once)
         let rest = await new Promise((resolve, reject) => execFile('curl', args, {maxBuffer: 1 << 28, encoding: 'buffer'}, (e, out) => e ? reject(e) : resolve(out)))

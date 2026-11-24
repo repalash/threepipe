@@ -7,11 +7,11 @@
 //   carry `x-prv-offline: 1`, so the page can say it shows a saved copy.
 // File contents at a commit are kept by the page itself (Cache Storage, prv-contents-v1), not here.
 
-const VERSION = 'v3'
+const VERSION = 'v4'
 const SHELL = 'prv-shell-' + VERSION
 const LIBS = 'prv-libs'
 const API = 'prv-api'
-const KEEP = [SHELL, LIBS, API, 'prv-contents-v1']
+const KEEP = [SHELL, LIBS, API, 'prv-contents-v1', 'prv-pack']
 
 const SHELL_FILES = [
     './', './index.html', './style.css', './manifest.webmanifest',
