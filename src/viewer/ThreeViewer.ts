@@ -560,7 +560,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this._scene.setBackgroundColor(options.backgroundColor ?? '#ffffff')
         this._scene.addEventListener('setView', this._setActiveCameraView)
         this._scene.addEventListener('activateMain', this._setActiveCameraView)
-        this._scene.addEventListener('materialUpdate', (e) => this.setDirty(this._scene, e))
+        this._scene.addEventListener('materialUpdate', (e) => this._onMaterialUpdate(e))
         this._scene.addEventListener('materialChanged', (e) => this.setDirty(this._scene, e)) // why? todo if needed use geometryChanged also
         this._scene.addEventListener('objectUpdate', (e) => this.setDirty(this._scene, e))
         this._scene.addEventListener('textureUpdate', (e) => this.setDirty(this._scene, e))
@@ -1600,6 +1600,12 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             return
         }
         await tr.exportFile(blob, name)
+    }
+
+    protected _onMaterialUpdate(e: Parameters<EventListener2<'materialUpdate', ISceneEventMap, RootScene>>[0]) {
+        this.setDirty(this._scene, e)
+        // the faces drawn into the shadow maps changed (Side, Shadow Side); the maps are drawn again only after a reset
+        if (e.change === 'side' || e.change === 'shadowSide') this.renderManager.resetShadows()
     }
 
     private _setActiveCameraView: EventListener2<'setView'|'activateMain', ISceneEventMap, RootScene> = (event) => {

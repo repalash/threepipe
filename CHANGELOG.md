@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Material panel: **Shadow Side** (Auto, Front, Back, Double), the faces drawn into the shadow maps (`material.shadowSide`; Auto is the three.js default, the side opposite to Side). Website note [Shadows: shadow side and bias](https://threepipe.org/notes/shadows.html): which faces cast, the two biases and their units, acne and peter-panning, and which to use
 - `RootScene.backgroundBlurriness` is saved with the scene, shows in its UI (Background Blurriness) and renders the change: it blurs a background texture or environment map (0 to 1) as in three.js, while the environment light stays sharp
 - `TonemapPlugin` warns once when the background tone mapping is turned off (`scene.backgroundTonemap` or `tonemapBackground`) and the viewer has no GBufferPlugin or DepthBufferPlugin: the screen pass finds the background pixels from the depth, so the background stayed tone mapped with no message
 - Examples: a small button on each example page, with a link to its source and a prompt to copy for an agent (it replaces the code preview panel)
@@ -74,6 +75,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- A change of a material's Side or Shadow Side (`setDirty({change: 'side' | 'shadowSide'})`, which the material panel sends) draws the shadow maps again; before, the old shadows stayed until something else reset them
 - `BloomPlugin` and `DepthOfFieldPlugin` (webgi-plugins): setting a setting of their pass in code renders again: the bloom Threshold, Soft Threshold, Intensity, Background Bloom and Debug, and the depth of field Depth Range, Near and Far Blur Scale. They changed only the shader values, so a viewer at rest showed the change only at its next render; the Tweakpane panel hid it because its own change marks the viewer dirty. They now call `setDirty` like the settings of `SSAOPluginPass`
 - `ChromaticAberrationPlugin`: the Intensity slider goes to 1 (was 0.3), so the panel shows the default of 0.5 (it showed 0.300 while the effect used 0.5)
 - Camera UI: one Controls Mode dropdown. `PerspectiveCamera2` and `OrthographicCamera2` also had a second one, from a `@uiDropdown` on `controlsMode` that listed the modes once, when the camera was made (only `orbit`). Setting a mode that a plugin adds (seen with `deviceOrientation`) while the UI showed the camera could set it back to none, so the overlay of the `device-orientation-controls-plugin` example left the camera with no controls on its first tap. The dropdown of `makeICameraCommonUiConfig` stays: it lists the modes again when a plugin adds one, and no longer lists `orbit` twice
