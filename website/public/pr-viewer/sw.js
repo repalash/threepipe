@@ -7,7 +7,7 @@
 //   carry `x-prv-offline: 1`, so the page can say it shows a saved copy.
 // File contents at a commit are kept by the page itself (Cache Storage, prv-contents-v1), not here.
 
-const VERSION = 'v2'
+const VERSION = 'v3'
 const SHELL = 'prv-shell-' + VERSION
 const LIBS = 'prv-libs'
 const API = 'prv-api'
@@ -19,7 +19,8 @@ const SHELL_FILES = [
     './js/log.js', './js/palette.js', './js/markdown.js', './js/tooltip.js', './js/offline.js', './js/monaco-worker.js',
     './icons/icon.svg', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png',
 ]
-const LIB_HOSTS = new Set(['cdn.jsdelivr.net', 'esm.sh', 'fonts.googleapis.com', 'fonts.gstatic.com', 'avatars.githubusercontent.com'])
+// files.threepipe.org: snapshots recorded there never change (a new recording gets a new folder)
+const LIB_HOSTS = new Set(['cdn.jsdelivr.net', 'esm.sh', 'fonts.googleapis.com', 'fonts.gstatic.com', 'avatars.githubusercontent.com', 'files.threepipe.org'])
 
 self.addEventListener('install', (e) => {
     e.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)).then(() => self.skipWaiting()))

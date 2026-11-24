@@ -140,5 +140,5 @@ export async function storageUse() {
 
 /** Whether the app itself is ready offline (a service worker controls the page). */
 export function appOffline() {
-    return !!navigator.serviceWorker?.controller
+    try { return !!navigator.serviceWorker?.controller } catch { return false }
 }

@@ -2152,6 +2152,7 @@ function setupPalette() {
 applyThemeCss(themeById(settings.theme))
 installTooltips()
 // the offline app (sw.js): the page, its libraries, and the GitHub data it fetched
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('No offline app', e))
+// (a sandboxed page, e.g. on files.threepipe.org, has none: even reading navigator.serviceWorker throws there)
+try { navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('No offline app', e)) } catch { /* no offline app here */ }
 window.addEventListener('popstate', () => route())
 route()

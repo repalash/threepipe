@@ -23,14 +23,21 @@ export class GitHubError extends Error {
 // --- snapshots: `?snap=<name>` answers from recorded API responses (`snap/<name>/`, written by
 // tools/record-snapshot.cjs), to try the page with no token or network to GitHub. Kept for the tab's session.
 
+// `snap` is a name (snap/<name>/ next to the page) or an https URL of a snapshot folder (e.g. on threepipe cloud).
+// Kept in localStorage (an installed app starts at ./ with no ?snap=), or in window.name where a sandboxed page has
+// no storage (it lasts while the tab navigates).
 const SNAP = (() => {
+    const s = new URLSearchParams(location.search).get('snap')
     try {
-        const s = new URLSearchParams(location.search).get('snap')
-        // kept in localStorage: an installed app starts at ./ (no ?snap=), offline on a flight too
         if (s !== null) s ? localStorage.setItem('prv.snap', s) : localStorage.removeItem('prv.snap')
-        return localStorage.getItem('prv.snap') || ''
-    } catch { return '' }
+        const v = localStorage.getItem('prv.snap') || ''
+        if (v) return v
+    } catch { /* no storage */ }
+    if (s !== null) window.name = s ? 'prv.snap=' + s : ''
+    return s || (window.name.startsWith('prv.snap=') ? window.name.slice(9) : '')
 })()
+/** A file of the snapshot. */
+const snapFile = (f) => /^https:\/\//.test(SNAP) ? new URL(f, SNAP.endsWith('/') ? SNAP : SNAP + '/') : new URL(`../snap/${encodeURIComponent(SNAP)}/${f}`, import.meta.url)
 export const snapshotName = () => SNAP
 
 /** The snapshot key of an API request: its path and query, and the method when it is not GET. */
@@ -41,14 +48,14 @@ export function snapKey(url, method = 'GET') {
 
 let snapIndex
 async function snapRequest(url, method) {
-    snapIndex ??= fetch(new URL(`../snap/${encodeURIComponent(SNAP)}/index.json`, import.meta.url)).then((r) => {
+    snapIndex ??= fetch(snapFile('index.json')).then((r) => {
         if (!r.ok) throw new GitHubError(`Snapshot "${SNAP}" not found`, r.status)
         return r.json()
     })
     const index = await snapIndex
     const e = index[snapKey(url, method)]
     if (!e) throw new GitHubError('Not in this snapshot (it has only what was recorded)', 404)
-    const res = await fetch(new URL(`../snap/${encodeURIComponent(SNAP)}/${e.file}`, import.meta.url))
+    const res = await fetch(snapFile(e.file))
     return new Response(await res.arrayBuffer(), {status: e.status, headers: {'Content-Type': e.type}})
 }
 
@@ -441,7 +448,7 @@ export async function listOpenPulls(owner, repo) {
 export async function snapshotRepos() {
     if (!SNAP) return null
     try {
-        const r = await fetch(new URL(`../snap/${encodeURIComponent(SNAP)}/repos.json`, import.meta.url))
+        const r = await fetch(snapFile('repos.json'))
         return r.ok ? await r.json() : null
     } catch { return null }
 }
