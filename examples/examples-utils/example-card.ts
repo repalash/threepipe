@@ -1,5 +1,4 @@
-import {formatShortcut, shortcutsOf, ThreeViewer, UiObjectConfig, ViewerAction} from 'threepipe'
-import {lucideIcon, UiConfigForm} from '@threepipe/plugin-tweakpane-editor'
+import {formatShortcut, lucideIcon, shortcutsOf, ThreeViewer, UiConfigForm, UiObjectConfig, ViewerAction} from 'threepipe'
 
 export interface ExampleCardOptions {
     /** The name of the example. Default: the title of the page */
