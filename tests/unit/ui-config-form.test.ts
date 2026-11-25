@@ -1,7 +1,6 @@
 import {afterAll, beforeAll, describe, expect, test, vi} from 'vitest'
 import {Color, Vector3} from 'three'
-import {JSUndoManager, UiConfigMethods, UiObjectConfig} from 'threepipe'
-import {isIntegerName, UiConfigForm} from '../../plugins/tweakpane-editor/src/ui/UiConfigForm'
+import {isIntegerName, JSUndoManager, UiConfigForm, UiConfigMethods, UiObjectConfig} from 'threepipe'
 
 // the node setup has no DOM: a small element with what the form uses
 class FakeElement {
