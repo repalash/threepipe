@@ -9,10 +9,10 @@ import {
     PhysicalMaterial,
     ThreeViewer,
     TorusKnotGeometry,
+    UiConfigForm,
     UiObjectConfig,
     UndoManagerPlugin,
 } from 'threepipe'
-import {UiConfigForm} from '@threepipe/plugin-tweakpane-editor'
 
 async function init() {
 

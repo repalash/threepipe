@@ -10,9 +10,10 @@ export type {NoteItem, NotesStore, NotesStoreStatus, NotesPluginOptions, NotesPl
 export {StickyNotesUiPlugin} from './StickyNotesUiPlugin'
 export type {StickyNotesLayout, StickyNotesColor} from './StickyNotesUiPlugin'
 export {SelectionOutlinePlugin, SelectionMaskPass} from './SelectionOutlinePlugin'
-export {UiConfigForm, isIntegerName} from './ui/UiConfigForm'
-export {lucideIcons, lucideIcon} from './ui/lucideIcons'
-export type {UiConfigFormOptions, UiConfigFormLayout} from './ui/UiConfigForm'
+// the form is uiconfig.js/dom, exported by threepipe; these exports keep the imports of earlier versions working
+export {UiConfigForm, isIntegerName, lucideIcons, lucideIcon} from 'threepipe'
+export type {UiConfigFormOptions, UiConfigFormLayout} from 'threepipe'
+export {editorTooltip} from './tooltips'
 export {EditorFrame, EDITOR_FRAME_LAYOUTS, EDITOR_PAGE_LAYOUTS} from './frame/EditorFrame'
 export type {EditorFrameArea, EditorFrameAreaOptions, EditorFrameAreaSpan, EditorFrameLayout, EditorFrameOptions, EditorFramePanelOptions, EditorFrameSizedArea, EditorPageLayout} from './frame/EditorFrame'
 export {EditorModeBar} from './frame/EditorModeBar'
