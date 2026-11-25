@@ -388,6 +388,31 @@ describe('InspectorPlugin', () => {
         }
     })
 
+    test('an action that the app replaces in viewer.actions (the same id): the bar shows and runs the new one', async() => {
+        const win = new EventTarget()
+        vi.stubGlobal('addEventListener', win.addEventListener.bind(win))
+        vi.stubGlobal('removeEventListener', win.removeEventListener.bind(win))
+        const {el, viewer} = setup()
+        const unregister = viewer.actions.register(picking.actions as any)
+        try {
+            picking.select(mesh(new PhysicalMaterial()))
+            viewer.actions.register({id: 'picking.focus', label: 'Frame', icon: '<svg frame/>', run: () => void picking.runs.push('frame')})
+            const focus = el.find('isp-action')[0]
+            expect([focus.innerHTML, focus.getAttribute('aria-label')]).toEqual(['<svg frame/>', 'Frame'])
+            focus.click()
+            await Promise.resolve()
+            expect(picking.runs).toEqual(['frame'])
+            // a change of a key only: the buttons stay (a hover or a focus is kept), the tooltip has the new key
+            const hide = el.find('isp-action')[1]
+            viewer.actions.setShortcut('picking.toggleVisibility', 'KeyV')
+            expect(el.find('isp-action')[1]).toBe(hide)
+            expect(hide.title).toBe('Hide or show (V)')
+        } finally {
+            unregister()
+            vi.unstubAllGlobals()
+        }
+    })
+
     test('a mesh with more materials has a list of them', () => {
         const {el, ui} = setup()
         const m1 = new PhysicalMaterial({name: 'Gold'})

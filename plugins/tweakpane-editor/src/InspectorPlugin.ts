@@ -357,6 +357,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         viewer.scene.addEventListener('objectUpdate', this._onObjectUpdate)
         viewer.scene.addEventListener('geometryUpdate', this._onGeometryUpdate)
         viewer.addEventListener('update', this._onViewerUpdate)
+        viewer.actions.addEventListener('actionsChange', this._onActionsChange)
         // the PickingPlugin can be removed and added again
         viewer.addPluginListener('add', this._onPluginAdded, 'PickingPlugin')
         viewer.addPluginListener('remove', this._onPluginRemoved, 'PickingPlugin')
@@ -370,6 +371,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         viewer.scene.removeEventListener('objectUpdate', this._onObjectUpdate)
         viewer.scene.removeEventListener('geometryUpdate', this._onGeometryUpdate)
         viewer.removeEventListener('update', this._onViewerUpdate)
+        viewer.actions.removeEventListener('actionsChange', this._onActionsChange)
         viewer.removePluginListener('add', this._onPluginAdded)
         viewer.removePluginListener('remove', this._onPluginRemoved)
         this._setPicking(undefined)
@@ -625,6 +627,16 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
             })
         }
         this._syncBar()
+    }
+
+    /**
+     * An action was registered, removed or given another key in `viewer.actions`: the bar is made again when its actions
+     * are not the ones of its buttons (the app replaced one with the same id), else the buttons are set again (a key)
+     */
+    private _onActionsChange = () => {
+        const now = this._barActions().filter(a => a.icon)
+        if (now.length !== this._barButtons.length || now.some((a, i) => a !== this._barButtons[i].action)) this._renderBar()
+        else this._syncBar()
     }
 
     /**
