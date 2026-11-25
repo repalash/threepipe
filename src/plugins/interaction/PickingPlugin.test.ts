@@ -110,6 +110,21 @@ describe('PickingPlugin actions', () => {
         for (const id of ['focus', 'toggleVisibility', 'duplicate', 'delete', 'selectParent']) expect(plugin.actions.find(a => a.id === 'picking.' + id)!.icon, id).toMatch(/^<svg /)
     })
 
+    it('Hide or show: the label and the icon follow the first selected object, as the toggle does', () => {
+        const plugin = setup()
+        const action = plugin.actions.find(a => a.id === 'picking.toggleVisibility')!
+        const selected: any[] = []
+        vi.spyOn(plugin, 'getSelectedObjects').mockImplementation(() => selected)
+        expect(action.label).toBe('Hide or show')
+        selected.push({isObject3D: true, visible: true}, {isObject3D: true, visible: false})
+        expect(action.label).toBe('Hide')
+        const eye = action.icon
+        selected[0].visible = false
+        expect(action.label).toBe('Show')
+        expect(action.icon).toMatch(/^<svg /)
+        expect(action.icon).not.toBe(eye)
+    })
+
     it('keyboardShortcuts (deprecated) off: the actions have no keys, and still run from a UI', () => {
         const plugin = setup()
         const hide = vi.spyOn(plugin, 'toggleVisibilitySelected').mockImplementation(() => {})

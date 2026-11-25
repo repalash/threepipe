@@ -278,6 +278,22 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
 
     /**
+     * Hide or show ({@link toggleVisibilitySelected}). The label and the icon follow the first selected object, as the
+     * toggle does: `'Show'` and the crossed eye while it is hidden, `'Hide'` and the eye while it is visible.
+     */
+    private _visibilityAction(): ViewerAction {
+        const action = this._action('toggleVisibility', 'Hide or show', 'KeyH', () => this.toggleVisibilitySelected(), true, ACTION_ICONS.toggleVisibility)
+        const first = () => this.getSelectedObjects<IObject3D>().find(o => o?.isObject3D)
+        return Object.defineProperties(action, {
+            label: {get: () => {
+                const o = first()
+                return !o ? 'Hide or show' : o.visible ? 'Hide' : 'Show'
+            }, enumerable: true},
+            icon: {get: () => first()?.visible === false ? ACTION_ICONS.toggleVisibilityHidden : ACTION_ICONS.toggleVisibility, enumerable: true},
+        })
+    }
+
+    /**
      * The actions of the selection, registered in `viewer.actions` while the plugin is added (a UI lists them, the app
      * changes their keys there). The edit keys (Mod+A, Mod+D, Mod+C, Mod+X, Mod+V) are letters, as in other apps: they
      * follow the printed key on any layout. The other keys are places on the keyboard (`KeyboardEvent.code`). Mod is Cmd
@@ -292,7 +308,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._action('paste', 'Paste', 'Mod+V', () => this.pasteFromClipboard(), false),
         this._action('clearSelection', 'Clear the selection', 'Escape', () => this.clearSelection()),
         this._action('delete', 'Delete', ['Delete', 'Backspace'], () => this.deleteSelected(), true, ACTION_ICONS.delete),
-        this._action('toggleVisibility', 'Hide or show', 'KeyH', () => this.toggleVisibilitySelected(), true, ACTION_ICONS.toggleVisibility),
+        this._visibilityAction(),
         this._action('unhideAll', 'Show all', 'Shift+KeyH', () => this.unhideAll(), false),
         // nothing selected: everything
         this._action('focus', 'Focus', 'KeyF', () => this.getSelectedObject() ? this.focusSelected() : this._viewer?.fitToView(), false, ACTION_ICONS.focus),

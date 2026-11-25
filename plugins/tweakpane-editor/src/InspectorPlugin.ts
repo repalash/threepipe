@@ -110,7 +110,8 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  *   tab: the buttons of its uiConfig with the `context-menu` tag (`UiTags.ContextMenu`: Duplicate Object, Delete Object,
  *   Auto Center...), as in a folder header: buttons while they fit, the rest in a ⋮ menu (uiconfig-tweakpane
  *   `mountFolderActions`). One with the `inline` tag (`UiTags.Inline`) stays in the settings. The actions of the icons run
- *   through `viewer.actions` (their keys as the app set them, the toasts of the results).
+ *   through `viewer.actions` (their keys as the app set them, the toasts of the results). An icon follows the state of
+ *   its action on each `objectUpdate`: Hide or show shows the crossed eye while the selected object is hidden.
  * - Escape (the PickingPlugin) clears the selection.
  *
  * Where the panel goes: in the `container` given to the constructor, else the app puts {@link element} in the page.
@@ -188,6 +189,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private _title: HTMLDivElement
     /** The icons of the actions ({@link BarActions}), in the head */
     private _bar: HTMLDivElement
+    /** The buttons of {@link _bar}, their actions, and the icon each one shows ({@link _syncBar}) */
+    private _barButtons: {action: ViewerAction, button: HTMLButtonElement, icon: string}[] = []
     /** The element in the head for the actions of the open tab (`mountFolderActions`) */
     private _tabActionsEl: HTMLDivElement
     /** The actions of the open tab drawn in {@link _tabActionsEl}, and the uiConfig they are for */
@@ -479,6 +482,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     /** A rename of the selected object */
     private _onObjectUpdate = (e: IEvent<any> & {object?: IObject3D}) => {
         if (e.object && e.object === this._object) this._renderTitle()
+        // any object: Hide or show follows the first selected object, which can be another one of the selection
+        this._syncBar()
     }
 
     /**
@@ -601,14 +606,13 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private _renderBar() {
         if (!this._bar) return // the first set of enabled, before the constructor makes the elements
         this._bar.replaceChildren()
+        this._barButtons = []
         for (const a of this._barActions()) {
             if (!a.icon) continue
             const b = this._bar.appendChild(el('button', 'isp-action'))
             b.type = 'button'
-            b.innerHTML = a.icon
             b.dataset.action = a.id
-            b.setAttribute('aria-label', a.label)
-            b.disabled = !!a.enabled && !a.enabled()
+            this._barButtons.push({action: a, button: b, icon: ''})
             // the key now, also when the app changed it after the bar was made
             const tip = () => {
                 b.title = this._labelWithKey(a)
@@ -619,6 +623,26 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
                 this._runAction(a)
                 this._renderBar() // Select the parent: enabled or not for the new selection
             })
+        }
+        this._syncBar()
+    }
+
+    /**
+     * Sets the icon, the label and the enabled state of the buttons of the bar from their actions now: an action can
+     * change them with its state (Hide or show: the crossed eye while the selected object is hidden). The buttons stay,
+     * so a hover or a focus on one is kept; an icon is set again only when it changed.
+     */
+    private _syncBar() {
+        for (const item of this._barButtons) {
+            const {action: a, button: b} = item
+            const icon = a.icon ?? ''
+            if (icon !== item.icon) {
+                b.innerHTML = icon
+                item.icon = icon
+            }
+            b.setAttribute('aria-label', a.label)
+            b.title = this._labelWithKey(a)
+            b.disabled = !!a.enabled && !a.enabled()
         }
     }
 

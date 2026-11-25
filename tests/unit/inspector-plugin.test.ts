@@ -307,6 +307,24 @@ describe('InspectorPlugin', () => {
         expect(inspector.hasSelection).toBe(true)
     })
 
+    test('an icon and a label that follow a state: Hide or show changes on an objectUpdate, and the button stays', () => {
+        const {el, viewer} = setup()
+        const p = picking
+        // as PickingPlugin: getters that follow the selected object
+        Object.defineProperties(p.actions[1], {
+            label: {get: () => p.selected?.visible === false ? 'Show' : 'Hide'},
+            icon: {get: () => p.selected?.visible === false ? '<svg eye-off/>' : '<svg eye/>'},
+        })
+        const a = mesh(new PhysicalMaterial())
+        p.select(a)
+        const hide = el.find('isp-action')[1]
+        expect([hide.innerHTML, hide.getAttribute('aria-label'), hide.title]).toEqual(['<svg eye/>', 'Hide', 'Hide (H)'])
+        a.visible = false
+        viewer.scene.dispatchEvent({type: 'objectUpdate', object: a})
+        expect(el.find('isp-action')[1]).toBe(hide)
+        expect([hide.innerHTML, hide.getAttribute('aria-label'), hide.title]).toEqual(['<svg eye-off/>', 'Show', 'Show (H)'])
+    })
+
     test('the head draws the actions of the open tab (its context-menu buttons) with mountFolderActions; no Configuration header', () => {
         const {el, ui} = setup()
         expect(ui.title).toBe('')

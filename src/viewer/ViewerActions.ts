@@ -16,9 +16,15 @@ export interface ViewerActionResult {
 export interface ViewerAction {
     /** Unique id, like `'undo'` or `'editorCamera.toggleEditing'`. A new action with the same id replaces the old one. */
     id: string
-    /** The name in a menu or a tooltip */
+    /**
+     * The name in a menu or a tooltip. It can be a getter that follows a state (Hide or show: `'Show'` while the
+     * selected object is hidden); a UI reads it each time it draws the action.
+     */
     label: string
-    /** An icon for a UI: an SVG string, or the name of an icon of the UI */
+    /**
+     * An icon for a UI: an SVG string, or the name of an icon of the UI. It can be a getter that follows a state, as
+     * {@link label} (Hide or show: the crossed eye while the selected object is hidden).
+     */
     icon?: string
     /**
      * The key, like `'Mod+Z'` (Mod: Cmd on a Mac, Ctrl on other platforms), `'Shift+D'` or `'Delete'`, or a list of keys
