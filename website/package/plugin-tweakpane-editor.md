@@ -498,10 +498,10 @@ The plugin is not saved with the viewer config (`serializeWithViewer = false`).
 ## UiConfigForm
 
 [Example](https://threepipe.org/examples/#ui-config-form/) &mdash;
-[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/ui/UiConfigForm.ts) &mdash;
-[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/UiConfigForm.html)
+[Source Code](https://github.com/repalash/uiconfig.js/blob/master/packages/uiconfig.js/src/dom/UiConfigForm.ts) &mdash;
+[Docs](https://github.com/repalash/uiconfig.js/blob/master/packages/uiconfig.js/DOM.md)
 
-`UiConfigForm` draws a list of uiconfig.js configs (the same configs that the Tweakpane panels use) as a small plain-DOM form. Use it for a popup or a card next to an object, where a Tweakpane panel is too large.
+`UiConfigForm` is `uiconfig.js/dom`, exported by `threepipe` (the editor exports it too, for earlier imports). It draws a list of uiconfig.js configs (the same configs that the Tweakpane panels use) as a small plain-DOM form. Use it for a popup or a card next to an object, where a Tweakpane panel is too large.
 
 - Fields: number (drag the name to scrub, Shift for 10x), slider, checkbox, dropdown, vector, color, text, button, monitor, and folders (always open). An `input` bound to a boolean or a number gets a checkbox or a number field.
 - A button's function can return an undo function or `{action, undo, redo}`, as in uiconfig.js: the action runs, and with an `undoManager` it is one undo step.
@@ -512,8 +512,7 @@ The plugin is not saved with the viewer config (`serializeWithViewer = false`).
 - The form adds its stylesheet once (`UiConfigForm.InjectStyles`). The colours follow the Tweakpane theme variables (`--tp-...`) when the page sets them.
 
 ```typescript
-import {UiConfigMethods, UndoManagerPlugin} from 'threepipe'
-import {UiConfigForm} from '@threepipe/plugin-tweakpane-editor'
+import {UiConfigForm, UiConfigMethods, UndoManagerPlugin} from 'threepipe'
 
 const undo = viewer.addPluginSync(UndoManagerPlugin)
 
@@ -539,7 +538,7 @@ The `layout` option draws the same configs as a toolbar, e.g. the buttons over a
 - A button is a button, a checkbox a toggle button (pressed while the value is true, `aria-pressed`), a dropdown a select, and any other field (a slider, a number, a colour, a vector, a text) a button with its value that opens the field in a small popover. A folder is a group, with a line between groups.
 - `icon` (uiconfig.js 0.4.2): SVG markup (drawn in the text colour), an image URL, or the name of an icon of the set of the form, a part of [Lucide](https://lucide.dev) (`lucideIcons`, like `'camera'`, `'download'`, `'rotate-3d'`). The icon is in front of the label. In a bar on a narrow screen (640 px), a button with an icon shows the icon only, and the label in its tooltip. An `icon` and a `label` can be functions (play or pause): a refresh draws them again.
 - An async button (its function returns a promise) is disabled, with a spinner, until the promise settles; an error goes to `onError` (default `console.error`) and enables the button again. This is in all the layouts.
-- The tooltips (the editor look) show the label when only the icon shows, and the key that `shortcutOf(config)` gives (e.g. the key of an action in `viewer.actions`). `UiConfigForm.Tooltips = false` turns them off.
+- The tooltips show the label when only the icon shows, and the key that `shortcutOf(config)` gives (e.g. the key of an action in `viewer.actions`). They are the native `title` by default, and the editor look (tippy.js) while the `TweakpaneEditorPlugin` is added, which sets `UiConfigRendererBase.Tooltip` (`editorTooltip`). `UiConfigForm.Tooltips = false` turns them off.
 - The bar takes the panel colour of the Tweakpane theme of the page (`clean`, `clean-dark`, ...), else light, or dark when the system prefers it. The accessible name of each button is its label.
 
 ```typescript
