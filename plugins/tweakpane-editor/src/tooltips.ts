@@ -1,4 +1,5 @@
-import {createStyles} from 'threepipe'
+import {createStyles, type UiTooltipHook} from 'threepipe'
+import tippy from 'tippy.js'
 import tippyStyles from 'tippy.js/dist/tippy.css?inline'
 import styles from './tooltips.css?inline'
 
@@ -26,4 +27,29 @@ export function addTooltipStyles() {
     added = true
     createStyles(tippyStyles)
     createStyles(styles)
+}
+
+/**
+ * The tooltip hook of the editor for every uiconfig renderer (`UiConfigRendererBase.Tooltip`, set while the
+ * TweakpaneEditorPlugin is added): the icon-only buttons of a folder header or a form bar, the ⋮ buttons, a key at the
+ * end of a label. A tippy.js tooltip with the `editor` theme, shown only while it adds something (`needed`).
+ */
+export const editorTooltip: UiTooltipHook = (element, text, {label, shortcut, needed}) => {
+    addTooltipStyles()
+    const content = document.createElement('span')
+    content.textContent = label || text
+    if (shortcut) {
+        const k = document.createElement('kbd')
+        k.className = 'ucf-kbd'
+        k.textContent = shortcut
+        content.appendChild(k)
+    }
+    const t = tippy(element, {
+        ...EDITOR_TOOLTIP_PROPS,
+        appendTo: tooltipParent,
+        placement: 'top',
+        content,
+        onShow: () => needed() ? undefined : false,
+    })
+    return () => t.destroy()
 }
