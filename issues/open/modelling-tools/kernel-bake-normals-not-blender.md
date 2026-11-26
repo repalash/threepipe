@@ -63,8 +63,10 @@ corners share an accumulation bucket, not of splitting geometry.
 **Fixed.** Corners are grouped into fans by union-find: two corners at the same vertex merge only
 across an edge that is manifold, not `sharp_edge`, and between two faces neither of which is
 `sharp_face`. A boundary edge has nothing to merge with and a non-manifold edge is treated as sharp,
-which is `normals_calc_corners`' own rule. Still not ported: the auto-smooth angle and
-`custom_normal`, neither of which the kernel has a layer for.
+which is `normals_calc_corners`' own rule. The auto-smooth angle is a bake option
+(`BakeOptions.autoSmoothAngle`, with `vertexNormals` for Blender before 4.1 with Auto Smooth off);
+the blend importer passes the mesh's `smoothresh` or the Smooth by Angle modifier's angle. Still not
+ported: `custom_normal`, which the kernel has no layer for.
 
 ## 3. There is no welded bake, and import pays for it — **still open**
 
