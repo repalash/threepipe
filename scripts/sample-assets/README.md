@@ -10,3 +10,5 @@ Each script's header lists its options.
 3. Upload: `npm run cloud:upload -- <out>/samples samples/` (models, write-once) and
    `npm run cloud:upload -- <out>/p/samples p/samples/` (previews, can be redone).
 4. `npm run assets:insert -- --out <out> --token-file <.prod.vars> --apply` writes the rows (a dry run without `--apply`).
+   It checks that every file is in `<out>`; with `--remote` it checks each URL on the CDN instead, for a catalog whose
+   previews were rendered and uploaded on another machine.
