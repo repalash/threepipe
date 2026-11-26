@@ -19,7 +19,7 @@ import type {Group, LoadingManager, Texture} from 'three'
 import {gunzipSync} from 'fflate'
 import {parseBlend} from './js-blend/main.js'
 import {createObjects} from './loader'
-import {createCtx, srgbSetter} from './loader/ctx'
+import {BlendEvaluationMode, createCtx, srgbSetter} from './loader/ctx'
 import {decompressBlend} from './decompress'
 import {decodeTGA} from './loader/tga.js'
 import type {BlendFileData} from './blendFile'
@@ -75,6 +75,22 @@ function urlBase(url: string): string {
  */
 export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
     private _textureLoader: BlendTextureLoadFunction | null = null
+
+    /**
+     * Evaluate modifier stacks as Blender's viewport does (`'viewport'`, the default) or as its renderer
+     * does (`'render'`): which modifiers run, and which Subsurf level. See {@link BlendEvaluationMode}.
+     */
+    evaluationMode: BlendEvaluationMode = 'viewport'
+
+    /**
+     * Longest side, in pixels, of the images packed in a `.blend`: a bigger one is shrunk while it is
+     * decoded, keeping its aspect ratio, and packed images then decode one at a time. `0` (the default):
+     * images as stored. Packed images only; external files load at their own size.
+     */
+    maxTextureSize = 0
+
+    /** `false`: no mipmaps for the images {@link maxTextureSize} shrank (a quarter less GPU memory each). */
+    downsizedMipmaps = true
 
     constructor(manager?: LoadingManager) {
         super(manager)
@@ -133,6 +149,9 @@ export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
         const pending: Promise<void>[] = []
         const issues: TextureIssues = {missing: [], unsupported: [], packedUnsupported: []}
         const ctx = createCtx(three, {
+            evaluationMode: this.evaluationMode,
+            maxTextureSize: this.maxTextureSize,
+            downsizedMipmaps: this.downsizedMipmaps,
             loadExternalTexture: (p: string, srgb: boolean) => this._loadExternal(p, srgb, resourcePath, pending, issues),
             onTextureIssue: (_issue, name) => issues.packedUnsupported.push(name),
             onPending: (done) => pending.push(done),
@@ -268,3 +287,4 @@ function tgaTexture(buffer: ArrayBuffer): Texture {
     texture.needsUpdate = true
     return texture
 }
+export type {BlendEvaluationMode} from './loader/ctx'

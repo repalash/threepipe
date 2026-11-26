@@ -48,6 +48,22 @@ const model1 = await viewer.load<IObject3D>('data:application/x-blender;base64,.
 
 [//]: # ( TODO: The plugin should parse and references to other assets and find them relative to the .blend file or the current location.)
 
+## Options
+
+Set these on the plugin (`viewer.getPlugin(BlendLoadPlugin)`) or on a plain three.js `BlendLoader` before loading:
+
+- `evaluationMode`: `'viewport'` (default) or `'render'`. Evaluates modifier stacks the way Blender's viewport or its renderer does: which modifiers run and which Subdivision level is used.
+- `maxTextureSize`: the longest side, in pixels, of the images packed in the file. A bigger image is shrunk while it is decoded, keeping its aspect ratio, before it becomes a texture. Packed images then decode one at a time, so only one is ever held at full size. `0` (default) keeps images as stored. External image files load at their own size.
+- `downsizedMipmaps`: `false` builds no mipmaps for the images `maxTextureSize` shrank, a quarter less GPU memory each. Images that weren't shrunk keep theirs. Default `true`.
+
+```ts
+const blend = viewer.addPluginSync(BlendLoadPlugin)
+blend.maxTextureSize = 1024 // e.g. for a memory-bound page
+blend.downsizedMipmaps = false
+```
+
+On Blender's Mr Elephant demo (39 packed images used by its materials), texture memory is about 246 MB as stored, 192 MB at 2048, 111 MB at 1024, and 98 MB at 1024 without mipmaps for the shrunk images.
+
 ## Plain three.js
 
 The loader also works without threepipe, in any three.js project (tested with three r125 to r187), from the `/three` entry point. It imports only `three`, so it uses your project's version.

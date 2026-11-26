@@ -88,6 +88,18 @@ export interface Ctx {
      * for them before handing the scene over, the way three's GLTFLoader waits for its textures.
      */
     onPending?: (done: Promise<void>) => void
+    /**
+     * Longest side, in pixels, of the images packed in the file: a bigger one is shrunk while it is
+     * decoded, keeping its aspect ratio, before it becomes a texture. `0` or absent: images as stored.
+     * Packed images only; external files load at their own size.
+     */
+    maxTextureSize?: number
+    /** `false`: no mipmaps for the images {@link maxTextureSize} shrank (a quarter less GPU memory each). Default `true`. */
+    downsizedMipmaps?: boolean
+    /** Set by the loader: the textures of the packed images decoded in this import (`material.ts`). */
+    packedImages?: Map<object, any>
+    /** Set by the loader: with {@link maxTextureSize}, packed images decode one after another (`material.ts`). */
+    decodeQueue?: Promise<void>
     /** Set by the loader: each base geometry's mesh source, for the Subsurf cage (`geometry.ts` `cageOf`). Lives as long as this import. */
     cageSources?: WeakMap<object, any>
 }
