@@ -411,7 +411,7 @@ describe('EditorFrame', () => {
         actions.addEventListener('actionRun', ({action}) => runs.push(action.id))
         storage.set('tpEditorModeBarExpanded', '1')
         const f = new EditorFrame(host(), {layout: 'titlebar', viewer})
-        expect(actions.list('Editor').map(a => [a.id, a.shortcut])).toEqual([['editorFrame.toggleTheme', 'Shift+KeyT'], ['editorFrame.cycleModeBar', 'Mod+\\']])
+        expect(actions.list('Editor').map(a => [a.id, a.shortcut])).toEqual([['editorFrame.toggleTheme', 'Shift+KeyT'], ['editorFrame.cycleModeBar', 'Mod+\\'], ['editorFrame.shortcuts', 'Shift+?']])
 
         // one step per press
         expect(keydown('\\', 'Backslash', {ctrlKey: true}).defaultPrevented).toBe(true)
@@ -420,6 +420,14 @@ describe('EditorFrame', () => {
         await Promise.resolve()
         expect(runs).toEqual(['editorFrame.cycleModeBar'])
         expect(keydown('T', 'KeyT', {shiftKey: true, ctrlKey: true}).defaultPrevented).toBe(false)
+
+        // ? (Shift and the key of ?, on each layout) and the button of the mode bar open the sheet of the shortcuts
+        const sheet = vi.spyOn(f, 'toggleShortcuts').mockImplementation(() => {})
+        expect(keydown('?', 'Slash', {shiftKey: true}).defaultPrevented).toBe(true)
+        expect(keydown('?', 'Minus', {shiftKey: true}).defaultPrevented).toBe(true)
+        const button = f.modeBar.element.find('lay-mode-btn').find((b: any) => b.find('mb-label')[0]?.textContent === 'Shortcuts')
+        button.click()
+        expect(sheet).toHaveBeenCalledTimes(3)
 
         f.dispose()
         expect(actions.list()).toEqual([])
@@ -531,11 +539,22 @@ describe('EditorFrame areas', () => {
             expect(bar.find('lay-mode-actions'), layout).toEqual([actions])
             // above the names toggle, the last child
             expect(bar.children.indexOf(actions), layout).toBe(bar.children.length - 2)
-            expect(actions.children.map(b => b.getAttribute('aria-label')), layout).toEqual(['Light or dark (Shift T)', 'Layout of the page'])
+            expect(actions.children.map(b => b.getAttribute('aria-label')), layout).toEqual(['Light or dark (Shift+T)', 'Layout of the page', 'Keyboard shortcuts (?)'])
             for (const b of body().children.filter(c => c.classList.contains('lay-bar'))) expect(b.all().filter(e => e.tagName.toLowerCase() === 'button'), layout).toHaveLength(0)
         }
         f.dispose()
         expect(bar.find('lay-mode-actions')).toHaveLength(0)
+    })
+
+    test('the tooltips of the buttons show the keys as they are now (setShortcut)', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar', colorMode: {get: () => 'clean', set: () => {}}})
+        const buttons = (f.modeBar.element as any as FakeElement).find('lay-mode-actions')[0].children
+        const tips = () => buttons.map(b => [b.getAttribute('aria-label'), (b as any)._tippy.props.content])
+        const own = (f as any)._ownActions
+        own.setShortcut('editorFrame.shortcuts', 'F1')
+        own.setShortcut('editorFrame.toggleTheme', null)
+        expect(tips()).toEqual([['Light or dark', 'Light or dark'], ['Layout of the page', 'Layout of the page'], ['Keyboard shortcuts (F1)', 'Keyboard shortcuts (F1)']])
+        f.dispose()
     })
 
     test('each bar shows the logo and the app name: the title bar, the status bar and the floating head', () => {
