@@ -3,6 +3,10 @@ prev:
   text: 'Material Previews'
   link: './material-previews'
 
+next:
+  text: 'Shadows: Shadow Side and Bias'
+  link: './shadows'
+
 aside: false
 ---
 
