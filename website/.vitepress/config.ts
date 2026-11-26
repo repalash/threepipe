@@ -64,6 +64,7 @@ export default defineConfig({
           {text: 'Widgets, Helpers & Gizmos', link: 'notes/widgets-and-helpers'},
           {text: 'Material Previews', link: 'notes/material-previews'},
           {text: 'Frame Updates: last, debounce, throttle', link: 'notes/frame-updates'},
+          {text: 'Miniature Worlds with a Coding Agent', link: 'notes/miniature-worlds'},
         ]
       },
       {

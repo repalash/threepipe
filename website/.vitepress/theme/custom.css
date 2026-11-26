@@ -460,3 +460,38 @@
         margin: -48px -32px 0; /* padding of .VPDoc */
     }
 }
+
+/* notes/miniature-worlds: the video, the tile figures and their captions */
+.miniature-worlds-page .vp-doc figure {
+    margin: 24px 0;
+}
+.miniature-worlds-page .vp-doc figure img,
+.miniature-worlds-page .vp-doc figure video {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+    background: #11151c;
+}
+.miniature-worlds-page .vp-doc .mw-video video {
+    aspect-ratio: 16 / 9;
+}
+.miniature-worlds-page .vp-doc figcaption {
+    margin-top: 8px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--vp-c-text-2);
+}
+.miniature-worlds-page .vp-doc .mw-grid {
+    display: grid;
+    gap: 20px;
+    margin: 24px 0;
+}
+@media (min-width: 640px) {
+    .miniature-worlds-page .vp-doc .mw-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+.miniature-worlds-page .vp-doc .mw-grid figure {
+    margin: 0;
+}
