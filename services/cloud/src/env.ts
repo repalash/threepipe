@@ -73,5 +73,10 @@ export function prefixRange(prefix: string): [string, string] {
  * logpush bucket (wrangler.jsonc). Search for `[cloud]` to see what broke since the last look.
  */
 export function logError(what: string, data: Record<string, unknown> = {}) {
-    console.error(JSON.stringify({alert: `[cloud] ${what}`, ...data}))
+    console.error(redactLog(JSON.stringify({alert: `[cloud] ${what}`, ...data})))
 }
+
+/** Credentials in a URL, an access code (src/access.ts) and a signed drive URL's signature (src/drive.ts): logs show them as `…`. */
+export const redactLog = (line: string) => line
+    .replace(/(\/api\/v1\/access\/)[\w-]{16,}/g, '$1…')
+    .replace(/(\/t\/)\d+\.[\w-]{16,}/g, '$1…')
