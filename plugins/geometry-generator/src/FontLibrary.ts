@@ -12,9 +12,16 @@ export class FontLibrary {
     static DefaultFont = 'helvetica'
     static Fonts: Record<string, Font> = {}
 
+    // a font without outlines, for text made before any font has loaded: every character draws as an empty '?'
+    static readonly EmptyFont = new Font({
+        glyphs: {'?': {ha: 0, x_min: 0, x_max: 0}},
+        familyName: '', ascender: 0, descender: 0, underlinePosition: 0, underlineThickness: 0,
+        boundingBox: {xMin: 0, yMin: 0, xMax: 0, yMax: 0}, resolution: 1000, original_font_information: {},
+    })
+
     static GetFont(name: string): Font {
         if (this.Fonts[name]) return this.Fonts[name]
-        return this.Fonts[this.DefaultFont] || new FontLoader().parse({})
+        return this.Fonts[this.DefaultFont] || this.EmptyFont
     }
 
     static async LoadFont(name: string): Promise<Font> {
