@@ -1,7 +1,7 @@
 import {Hono} from 'hono'
 import {$Database, D1Adapter, OpenApiExtension, PocketUIExtension, teenyHono} from 'teenybase/worker'
 import config from 'virtual:teenybase'
-import {CloudEnv, logError} from './env'
+import {CloudEnv, logError, redactLog} from './env'
 import {filesHost} from './files'
 import {accessRoutes} from './access'
 import {uploadRoutes} from './uploads'
@@ -38,7 +38,7 @@ teenyHono<CloudEnv>(async(c) => {
     db.extensions.push(new PocketUIExtension(db))
     db.onSignIn.push(setHandleOnSignIn(c.env))
     return db
-}, app, {logger: true, cors: true}, guardRequest)
+}, app, {logger: line => console.log(redactLog(line)), cors: true}, guardRequest)
 
 accessRoutes(app)
 uploadRoutes(app)
