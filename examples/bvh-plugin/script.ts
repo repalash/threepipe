@@ -22,9 +22,13 @@ import {
     TorusKnotGeometry,
     Vector2,
     Vector3,
+    addIcons,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {createExampleCard} from '../examples-utils/example-card.js'
+
+// the icon of the BVH toggle: Lucide `zap` (ISC License), not in the set of the form
+addIcons({zap: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z"/></svg>'})
 
 async function init() {
 
