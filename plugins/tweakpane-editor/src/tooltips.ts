@@ -1,4 +1,4 @@
-import {createStyles, type UiTooltipHook} from 'threepipe'
+import {createStyles, UiConfigRendererBase, type UiTooltipHook} from 'threepipe'
 import tippy from 'tippy.js'
 import tippyStyles from 'tippy.js/dist/tippy.css?inline'
 import styles from './tooltips.css?inline'
@@ -52,4 +52,27 @@ export const editorTooltip: UiTooltipHook = (element, text, {label, shortcut, ne
         onShow: () => needed() ? undefined : false,
     })
     return () => t.destroy()
+}
+
+let editorTooltipUsers = 0
+let tooltipBefore: UiTooltipHook | undefined
+/**
+ * Sets {@link editorTooltip} as the tooltip hook of every renderer (`UiConfigRendererBase.Tooltip`, one for the page)
+ * while an editor uses it. With more than one editor, the last one to release it puts back the hook from before.
+ * @returns the function that releases it (once)
+ */
+export function useEditorTooltip(): () => void {
+    if (editorTooltipUsers++ === 0) {
+        tooltipBefore = UiConfigRendererBase.Tooltip
+        UiConfigRendererBase.Tooltip = editorTooltip
+    }
+    let released = false
+    return () => {
+        if (released) return
+        released = true
+        if (--editorTooltipUsers > 0) return
+        // an app that set its own hook meanwhile keeps it
+        if (UiConfigRendererBase.Tooltip === editorTooltip && tooltipBefore) UiConfigRendererBase.Tooltip = tooltipBefore
+        tooltipBefore = undefined
+    }
 }
