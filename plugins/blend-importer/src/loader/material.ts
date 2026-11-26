@@ -1,4 +1,5 @@
 import type {Texture} from 'threepipe'
+import {decodeTGA} from './tga.js'
 import {Ctx} from './ctx'
 
 // Material.blend_flag bit for the "Backface Culling" toggle (DNA_material_types.h: MA_BL_CULL_BACKFACE).
@@ -65,14 +66,37 @@ function imageMime(b: Uint8Array): string | null {
     if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45) return 'image/webp'
     return null
 }
+const imageName = (img: any): string => (typeof img?.aname === 'string' ? img.aname : '') || (typeof img?.name === 'string' ? img.name : '') || 'blendTexture'
+
+// A packed TGA (Blender packs whatever file the image came from): decoded here, since browsers can't.
+function tgaTexture(bytes: Uint8Array, img: any, srgb: boolean, ctx: Ctx): Texture | null {
+    let tga
+    try {
+        tga = decodeTGA(bytes.buffer as ArrayBuffer)
+    } catch (e) {
+        return null
+    }
+    const texture = new ctx.DataTexture(tga.data, tga.width, tga.height)
+    // Rows are top-down like an image, so upload flipped like one; DataTexture defaults to Nearest, no mips.
+    texture.flipY = true
+    texture.generateMipmaps = true
+    texture.minFilter = ctx.LinearMipmapLinearFilter
+    texture.magFilter = ctx.LinearFilter
+    if (srgb) ctx.setSRGB(texture)
+    texture.name = imageName(img)
+    texture.needsUpdate = true
+    return texture
+}
+
 // Load the packed image of an Image Texture node. `srgb` for color maps (base/emissive); false for data maps.
-function packedTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null {
+// Returns undefined when the image isn't packed, null when it is but can't be decoded here.
+function packedTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null | undefined {
     const img = imageNode && imageNode.id
-    if (!img) return null
+    if (!img) return undefined
     const pf = img.packedfile || (img.packedfiles && img.packedfiles.first && img.packedfiles.first.packedfile)
     const block = pf && pf.data
     const size = pf && typeof pf.size === 'number' ? pf.size : 0
-    if (!block || block.__data_address__ === undefined || size <= 0) return null
+    if (!block || block.__data_address__ === undefined || size <= 0) return undefined
     // Bounds-check before constructing the view: a stale/corrupt PackedFile.size or address would otherwise
     // make `new Uint8Array(buffer, offset, size)` throw a RangeError that bubbles up and fails the whole
     // import. Skip the one bad texture instead.
@@ -80,12 +104,17 @@ function packedTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null 
     if (block.__data_address__ + size > buf.byteLength) return null
     const bytes = new Uint8Array(buf, block.__data_address__, size).slice()
     const mime = imageMime(bytes)
-    if (!mime || typeof Blob === 'undefined' || typeof URL === 'undefined' || typeof Image === 'undefined') return null
+    if (!mime) {
+        const tga = /\.tga$/i.test(String(img.name ?? '')) || /\.tga$/i.test(imageName(img)) ? tgaTexture(bytes, img, srgb, ctx) : null
+        if (!tga && ctx.onTextureIssue) ctx.onTextureIssue('packed-unsupported', imageName(img))
+        return tga
+    }
+    if (typeof Blob === 'undefined' || typeof URL === 'undefined' || typeof Image === 'undefined') return null
     const url = URL.createObjectURL(new Blob([bytes], {type: mime}))
     const el = new Image()
     const texture = new ctx.Texture(el)
     if (srgb) ctx.setSRGB(texture)
-    texture.name = (typeof img.aname === 'string' ? img.aname : '') || 'blendTexture'
+    texture.name = imageName(img)
     el.onload = () => { texture.needsUpdate = true; URL.revokeObjectURL(url) }
     el.onerror = () => { URL.revokeObjectURL(url) }
     el.src = url
@@ -129,6 +158,8 @@ function applyMapping(tex: Texture | null, imageNode: any, links: any[]): Textur
 function imageNodeTexture(imageNode: any, srgb: boolean, ctx: Ctx, links: any[] = []): Texture | null {
     const packed = packedTexture(imageNode, srgb, ctx)
     if (packed) return applyMapping(applyWrap(packed, imageNode, ctx), imageNode, links)
+    // Packed but undecodable (reported above): don't also try the path, which usually isn't there.
+    if (packed === null) return null
     const img = imageNode && imageNode.id
     if (img && img.source !== IMA_SRC_GENERATED && img.source !== IMA_SRC_VIEWER
         && typeof img.name === 'string' && img.name && ctx.loadExternalTexture) {

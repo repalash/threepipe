@@ -2,6 +2,7 @@ import type {
     AmbientLight,
     BufferAttribute,
     BufferGeometry,
+    DataTexture,
     DirectionalLight,
     Euler,
     Matrix4,
@@ -20,6 +21,8 @@ import type {
     Vector2,
     Vector3,
     Wrapping,
+    MagnificationTextureFilter,
+    MinificationTextureFilter,
 } from 'threepipe'
 
 /**
@@ -42,6 +45,7 @@ export interface Ctx {
     MeshPhysicalMaterial: typeof MeshPhysicalMaterial
     MeshBasicMaterial: typeof MeshBasicMaterial
     Texture: typeof Texture
+    DataTexture: typeof DataTexture
     Vector2: typeof Vector2
     Vector3: typeof Vector3
     Euler: typeof Euler
@@ -54,6 +58,8 @@ export interface Ctx {
     RepeatWrapping: Wrapping
     ClampToEdgeWrapping: Wrapping
     MirroredRepeatWrapping: Wrapping
+    LinearFilter: MagnificationTextureFilter
+    LinearMipmapLinearFilter: MinificationTextureFilter
     /**
      * Mark a texture as sRGB: `colorSpace = SRGBColorSpace` on three r152+, `encoding = sRGBEncoding`
      * before that. Use {@link srgbSetter} to build it from a three namespace.
@@ -71,6 +77,12 @@ export interface Ctx {
      * - see {@link BlendEvaluationMode}.
      */
     evaluationMode?: BlendEvaluationMode
+    /**
+     * Told about each image the loader couldn't use, so the caller can report them once per file instead
+     * of once per image: `packed-unsupported` is an image embedded in a format the loader can't decode
+     * (e.g. HDR or EXR). External images are reported by whoever provides `loadExternalTexture`.
+     */
+    onTextureIssue?: (issue: 'packed-unsupported', name: string) => void
 }
 
 /**
@@ -90,8 +102,9 @@ export type BlendEvaluationMode = 'viewport' | 'render'
 const THREE_KEYS = [
     'PointLight', 'SpotLight', 'DirectionalLight', 'AmbientLight', 'Object3D', 'PerspectiveCamera',
     'OrthographicCamera', 'Mesh', 'BufferGeometry', 'BufferAttribute', 'MeshPhysicalMaterial',
-    'MeshBasicMaterial', 'Texture', 'Vector2', 'Vector3', 'Euler', 'Matrix4', 'Quaternion', 'ShapeUtils',
+    'MeshBasicMaterial', 'Texture', 'DataTexture', 'Vector2', 'Vector3', 'Euler', 'Matrix4', 'Quaternion', 'ShapeUtils',
     'FrontSide', 'DoubleSide', 'RepeatWrapping', 'ClampToEdgeWrapping', 'MirroredRepeatWrapping',
+    'LinearFilter', 'LinearMipmapLinearFilter',
 ] as const
 
 /**

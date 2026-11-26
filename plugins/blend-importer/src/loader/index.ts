@@ -12,8 +12,15 @@ const blenderObjectTypes = {
     camera: 11,
 }
 
+// Object.type names for the warning (DNA_object_types.h, ObjectType).
+const OBJECT_TYPE_NAMES = new Map<number, string>([
+    [2, 'curve'], [3, 'surface'], [4, 'text'], [5, 'metaball'], [12, 'speaker'], [13, 'light probe'], [22, 'lattice'],
+    [25, 'armature'], [26, 'grease pencil (legacy)'], [27, 'curves'], [28, 'point cloud'], [29, 'volume'], [30, 'grease pencil'],
+])
+
 export async function createObjects(file: any, ctx: Ctx) {
     const objects: (Object3D|null)[] = []
+    const unsupported = new Map<number, number>() // Blender object type -> count
     const childMap = new Map<any, Object3D[]>()
     const objMap = new Map<any, Object3D>()
     const blendObjects = file.objects.Object ?? []
@@ -39,8 +46,9 @@ export async function createObjects(file: any, ctx: Ctx) {
             obj = createCamera(object, ctx)
             break
         default:
+            // Kept as an empty so the hierarchy and transforms survive; reported once below.
             obj = new ctx.Object3D()
-            console.warn('Unsupported object type', object.type, object, obj)
+            unsupported.set(object.type, (unsupported.get(object.type) ?? 0) + 1)
         }
         if (obj) {
             setTransform(object, obj as any, ctx)
@@ -76,6 +84,10 @@ export async function createObjects(file: any, ctx: Ctx) {
         const vals = [...childMap.values()].flat()
         console.warn('BlendLoader - unknown objects with parents, adding to root', vals, childMap)
         objects.push(...vals)
+    }
+    if (unsupported.size) {
+        const list = [...unsupported].map(([t, n]) => `${OBJECT_TYPE_NAMES.get(t) ?? 'type ' + t} (${n})`).join(', ')
+        console.warn(`BlendLoader - kept as empty objects, their type isn't imported: ${list}`)
     }
     return objects.filter(o => !!o) as Object3D[]
 }

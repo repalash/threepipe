@@ -12,6 +12,8 @@ import {
     FileLoader,
     FrontSide,
     gunzipSync,
+    LinearFilter,
+    LinearMipmapLinearFilter,
     IAssetImporter,
     ILoader,
     Importer, Mesh,
@@ -32,6 +34,7 @@ import {
     SpotLight2,
     SRGBColorSpace,
     Texture,
+    ThreeViewer,
     UnlitMaterial,
     Vector2,
     Vector3,
@@ -42,6 +45,64 @@ import {decompressBlend} from './decompress'
 import type {BlendEvaluationMode} from './loader/ctx'
 import {createCtx} from './loader/ctx'
 import type {BlendFileData} from './blendFile'
+import {decodeTGA} from './loader/tga.js'
+
+/** What went wrong with a .blend's images, reported in one warning when the import finishes. */
+interface TextureIssues {
+    /** External files that aren't there. */
+    missing: string[]
+    /** External files in a format no registered importer reads. */
+    unsupported: string[]
+    /** Images embedded in a format the loader can't decode (HDR, EXR...). */
+    packedUnsupported: string[]
+    /** External files that were found but failed to import. */
+    failed: string[]
+}
+
+function reportTextureIssues(issues: TextureIssues, blendUrl: string) {
+    const parts: string[] = []
+    const list = (a: string[]) => [...new Set(a)].join(', ')
+    if (issues.missing.length) parts.push(`not found: ${list(issues.missing)}`)
+    if (issues.unsupported.length) parts.push(`no importer for the format: ${list(issues.unsupported)}`)
+    if (issues.packedUnsupported.length) parts.push(`packed in a format that can't be decoded: ${list(issues.packedUnsupported)}`)
+    if (issues.failed.length) parts.push(`failed to import: ${list(issues.failed)}`)
+    if (!parts.length) return
+    const n = new Set([...issues.missing, ...issues.unsupported, ...issues.packedUnsupported, ...issues.failed]).size
+    console.warn(`BlendLoadPlugin - ${n} image(s) of "${blendUrl.split(/[?#]/)[0].split('/').pop()}" left out of the materials. ${parts.join('; ')}`)
+}
+
+// File extension of a Blender image path, lower case.
+const extOf = (path: string) => (path.split(/[?#]/)[0].split('/').pop()?.split('.').pop() ?? '').toLowerCase()
+
+// Whether any importer registered with the AssetImporter reads files with this extension. `importers` and
+// `ext` are public on threepipe's AssetImporter/Importer (0.3.0 and later) but not on the interface.
+function canImport(importer: IAssetImporter, ext: string): boolean {
+    const importers: any[] | undefined = (importer as any).importers
+    if (!Array.isArray(importers)) return true // can't tell: let the import decide
+    return importers.some(i => {
+        const exts = typeof i?.ext === 'function' ? i.ext() : i?.ext
+        return Array.isArray(exts) && exts.includes(ext)
+    })
+}
+
+/**
+ * Reads `.tga` files for the AssetImporter (threepipe has no TGA loader): an RGBA `DataTexture`, uploaded
+ * flipped like an image texture. The decoder is three.js's TGALoader's (see `loader/tga.js`).
+ */
+class TGATextureLoader extends FileLoader implements ILoader {
+    async loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<any> {
+        this.setResponseType('arraybuffer')
+        const buffer = await super.loadAsync(url, onProgress) as ArrayBuffer
+        const tga = decodeTGA(buffer)
+        const texture = new DataTexture(tga.data, tga.width, tga.height)
+        texture.flipY = true
+        texture.generateMipmaps = true
+        texture.minFilter = LinearMipmapLinearFilter
+        texture.magFilter = LinearFilter
+        texture.needsUpdate = true
+        return texture
+    }
+}
 
 interface ExternalTextureRequest { texture: Texture, url: string, srgb: boolean, path: string }
 
@@ -54,11 +115,17 @@ interface ExternalTextureRequest { texture: Texture, url: string, srgb: boolean,
  * Blender path conventions: leading `//` means relative to the `.blend`'s directory; `\` separators and a
  * leading `./` are normalised. Returns `null` in Node (no DOM) or for an empty path.
  */
-function resolveExternalTexture(blenderPath: string, srgb: boolean, importer: IAssetImporter, blendUrl: string): ExternalTextureRequest | null {
+function resolveExternalTexture(blenderPath: string, srgb: boolean, importer: IAssetImporter, blendUrl: string, issues: TextureIssues): ExternalTextureRequest | null {
     if (typeof document === 'undefined') return null // image decoding needs the DOM
     const path = blenderPath.replace(/^\/\//, '').replace(/\\/g, '/').replace(/^\.\//, '')
     if (!path) return null
-    let url = importer.resolveURL(path)
+    // No importer for the format: say so once, at the end, instead of an AssetImporter error per image.
+    if (!canImport(importer, extOf(path))) {
+        issues.unsupported.push(path)
+        return null
+    }
+    // resolveURL is on threepipe's AssetImporter (0.3.0+) but not declared on IAssetImporter.
+    let url: string = (importer as any).resolveURL(path)
     // Fall back to joining against the .blend's directory if the importer didn't make it absolute
     // (e.g. the root context wasn't applied) — keeps relative sibling textures resolvable.
     if (url === path && !/^([a-z][a-z0-9+.-]*:|\/|blob:|data:)/i.test(url)) {
@@ -73,7 +140,7 @@ function resolveExternalTexture(blenderPath: string, srgb: boolean, importer: IA
     // (`blob:…uuid#/dir/x.exr`), so testing `url` would miss the extension and wrongly pick a non-data
     // Texture placeholder — breaking the GPU upload (texSubImage2D) and the UI preview (putImageData) of
     // EXR/HDR maps. `path` always carries the true extension.
-    const isData = /\.(exr|hdr|rgbe)$/i.test(path.split(/[?#]/)[0])
+    const isData = /\.(exr|hdr|rgbe|tga)$/i.test(path.split(/[?#]/)[0])
     let texture: Texture
     if (isData) {
         texture = new DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1)
@@ -128,7 +195,21 @@ function flipDataTextureRowsY(tex: DataTexture): void {
  * result. Missing/unsupported files log a warning and resolve (no throw) so one bad path doesn't fail the
  * whole import.
  */
-async function importExternalTexture(req: ExternalTextureRequest, importer: IAssetImporter): Promise<void> {
+async function importExternalTexture(req: ExternalTextureRequest, importer: IAssetImporter, issues: TextureIssues): Promise<void> {
+    // A missing file would make the AssetImporter log three errors; check first with a HEAD request
+    // (http(s) only - blob:/data: URLs of dropped files exist by construction). If the server or CORS
+    // refuses HEAD, fall through and let the import try.
+    if (/^https?:/i.test(req.url) && typeof fetch === 'function') {
+        try {
+            const res = await fetch(req.url, {method: 'HEAD'})
+            if (res.status === 404 || res.status === 410) {
+                issues.missing.push(req.path)
+                return
+            }
+        } catch (e) {
+            // network/CORS error on HEAD: try the import anyway
+        }
+    }
     try {
         const imported: any = await importer.importSingle<Texture>(req.url)
         if (imported && imported.isTexture && imported.image) {
@@ -147,10 +228,10 @@ async function importExternalTexture(req: ExternalTextureRequest, importer: IAss
             if (imported.isDataTexture && imported.flipY === false) flipDataTextureRowsY(req.texture as DataTexture)
             req.texture.needsUpdate = true
         } else {
-            console.warn('BlendLoadPlugin - external texture not found/unsupported:', req.path)
+            issues.failed.push(req.path)
         }
     } catch (e) {
-        console.warn('BlendLoadPlugin - external texture failed:', req.path, e)
+        issues.failed.push(req.path)
     }
 }
 
@@ -208,6 +289,29 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
     constructor() {
         super()
     }
+
+    // `.tga` support for the AssetImporter, so external TGA maps in .blend files load. Added only when no
+    // other importer already reads .tga, and removed with the plugin.
+    protected _tgaImporter = new Importer(TGATextureLoader, ['tga'], ['image/x-tga', 'image/x-targa', 'image/tga'], false)
+    private _addedTga = false
+
+    onAdded(viewer: ThreeViewer) {
+        super.onAdded(viewer)
+        const importer = viewer.assetManager.importer
+        if (!canImport(importer, 'tga')) {
+            importer.addImporter(this._tgaImporter)
+            this._addedTga = true
+        }
+    }
+
+    onRemove(viewer: ThreeViewer) {
+        if (this._addedTga) {
+            viewer.assetManager.importer.removeImporter(this._tgaImporter)
+            this._addedTga = false
+        }
+        super.onRemove(viewer)
+    }
+
     protected _importer = new Importer(class extends FileLoader implements ILoader {
         // The AssetImporter that constructed this loader (injected via the Importer onCtor below). Used to
         // load external textures through the full pipeline (correct loader per format + cache).
@@ -228,9 +332,11 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
             // the AssetImporter and would otherwise clobber the root context for sibling textures.
             const importer = this.assetImporter
             const texReqs: ExternalTextureRequest[] = []
+            const issues: TextureIssues = {missing: [], unsupported: [], packedUnsupported: [], failed: []}
             const ctx = createCtx({
-                Texture, Vector2, Vector3, Euler, Matrix4, Quaternion, ShapeUtils, SRGBColorSpace,
+                Texture, DataTexture, Vector2, Vector3, Euler, Matrix4, Quaternion, ShapeUtils, SRGBColorSpace,
                 FrontSide, DoubleSide, RepeatWrapping, ClampToEdgeWrapping, MirroredRepeatWrapping,
+                LinearFilter, LinearMipmapLinearFilter,
             }, {
                 Object3D: Object3D2,
                 Mesh: Mesh2 as typeof Mesh,
@@ -247,14 +353,16 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
                 evaluationMode: this.plugin?.evaluationMode,
                 loadExternalTexture: importer
                     ? (p: string, srgb: boolean) => {
-                        const req = resolveExternalTexture(p, srgb, importer, url)
+                        const req = resolveExternalTexture(p, srgb, importer, url, issues)
                         if (req) texReqs.push(req)
                         return req ? req.texture : null
                     }
                     : undefined,
+                onTextureIssue: (_issue, name) => issues.packedUnsupported.push(name),
             })
             const objects = await createObjects(blend, ctx)
-            if (importer && texReqs.length) await Promise.all(texReqs.map(r => importExternalTexture(r, importer)))
+            if (importer && texReqs.length) await Promise.all(texReqs.map(r => importExternalTexture(r, importer, issues)))
+            reportTextureIssues(issues, url)
             const root = new Object3D()
             root.add(...objects)
             blend.scene = root

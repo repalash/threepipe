@@ -1,7 +1,7 @@
 {
     "name": "@threepipe/plugin-blend-importer",
     "description": "Importer for Blender .blend files, for threepipe and plain three.js",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "devDependencies": {
         "fflate": "^0.8.2"
     },

@@ -21,6 +21,7 @@ import {parseBlend} from './js-blend/main.js'
 import {createObjects} from './loader'
 import {createCtx, srgbSetter} from './loader/ctx'
 import {decompressBlend} from './decompress'
+import {decodeTGA} from './loader/tga.js'
 import type {BlendFileData} from './blendFile'
 
 /** The parsed `.blend`, with `scene` the three.js `Group` holding its objects. */
@@ -68,8 +69,9 @@ function urlBase(url: string): string {
  * `setCrossOrigin`, `setRequestHeader`, `setWithCredentials` and the `LoadingManager` apply as for
  * other three.js loaders.
  *
- * External textures load with three's `TextureLoader` (PNG, JPEG, WebP...) relative to the `.blend`.
- * For other formats (EXR, HDR, KTX2), pass a loader with {@link setTextureLoader}.
+ * External textures load relative to the `.blend`: PNG, JPEG, WebP... with three's `TextureLoader`, TGA
+ * with a built-in decoder. For other formats (EXR, HDR, KTX2), pass a loader with {@link setTextureLoader}.
+ * Images that can't be used are reported in one warning per file.
  */
 export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
     private _textureLoader: BlendTextureLoadFunction | null = null
@@ -129,11 +131,14 @@ export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
     async parseAsync(data: ArrayBuffer, resourcePath = ''): Promise<BlendLoaderResult> {
         const blend = await parseBlend(decompressBlend(data, gunzipSync)) as BlendFile
         const pending: Promise<void>[] = []
+        const issues: TextureIssues = {missing: [], unsupported: [], packedUnsupported: []}
         const ctx = createCtx(three, {
-            loadExternalTexture: (p: string, srgb: boolean) => this._loadExternal(p, srgb, resourcePath, pending),
+            loadExternalTexture: (p: string, srgb: boolean) => this._loadExternal(p, srgb, resourcePath, pending, issues),
+            onTextureIssue: (_issue, name) => issues.packedUnsupported.push(name),
         })
         const objects = await createObjects(blend, ctx)
         if (pending.length) await Promise.all(pending)
+        reportTextureIssues(issues)
         const scene: Group = new three.Group()
         scene.name = 'Blend'
         if (objects.length) scene.add(...(objects as any[]))
@@ -142,16 +147,17 @@ export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
     }
 
     // A placeholder texture now, filled when the image arrives; `pending` holds the load so parseAsync
-    // can wait for it. A missing or unsupported image logs a warning and leaves the material without it.
-    private _loadExternal(blenderPath: string, srgb: boolean, resourcePath: string, pending: Promise<void>[]): Texture | null {
+    // can wait for it. Images that can't be loaded are collected in `issues`, reported once per file.
+    private _loadExternal(blenderPath: string, srgb: boolean, resourcePath: string, pending: Promise<void>[], issues: TextureIssues): Texture | null {
         const path = blenderPath.replace(/^\/\//, '').replace(/\\/g, '/').replace(/^\.\//, '')
         if (!path) return null
         const custom = this._textureLoader
-        if (!custom && (typeof document === 'undefined' || /\.(exr|hdr|rgbe|ktx2|dds|tga|tif|tiff)$/i.test(path))) {
-            if (typeof document !== 'undefined') console.warn(`BlendLoader: "${path}" needs a texture loader for its format, see setTextureLoader()`)
+        const isTga = /\.tga$/i.test(path.split(/[?#]/)[0])
+        if (!custom && (typeof document === 'undefined' || /\.(exr|hdr|rgbe|ktx2|dds|tif|tiff|psd)$/i.test(path))) {
+            if (typeof document !== 'undefined') issues.unsupported.push(path)
             return null
         }
-        const {manager, crossOrigin, requestHeader} = this as any
+        const {manager, crossOrigin, requestHeader, withCredentials} = this as any
         let url = /^([a-z][a-z0-9+.-]*:|\/)/i.test(path) ? path : resourcePath + path
         if (manager.resolveURL) url = manager.resolveURL(url)
 
@@ -164,6 +170,21 @@ export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
                 return tex
             }
             load = res as Promise<Texture | null>
+        } else if (isTga) {
+            // TGA: browsers can't decode it, so fetch the bytes and decode them here.
+            load = new Promise((resolve) => {
+                const fl = new three.FileLoader(manager)
+                fl.setResponseType('arraybuffer')
+                if (fl.setRequestHeader) fl.setRequestHeader(requestHeader)
+                if (fl.setWithCredentials) fl.setWithCredentials(withCredentials)
+                fl.load(url, (buffer: ArrayBuffer) => {
+                    try {
+                        resolve(tgaTexture(buffer))
+                    } catch (e) {
+                        resolve(null)
+                    }
+                }, undefined, () => resolve(null))
+            })
         } else {
             load = new Promise((resolve) => {
                 const tl = new three.TextureLoader(manager)
@@ -172,22 +193,63 @@ export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
                 tl.load(url, resolve, undefined, () => resolve(null))
             })
         }
-        const placeholder: Texture = new three.Texture()
+        // Same class as what arrives, so copy() carries a valid upload path (a DataTexture's data can't
+        // go through a plain Texture).
+        const placeholder: Texture = isTga && !custom ? new three.DataTexture(new Uint8Array(4), 1, 1) : new three.Texture()
         pending.push(load.then((tex) => {
             if (!tex) {
-                console.warn(`BlendLoader: external texture not found or unsupported: ${path}`)
+                issues.missing.push(path)
                 return
             }
-            // Keep the wrap mode the material set from the Image Texture node's Extension.
-            const {wrapS, wrapT} = placeholder
+            // Keep what the material set from the node tree: the wrap mode (Image Texture's Extension)
+            // and the UV transform (a Mapping node); copy() would reset them to the loader's defaults.
+            const {wrapS, wrapT, rotation} = placeholder
+            const repeat = placeholder.repeat.clone(), offset = placeholder.offset.clone(), center = placeholder.center.clone()
             placeholder.copy(tex)
             placeholder.wrapS = wrapS
             placeholder.wrapT = wrapT
+            placeholder.rotation = rotation
+            placeholder.repeat.copy(repeat)
+            placeholder.offset.copy(offset)
+            placeholder.center.copy(center)
             if (srgb) setSRGB(placeholder)
             placeholder.needsUpdate = true
-        }, (e) => {
-            console.warn(`BlendLoader: external texture failed: ${path}`, e)
+        }, () => {
+            issues.missing.push(path)
         }))
         return placeholder
     }
+}
+
+/** Images of one .blend that couldn't be used, reported in one warning. */
+interface TextureIssues {
+    /** External files that weren't found or failed to load. */
+    missing: string[]
+    /** External files in a format this loader doesn't read (see setTextureLoader). */
+    unsupported: string[]
+    /** Images embedded in a format the loader can't decode (HDR, EXR...). */
+    packedUnsupported: string[]
+}
+
+function reportTextureIssues(issues: TextureIssues) {
+    const list = (a: string[]) => [...new Set(a)].join(', ')
+    const parts: string[] = []
+    if (issues.missing.length) parts.push(`not found or failed to load: ${list(issues.missing)}`)
+    if (issues.unsupported.length) parts.push(`format needs a loader, see setTextureLoader(): ${list(issues.unsupported)}`)
+    if (issues.packedUnsupported.length) parts.push(`packed in a format that can't be decoded: ${list(issues.packedUnsupported)}`)
+    if (!parts.length) return
+    const n = new Set([...issues.missing, ...issues.unsupported, ...issues.packedUnsupported]).size
+    console.warn(`BlendLoader: ${n} image(s) left out of the materials. ${parts.join('; ')}`)
+}
+
+// An RGBA DataTexture from TGA bytes, uploaded flipped like an image texture.
+function tgaTexture(buffer: ArrayBuffer): Texture {
+    const tga = decodeTGA(buffer)
+    const texture: any = new three.DataTexture(tga.data, tga.width, tga.height)
+    texture.flipY = true
+    texture.generateMipmaps = true
+    texture.minFilter = three.LinearMipmapLinearFilter
+    texture.magFilter = three.LinearFilter
+    texture.needsUpdate = true
+    return texture
 }
