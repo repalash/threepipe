@@ -6,6 +6,7 @@ import {ThreeViewer} from '../../viewer'
 import {
     glbEncryptionProcessor,
     GLTFLightExtrasExtension,
+    GLTFLightsAmbientExtension,
     GLTFMaterialExtrasExtension,
     GLTFMaterialsAlphaMapExtension,
     GLTFMaterialsDisplacementMapExtension,
@@ -191,6 +192,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
         GLTFMaterialExtrasExtension.Export,
         GLTFObject3DExtrasExtension.Export,
         GLTFLightExtrasExtension.Export,
+        GLTFLightsAmbientExtension.Export,
         // GLTFMaterialsBumpMapExtension.Export, // deprecated
         GLTFMaterialsDisplacementMapExtension.Export,
         GLTFMaterialsLightMapExtension.Export,

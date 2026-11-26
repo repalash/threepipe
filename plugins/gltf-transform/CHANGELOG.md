@@ -8,7 +8,7 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
-- NA
+- `GLTFLightsAmbientExtensionGP` and `AmbientLightGP`: the `WEBGI_lights_ambient` extension of threepipe (ambient and hemisphere lights) for gltf-transform, in `GLTFDracoExportPlugin.gltfTransformExtensions`, so the lights stay in compressed files. Its lights are at the root of the file, which the generic extension classes do not keep
 
 ## [0.3.0] - 2026-04-19
 

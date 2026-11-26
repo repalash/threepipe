@@ -32,6 +32,19 @@ If the files exported from threepipe exporter plugin or any of the editors is op
   - Implemented in [GLTFLightExtrasExtension](https://threepipe.org/docs/classes/GLTFLightExtrasExtension.html)
   - This extension saves additional properties of `Light` like `shadow`.
   - This is used alongside `WEBGI_object3d_extras` extension for Light objects
+- `WEBGI_lights_ambient`
+  - Implemented in [GLTFLightsAmbientExtension](https://threepipe.org/docs/classes/GLTFLightsAmbientExtension.html)
+  - Saves ambient and hemisphere lights (`AmbientLight`, `HemisphereLight`), which `KHR_lights_punctual` does not have (it has directional, point and spot lights).
+  - Laid out like `KHR_lights_punctual`: the lights are in an array at the root of the file, and a node uses one by its index. On import the node is the light, with its name and transform.
+  - A hemisphere light takes its sky direction from the world origin to the node's position, as in three.js.
+  ```json
+  "extensions": {"WEBGI_lights_ambient": {"lights": [
+      {"type": "ambient", "color": [1, 1, 1], "intensity": 0.5},
+      {"type": "hemisphere", "color": [0.6, 0.8, 1], "groundColor": [0.3, 0.25, 0.2], "intensity": 1}
+  ]}},
+  "nodes": [{"name": "Ambient", "extensions": {"WEBGI_lights_ambient": {"light": 0}}}]
+  ```
+  - `color` and `groundColor` are linear sRGB, default `[1, 1, 1]`; `intensity` is the three.js intensity, default 1.
 - `WEBGI_materials_alphamap`
   - Implemented in [GLTFMaterialsAlphaMapExtension](https://threepipe.org/docs/classes/GLTFMaterialsAlphaMapExtension.html)
   - This extension saves the alpha map texture for materials that have an `alphaMap` property.
@@ -63,6 +76,8 @@ To do that, a custom extension implementation/class has to be created. Fortunate
 const MyExtension = createGenericExtensionClass(GLTFMaterialsLightMapExtension.WebGiMaterialsLightMapExtension, GLTFMaterialsLightMapExtension.Textures)
 const io = new WebIO().registerExtensions([MyExtension])
 ```
+
+`WEBGI_lights_ambient` keeps its lights at the root of the file, which the generic class does not read, so it has its own class, `GLTFLightsAmbientExtensionGP` (with `AmbientLightGP` for a light, like `KHRLightsPunctual` and `Light` of `@gltf-transform/extensions`).
 
 It is also possible to get all the extensions supported for `gltf-transform` using the `GLTFDracoExportPlugin` - 
 ```typescript

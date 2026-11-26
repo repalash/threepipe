@@ -22,6 +22,7 @@ import {
     GLTFDracoExporter,
     GLTFViewerConfigExtensionGP,
 } from './GLTFDracoExporter'
+import {GLTFLightsAmbientExtensionGP} from './GLTFLightsAmbientExtensionGP'
 import {UiObjectConfig} from 'uiconfig.js'
 import type {EncoderOptions} from './GLTFDracoExporterBase'
 import {Extension} from '@gltf-transform/core'
@@ -75,7 +76,7 @@ export class GLTFDracoExportPlugin extends AViewerPluginSync {
     ] as [string, Record<string, string|number>|undefined][]
 
     get gltfTransformExtensions(): (typeof Extension)[] {
-        return [GLTFViewerConfigExtensionGP, ...this.extraExtensions.map(e => createGenericExtensionClass(e[0], e[1]))]
+        return [GLTFViewerConfigExtensionGP, GLTFLightsAmbientExtensionGP, ...this.extraExtensions.map(e => createGenericExtensionClass(e[0], e[1]))]
     }
 
     addExtension(name: string, textures?: Record<string, string|number>) {
