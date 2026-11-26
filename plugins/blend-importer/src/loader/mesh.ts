@@ -79,6 +79,8 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
         const cached = loaded.get(m)
         if (cached) return cached
         const created = createMaterial(m, ctx)
+        // Blender's material name, as the glTF exporter keeps it
+        if (typeof m.aname === 'string' && m.aname) created.name = m.aname
         loaded.set(m, created)
         return created
     }
