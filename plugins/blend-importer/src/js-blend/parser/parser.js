@@ -71,7 +71,9 @@ function worker_code () {
             // set data
             _data = msg.data;
 
-            AB = _data.slice();
+            // Parse the caller's buffer in place: the parser only reads it. It was copied here, which held
+            // the whole decompressed file twice (116 MB more for Blender's Mr Elephant demo).
+            AB = _data;
 
             data = new DataView(_data);
 
@@ -82,7 +84,13 @@ function worker_code () {
             readFile();
 
             // export parsed data
-            self.postMessage(FILE, ERROR);
+            const file = FILE, error = ERROR;
+            // Keep nothing of this file in the module: it used to stay referenced (the buffer and every
+            // parsed block) until the next parse, so the last loaded file was never freed.
+            AB = data = _data = FILE = working_blend_file = current_SDNA_template = null;
+            struct_names = [];
+            finished_objects = [];
+            self.postMessage(file, error);
         }
     }
 
@@ -171,6 +179,42 @@ function worker_code () {
     // so on v1 (17-byte header) and some v0 files the payload lands at unaligned offsets where a
     // direct `new Float32Array(buf, oddOffset, n)` would throw. All supported files are
     // little-endian (big-endian is rejected at header parse), so a raw byte copy is correct.
+    // An array block (`count` structs of `length` bytes from `start`, e.g. a mesh's vertices, loops or faces)
+    // as an Array whose elements are made when first read. They were all made while parsing, one JS object
+    // per vertex/loop/face, and each was also listed in `objects`: ~570 MB of heap for Blender's Mr Elephant
+    // demo, which the mesh code doesn't need (it reads the block's bytes, see loader/geometry.ts). Indexing,
+    // `length`, `for...of` and the Array methods work as before; made elements are kept.
+    function lazyStructArray (first, constructor, start, length, count, file, scope) {
+        const made = [first];
+        const index = (key) => {
+            if (typeof key !== 'string' || key === '') return -1;
+            const c = key.charCodeAt(0);
+            if (c < 48 || c > 57) return -1;
+            const i = +key;
+            return Number.isInteger(i) && i < count && String(i) === key ? i : -1;
+        };
+        return new Proxy([], {
+            get (target, key, receiver) {
+                if (key === 'length') return count;
+                const i = index(key);
+                if (i < 0) return Reflect.get(target, key, receiver);
+                let o = made[i];
+                if (o === undefined) {
+                    o = new constructor();
+                    o.setData(0, start + length * i, start + length * i + length, file, scope, false);
+                    made[i] = o;
+                }
+                return o;
+            },
+            has (target, key) {
+                return index(key) >= 0 || key === 'length' || Reflect.has(target, key);
+            },
+            set () {
+                return true; // read-only, as the parsed file is
+            },
+        });
+    }
+
     function alignedTypedArray (Ctor, buffer, byteOffset, length) {
         if ((byteOffset % Ctor.BYTES_PER_ELEMENT) === 0) {
             return new Ctor(buffer, byteOffset, length);
@@ -422,6 +466,9 @@ function worker_code () {
     }
 
     function compileProp (obj, name, type, offset, array_size, IS_POINTER, pointer_size, length) {
+        // Byte offset of each field in the struct, for code that reads many structs straight from a block's
+        // bytes instead of through an object per struct (loader/geometry.ts, `structBlock`).
+        obj.__fields__[name] = offset;
 
         if (!IS_POINTER) {
             switch (type) {
@@ -499,6 +546,7 @@ function worker_code () {
                 blen_struct.prototype.blender_name = name;
                 blen_struct.prototype.__pointers = [];
                 blen_struct.prototype.__list__ = [];
+                blen_struct.prototype.__fields__ = {};
 
                 const DNA = this.SDNA[name] = {
                     constructor: blen_struct,
@@ -639,13 +687,16 @@ function worker_code () {
     }
 
     BLENDER_STRUCTURE.prototype = {
-        setData: function (pointer, _data_offset, data_block_length, BLENDER_FILE) {
+        // `scope`: the ID scope to resolve pointers in (default: the block being read). `register`: false for
+        // the elements of an array block made on first access (see lazyStructArray), which stay out of
+        // `objects`/`object_array` like the rest of their block.
+        setData: function (pointer, _data_offset, data_block_length, BLENDER_FILE, scope, register) {
             if (this.__list__ === null) return this;
-            BLENDER_FILE.addObject(this);
+            if (register !== false) BLENDER_FILE.addObject(this);
 
             this.__blender_file__ = BLENDER_FILE;
             // ID scope this block (and its embedded structs) was read in — see BLENDER_FILE.resolve.
-            this.__scope__ = BLENDER_FILE.current_scope;
+            this.__scope__ = scope !== undefined ? scope : BLENDER_FILE.current_scope;
             // Byte length of this block's payload (data_block_length is the end offset). Lets
             // consumers derive element counts for raw DATA blocks (e.g. poly_offset_indices) whose
             // logical length isn't available elsewhere — needed for Blender 5.0 where Mesh.tot* are
@@ -676,17 +727,17 @@ function worker_code () {
                     this[name] = [];
                     j = 0;
                     while (j < Blender_Array_Length) {
-                        if (current_SDNA_template.getSDNAStructureConstructor(type)) {
-                            constructor = current_SDNA_template.getSDNAStructureConstructor(type);
-                            this[name].push((new constructor()).setData(0, offset, offset + length / Blender_Array_Length, BLENDER_FILE));
+                        constructor = BLENDER_FILE.template.getSDNAStructureConstructor(type);
+                        if (constructor) {
+                            this[name].push((new constructor()).setData(0, offset, offset + length / Blender_Array_Length, BLENDER_FILE, this.__scope__, register));
                         } else this[name].push(null);
                         offset += length / Blender_Array_Length;
                         j++;
                     }
                 } else {
-                    if (current_SDNA_template.getSDNAStructureConstructor(type)) {
-                        constructor = current_SDNA_template.getSDNAStructureConstructor(type);
-                        this[name] = (new constructor()).setData(0, offset, length + offset, BLENDER_FILE);
+                    constructor = BLENDER_FILE.template.getSDNAStructureConstructor(type);
+                    if (constructor) {
+                        this[name] = (new constructor()).setData(0, offset, length + offset, BLENDER_FILE, this.__scope__, register);
                     } else this[name] = null;
                 }
             }
@@ -1013,7 +1064,8 @@ function worker_code () {
                         ERROR = 'Invalid TEST block length detected';
                         break;
                     }
-                    const image_data = alignedTypedArray(Uint32Array, _data, data_start + 8, data_len >> 2);
+                    // a copy: a view would keep the whole file's buffer alive for as long as the thumbnail
+                    const image_data = alignedTypedArray(Uint32Array, _data, data_start + 8, data_len >> 2).slice();
                     const image = {
                         width: width,
                         height: height,
@@ -1053,16 +1105,7 @@ function worker_code () {
                     obj.setData(address, data_start, data_start + size, FILE);
                     let stored = obj;
 
-                    if (count > 1) {
-                        let array = [];
-                        array.push(obj);
-                        for (let u = 1; u < count; u++) {
-                            obj = new constructor();
-                            obj.setData(address, data_start + length * u, data_start + (length * u) + length, FILE);
-                            array.push(obj);
-                        }
-                        stored = array;
-                    }
+                    if (count > 1) stored = lazyStructArray(obj, constructor, data_start, length, count, FILE, FILE.current_scope);
                     FILE.memory_lookup[address] = stored;
                     if (is_data) FILE.scope_lookup[FILE.current_scope][address] = stored;
                     else FILE.id_lookup[address] = stored;
