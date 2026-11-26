@@ -24,7 +24,7 @@
 import {describe, expect, it} from 'vitest'
 import * as THREE from 'threepipe'
 import {fixturePath, loadBlend, pickMesh} from './fixtures'
-import {createBufferGeometryOld} from '../src/loader/geometry'
+import {cageOf, createBufferGeometryOld} from '../src/loader/geometry'
 import {subdivideGeometry} from '../src/loader/subdivide'
 import {createMesh} from '../src/loader/mesh'
 import {subdivideCage} from '../src/loader/catmull'
@@ -187,7 +187,7 @@ describe.skipIf(!CUBE)('MPoly files get the Catmull-Clark cage', () => {
     it('carries the n-gons, so Subsurf can smooth across faces', async() => {
         const mesh = pickMesh(await loadBlend(CUBE!))
         const geometry = createBufferGeometryOld(mesh, ctx)
-        const cage = geometry.userData.__cage
+        const cage = cageOf(geometry, ctx)!
         expect(cage).toBeTruthy()
         // Blender's default cube: eight shared vertices and six quads, not 36 disconnected corners.
         expect(cage.positions.length).toBe(8)
@@ -210,7 +210,7 @@ describe.skipIf(!CUBE)('MPoly files get the Catmull-Clark cage', () => {
 
         // Catmull-Clark pulls every corner of a cube inward. Two levels on a unit cube bring the
         // furthest point well inside it.
-        const smooth = subdivideCage(geometry.userData.__cage, ctx, 2)
+        const smooth = subdivideCage(cageOf(geometry, ctx)!, ctx, 2)
         expect(extent(smooth)).toBeLessThan(0.9)
 
         // Loop on the disconnected corner buffer moves nothing: each triangle is subdivided alone and
