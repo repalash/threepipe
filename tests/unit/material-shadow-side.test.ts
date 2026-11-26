@@ -51,15 +51,33 @@ describe('Material panel: Shadow Side', () => {
         expect(material.version).toBe(version) // three.js picks the shadow side at each shadow render
     })
 
-    test('the viewer draws the shadow maps again after a Side or Shadow Side change, not after other changes', () => {
+    test('the viewer draws the shadow maps again after a change of what casts, not after other changes', () => {
         const viewer: any = {setDirty: vi.fn(), renderManager: {resetShadows: vi.fn()}, _scene: {}}
         const onUpdate = (tp.ThreeViewer.prototype as any)._onMaterialUpdate
-        onUpdate.call(viewer, {type: 'materialUpdate', change: 'roughness'})
+        for (const change of ['roughness', 'color', 'opacity', 'metalness']) onUpdate.call(viewer, {type: 'materialUpdate', change})
         expect(viewer.renderManager.resetShadows).not.toHaveBeenCalled()
+        expect(viewer.setDirty).toHaveBeenCalledTimes(4)
+        const changes = ['side', 'shadowSide', 'visible', 'wireframe', 'alphaTest', 'map', 'alphaMap',
+            'displacementMap', 'displacementScale', 'displacementBias', 'clipShadows', 'clippingPlanes', 'clipIntersection']
+        for (const change of changes) onUpdate.call(viewer, {type: 'materialUpdate', change})
+        expect(viewer.renderManager.resetShadows).toHaveBeenCalledTimes(changes.length)
+        onUpdate.call(viewer, {type: 'materialUpdate'}) // setDirty() from code: unknown change
+        expect(viewer.renderManager.resetShadows).toHaveBeenCalledTimes(changes.length + 1)
+    })
+
+    test('the viewer draws the shadow maps again when an object in the scene gets another material', () => {
+        const scene = new tp.RootScene(new tp.PerspectiveCamera2())
+        const events: any[] = []
+        scene.addEventListener('materialChanged', (e: any) => events.push(e))
+        const mesh = new tp.Mesh(new tp.BoxGeometry(), new tp.PhysicalMaterial())
+        scene.addObject(mesh)
+        mesh.material = new tp.PhysicalMaterial({side: tp.DoubleSide})
+        expect(events.length).toBeGreaterThan(0) // the swap reaches the scene, where the viewer listens
+
+        const viewer: any = {setDirty: vi.fn(), renderManager: {resetShadows: vi.fn()}, _scene: scene}
+        ;(tp.ThreeViewer.prototype as any)._onMaterialChanged.call(viewer, events[events.length - 1])
         expect(viewer.setDirty).toHaveBeenCalledTimes(1)
-        onUpdate.call(viewer, {type: 'materialUpdate', change: 'shadowSide'})
-        onUpdate.call(viewer, {type: 'materialUpdate', change: 'side'})
-        expect(viewer.renderManager.resetShadows).toHaveBeenCalledTimes(2)
+        expect(viewer.renderManager.resetShadows).toHaveBeenCalledTimes(1)
     })
 
     test('shadowSide is saved and loaded with the material', () => {

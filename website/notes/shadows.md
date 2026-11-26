@@ -62,6 +62,8 @@ light.shadowBias = -0.00005
 - `DirectionalLight2` keeps the three.js defaults (no bias, 512 × 512 map) with a 10 m `shadowFrustum`; the renderer
   uses `PCFShadowMap`.
 - The editor has **Shadow Side** (Auto, Front, Back, Double) in the material panel and **Shadow Bias** and **Shadow Normal
-  Bias** on lights. A change of Side or Shadow Side draws the shadow maps again.
+  Bias** on lights. The shadow maps are drawn again only after `renderManager.resetShadows()`. The viewer calls it when
+  an object or light changes, and after a material change in `ThreeViewer.ShadowMaterialChanges` (Side, Shadow Side, alpha
+  test, displacement, ...) or with no `change`. Call it yourself after changing a shadow caster without `setDirty`.
 - Both are saved in glTF: `shadowSide` in `WEBGI_material_extras`, the bias in `WEBGI_light_extras`
   (see [Three.js properties in glTF](./gltf-three-extras-ext)).

@@ -75,7 +75,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- A change of a material's Side or Shadow Side (`setDirty({change: 'side' | 'shadowSide'})`, which the material panel sends) draws the shadow maps again; before, the old shadows stayed until something else reset them
+- The shadow maps are drawn again after a material change that changes what casts: Side, Shadow Side, Visible, Wireframe, Alpha Test, the map and alpha map, the displacement map, scale and bias, and the clipping planes (the `change` of `setDirty`, listed in `ThreeViewer.ShadowMaterialChanges`), a `setDirty()` with no `change`, and an object getting another material. Before, the old shadows stayed until something else reset them: for the first frames of a change with `SSAAPlugin` (it draws them again from the second frame), and for good without it
 - `BVHPlugin`: adopting a `geometry.boundsTree` set from outside that is not a `MeshBVH` (a `SkinnedMeshBVH`, `PointsBVH` or `LineSegmentsBVH` of three-mesh-bvh 0.9) threw, since only a `MeshBVH` has `resolveTriangleIndex`. Such a tree is now treated as not covering the drawn triangles, so the meshes keep the raycast of three.js. The plugin's types also accept three-mesh-bvh's `GeometryBVH` type of `boundsTree`, which failed to type-check in plugins that import three-mesh-bvh
 - `IAssetImporter` declares `resolveURL(url)`, which `AssetImporter` has (`@threepipe/plugin-blend-importer` calls it)
 - The workspace lockfile has no copies of upstream `three` under `plugins/r3f` and `plugins/troika-text` any more, so their examples use the same three.js as threepipe
