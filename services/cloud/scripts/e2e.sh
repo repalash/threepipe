@@ -338,6 +338,9 @@ LINK="{\"values\":{\"from_asset\":\"e2e-$U/big\",\"relation\":\"uses\",\"to_asse
 [ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -d "$LINK" "$A/api/v1/table/threepipe_asset_links/insert")" != "200" ] && ok "a member cannot add a link" || bad "assets: member link"
 MQ=$(python3 -c "import urllib.parse,sys;print(urllib.parse.urlencode({'where':sys.argv[1]}))" "to_asset == 'e2e-$U/external'")
 R=$(curl -s "$A/api/v1/table/threepipe_asset_links/select?$MQ"); echo "$R" | python3 -c "import json,sys;d=json.load(sys.stdin);r=d if isinstance(d,list) else d.get('items',d);sys.exit(0 if len(r)==1 and r[0]['from_asset'].endswith('/big') else 1)" && ok "anyone can read what uses an asset" || bad "assets: reverse link: $R"
+# the worker's log lines (not wrangler's own request lines, which production does not have) never hold an access code
+CODE=$(echo "$URL" | sed -E 's#.*/access/([^/]+)/.*#\1#')
+grep -q "GET /api/v1/access/…/key" "$TMP/dev.log" && ! grep -F "$CODE" "$TMP/dev.log" | grep -qv '\[wrangler:' && ok "logs show access codes as …" || bad "access code in the logs: $(grep -F "$CODE" "$TMP/dev.log" | grep -v '\[wrangler:' | head -2)"
 echo "failures: $FAILS"
 # what the worker logged, to see why a check failed
 [ $FAILS -eq 0 ] || grep -E '\[cloud\]|ERROR|Error' "$TMP/dev.log" | tail -20

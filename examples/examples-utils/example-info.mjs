@@ -13,6 +13,7 @@ const FOR_AGENTS = new URL('../llms.txt', import.meta.url).href
  * Another control on the page (the example card) opens or closes the panel with this event on `document`:
  * `document.dispatchEvent(new CustomEvent('tp-example-info-toggle'))`, or `{detail: {open: true}}` to only open it.
  * Give that control the attribute `data-tp-example-info-toggle`, so its own press does not count as a press outside.
+ * The panel's element (`#tp-example-info`) has the link to the example's source in `data-source`.
  */
 export const TOGGLE_EVENT = 'tp-example-info-toggle'
 
@@ -90,6 +91,7 @@ async function copy(text) {
 function mount(info) {
     const host = document.createElement('div')
     host.id = 'tp-example-info'
+    host.dataset.source = info.sourceUrl
     const root = host.attachShadow({mode: 'open'})
     root.innerHTML = `<style>${STYLE}</style><div class="panel" id="panel" hidden></div>
         <button class="open" type="button" aria-label="About this example" title="About this example" aria-expanded="false" aria-controls="panel">${ICON}</button>`

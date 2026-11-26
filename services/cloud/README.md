@@ -13,6 +13,7 @@ cp .dev.vars.example .dev.vars
 npm run migrate        # generate and apply migrations to the local D1
 npm run dev            # http://localhost:8787 (Swagger /api/v1/doc/ui, admin /api/v1/pocket/)
 npm test               # end-to-end: starts the dev server, runs every flow, stops it
+npm run test:unit      # unit tests (test/), no server
 npm run typecheck
 ```
 
@@ -50,7 +51,7 @@ npm run deploy                   # the first one creates the D1 database: commit
 - After the first deploy, migrations go through the Worker (`teeny deploy` calls its admin API with
   `ADMIN_SERVICE_TOKEN`), so later deploys need a token for this Worker only, no D1 access.
 - CI (`.github/workflows/deploy-cloud.yml`, release-tools' `deploy.yml`): prod deploys when the `cloud` branch moves
-  (`git push origin dev:cloud` after merging into dev). The check runs the typecheck and the e2e suite with no secrets;
+  (`git push origin dev:cloud` after merging into dev). The check runs the typecheck, the unit tests and the e2e suite with no secrets;
   Discord gets the approval link, a Claude review and the commits since the last deploy; the deploy runs
   `npm run deploy:ci` once a reviewer approves the `cloud-deploy` environment. Setup, once: the environment
   `cloud-deploy` with Palash as required reviewer, deployments from the `cloud` branch only, and two environment
@@ -66,7 +67,8 @@ npm run deploy                   # the first one creates the D1 database: commit
   (`publishCustomDomains` in its source, and its release notes); if it does, the CI deploy takes both domains down.
 - Sample assets (models, HDRIs, textures): the `threepipe_assets` table is public to read with teenybase's table API, for example `GET /api/v1/table/threepipe_assets/select?where=kind == 'model' & triangles < 100000&order=-triangles`, or by tag: `where=json_contains(tags, 'animated')`. Rows hold full URLs for the file (samples bucket, as `<set_name>/<file name>` or a folder for a model of several files, or anywhere else for an external one), its thumbnail and video (`p/samples/<path of the model>/` in the cloud bucket, so they can be redone), and a `metadata` JSON object with everything else: screenshots from the source, every file of the asset (`files`: other versions, levels of detail and formats such as Draco or KTX2, the default first), the model's cameras (`views`) and clips, and more counts. A list leaves `metadata` out of its `select`. `tags`, `authors` and `metadata` are teenybase `json` columns: valid JSON text, returned as text. A model that doesn't load right is tagged `broken` (why: `metadata.broken`); `where=!json_contains(tags, 'broken')` leaves those out. Assets we author keep each version on its own path (`<collection>/v1/...`): the row points at the latest, `metadata.version` and `metadata.versions` list the others. The files themselves are read from their URLs, with no database. Scenes and procedural assets (kind `scene`, tag `procedural`) are rows too: when `url` is not a file, a tag says how it loads (`page` for a live page, `recipe` for a JSON recipe), and `metadata.recipe` {generator, version, params, seed}, `views`, `times`, `requires`, `page_url` and `code_url` say how to make and show it again. `threepipe_asset_links` holds links between them (a model `uses` a texture; a scene `uses` its parts, is `generated_by` its generator and a variant is `derived_from` its origin), read from either side: `where=to_asset == 'khronos/texture-1a2b3c4d5e6f'`. Rows are written with the admin token (`POST /api/v1/table/threepipe_assets/insert`); anyone can read them.
 - Logs: Workers Logs and traces, and logpush to the account's Workers Logpush job; what needs a person is a
-  `console.error` line starting with `[cloud]`.
+  `console.error` line starting with `[cloud]`. The worker's log lines show an access code and a signed URL's signature as `…`; Cloudflare's own request
+  logs still record the full URL.
 
 ## Sign-in
 
