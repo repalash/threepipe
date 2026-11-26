@@ -1,5 +1,6 @@
 /**
- * The Shadow Side control of the material panel, and the shadow reset when a material's Side or Shadow Side changes.
+ * Materials and shadows: the Shadow Side control of the material panel, and the shadow map reset after a material
+ * change that changes the shadow casters, or a material swap.
  */
 import {beforeAll, describe, expect, test, vi} from 'vitest'
 
@@ -23,7 +24,7 @@ function findUi(config: any, label: string): any {
     return findUi(config.children, label)
 }
 
-describe('Material panel: Shadow Side', () => {
+describe('Materials and shadows', () => {
     test('reads Auto for null and writes the side, Auto back to null', () => {
         const material = new tp.PhysicalMaterial()
         const ui = findUi(material.uiConfig, 'Shadow Side')
