@@ -19,6 +19,7 @@ All notable changes to this plugin will be documented in this file.
 - **Blender 5.x files with more than one mesh showed the same geometry everywhere.** Blender 5.x writes per-datablock pointer addresses, so the same address recurs in every mesh. The parser kept one global address map, so each mesh resolved to the last mesh's attribute arrays. Pointers now resolve within the owning ID's DATA blocks first, as Blender's reader does.
 - **Fields after a 3-D array in a struct were read from the wrong offset.** The parser only understood two array dimensions, so in Blender 3.0+ `Image` (`*gputexture[3][2][2]`) `source`, `packedfile` and `packedfiles` were misread, and packed textures fell back to loading a file that isn't there.
 - Multi-material meshes get one geometry group per material slot, not one per run of faces.
+- **The second `.blend` of a session could be misread.** The parser cached the struct layout (SDNA) per Blender version string and reused it for the next file with the same version, but files with the same 3-digit version can lay their structs out differently. In an app that loads several files, the later one read fields at the wrong offsets (two Blender 2.66 demo files: 4 of 6 materials and the scene camera lost, depending on the order). Every file now gets its own layout from its own DNA block.
 
 ### Changed
 
