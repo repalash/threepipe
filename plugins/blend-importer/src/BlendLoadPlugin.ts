@@ -4,30 +4,44 @@ import {
     BaseImporterPlugin,
     BufferAttribute,
     BufferGeometry2,
+    ClampToEdgeWrapping,
     DataTexture,
     DirectionalLight2,
+    DoubleSide,
+    Euler,
     FileLoader,
+    FrontSide,
+    gunzipSync,
     IAssetImporter,
     ILoader,
     Importer, Mesh,
+    Matrix4,
     Mesh2,
+    MirroredRepeatWrapping,
     Object3D,
     Object3D2,
     OrthographicCamera0,
     PerspectiveCamera0,
     PhysicalMaterial,
     PointLight2,
+    Quaternion,
+    RepeatWrapping,
     Scene,
+    ShapeUtils,
     Source,
     SpotLight2,
     SRGBColorSpace,
     Texture,
     UnlitMaterial,
+    Vector2,
+    Vector3,
 } from 'threepipe'
 import {parseBlend} from './js-blend/main.js'
 import {createObjects} from './loader'
 import {decompressBlend} from './decompress'
 import type {BlendEvaluationMode} from './loader/ctx'
+import {createCtx} from './loader/ctx'
+import type {BlendFileData} from './blendFile'
 
 interface ExternalTextureRequest { texture: Texture, url: string, srgb: boolean, path: string }
 
@@ -141,30 +155,10 @@ async function importExternalTexture(req: ExternalTextureRequest, importer: IAss
 }
 
 /**
- * Shape of the parsed Blender file passed to {@link BlendLoadOptions.onBlendLoad}.
- *
- * This is the raw `js.blend` FILE object — see `src/js-blend/parser/parser.js` for the
- * full DNA tree. Notable fields are typed here; everything else is untyped under `[k: string]`.
+ * Shape of the parsed Blender file passed to {@link BlendLoadOptions.onBlendLoad}. `scene` is the
+ * threepipe root built from the file's objects. See {@link BlendFileData}.
  */
-export interface BlendFile {
-    /** Three.js root constructed from the file's Blender objects. Same object returned as the Scene. */
-    scene: Object3D
-    /**
-     * Embedded preview thumbnail (RGBA8, packed one pixel per `Uint32`). Absent on very old saves
-     * or files saved with preview disabled. Typical size 128×128.
-     * Convert via `<canvas>.createImageData` for display.
-     */
-    thumbnail?: {width: number, height: number, data: Uint32Array}
-    /** Parsed Blender objects keyed by SDNA struct type, e.g. `objects.Object`, `objects.Mesh`, `objects.Material`. */
-    objects: Record<string, any[]>
-    /** SDNA template — Blender's runtime struct definitions parsed out of the DNA1 block. */
-    template: any
-    /** Memory-address-keyed lookup of every parsed block. */
-    memory_lookup: Record<string, any>
-    /** Raw `ArrayBuffer` of the decompressed `.blend` payload. */
-    AB: ArrayBuffer
-    [k: string]: any
-}
+export type BlendFile = BlendFileData<Object3D>
 
 /**
  * Loader options consumed by `BlendLoadPlugin`. Pass via `viewer.load(url, options)`.
@@ -223,7 +217,7 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
         async loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<any> {
             this.setResponseType('arraybuffer')
             let res: ArrayBuffer | null = (await super.loadAsync(url, onProgress)) as ArrayBuffer
-            const decompressed = decompressBlend(res)
+            const decompressed = decompressBlend(res, gunzipSync)
             // Drop the reference to the original (possibly compressed) buffer so it can be
             // garbage-collected while the parser works on the decompressed copy.
             res = null
@@ -234,7 +228,10 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
             // the AssetImporter and would otherwise clobber the root context for sibling textures.
             const importer = this.assetImporter
             const texReqs: ExternalTextureRequest[] = []
-            const ctx = {
+            const ctx = createCtx({
+                Texture, Vector2, Vector3, Euler, Matrix4, Quaternion, ShapeUtils, SRGBColorSpace,
+                FrontSide, DoubleSide, RepeatWrapping, ClampToEdgeWrapping, MirroredRepeatWrapping,
+            }, {
                 Object3D: Object3D2,
                 Mesh: Mesh2 as typeof Mesh,
                 MeshPhysicalMaterial: PhysicalMaterial,
@@ -255,7 +252,7 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
                         return req ? req.texture : null
                     }
                     : undefined,
-            }
+            })
             const objects = await createObjects(blend, ctx)
             if (importer && texReqs.length) await Promise.all(texReqs.map(r => importExternalTexture(r, importer)))
             const root = new Object3D()

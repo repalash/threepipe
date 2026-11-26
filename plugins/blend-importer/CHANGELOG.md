@@ -8,6 +8,7 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
+- **Plain three.js entry point: `@threepipe/plugin-blend-importer/three`.** Exports `BlendLoader`, a three.js loader (`load`/`loadAsync`/`parse`/`parseAsync`, `LoadingManager`, `setPath`/`setResourcePath`/`setCrossOrigin`) that resolves with `{scene, blend}`, for projects that don't use threepipe. It imports only `three` (as a namespace, with runtime checks for APIs that changed between versions, such as `colorSpace` vs `encoding`), so it works with the project's own three.js; tested on r125, r137, r150, r160, r170 and r187. fflate, fzstd and the parser are bundled. External textures load with three's `TextureLoader`; `setTextureLoader(fn)` plugs in EXR/HDR/other loaders. ES module (`dist/threejs.mjs`) and UMD (`dist/threejs.js`, global `BlendLoader`) builds.
 - **Blender-accurate normals.** Flat-shaded faces, Auto Smooth (`Mesh.flag`/`smoothresh` before 4.1, the "Smooth by Angle" modifier from 4.1), sharp edges and sharp faces are now honoured. Normals are angle-weighted per corner like Blender's, and vertices are split at hard edges and UV seams. Previously every mesh got three.js `computeVertexNormals` (or Blender's smooth vertex normals), so hard-surface models looked blobby, with shading smeared across their edges. Checked against Blender 5.3's evaluated corner normals: 0.00° error on a Blender 3.0 scene and on a 5.x test file (flat cube, smooth sphere, sharp edges, Smooth by Angle modifier, concave n-gons). The error was 29° on average before.
 - **Emission and Background shaders** wired straight into the output now load as an unlit material (Color × Strength, with the texture as `map`), as Blender's glTF exporter does. Before, they rendered as lit 0.8 grey with the emission added on top. **Diffuse BSDF** outputs map to a fully rough, non-specular material.
 - Pre-2.63 meshes (`MFace` only) load instead of coming out empty.
@@ -18,6 +19,11 @@ All notable changes to this plugin will be documented in this file.
 - **Blender 5.x files with more than one mesh showed the same geometry everywhere.** Blender 5.x writes per-datablock pointer addresses, so the same address recurs in every mesh. The parser kept one global address map, so each mesh resolved to the last mesh's attribute arrays. Pointers now resolve within the owning ID's DATA blocks first, as Blender's reader does.
 - **Fields after a 3-D array in a struct were read from the wrong offset.** The parser only understood two array dimensions, so in Blender 3.0+ `Image` (`*gputexture[3][2][2]`) `source`, `packedfile` and `packedfiles` were misread, and packed textures fell back to loading a file that isn't there.
 - Multi-material meshes get one geometry group per material slot, not one per run of faces.
+
+### Changed
+
+- The loader core (`src/loader/`) no longer imports from threepipe at runtime: three.js classes and constants come through `Ctx` (`createCtx(threeNamespace, overrides)`), which `BlendLoadPlugin` fills with threepipe's classes. `decompressBlend` takes the gunzip function as an argument. No change for threepipe users.
+- `three` is an optional peer dependency (>= 0.125), and so is `threepipe`: install the one you use.
 
 ## [0.3.1] - 2026-10-24
 

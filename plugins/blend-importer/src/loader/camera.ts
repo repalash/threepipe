@@ -1,4 +1,4 @@
-import {Object3D} from 'threepipe'
+import type {Object3D} from 'threepipe'
 import {Ctx} from './ctx'
 
 // Blender Camera.type — DNA_camera_types.h.

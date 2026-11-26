@@ -1,4 +1,3 @@
-import {DoubleSide} from 'threepipe'
 import {createBufferGeometry, GeometryOptions} from './geometry'
 import {createMaterial} from './material'
 import {subdivideGeometry} from './subdivide'
@@ -181,7 +180,7 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
     const slots: any[] = Array.isArray(matData) ? matData : (matData ? [matData] : [])
 
     const buildMaterial = (m: any) => {
-        if (!m) { const d = new ctx.MeshPhysicalMaterial(); d.side = DoubleSide; return d } // empty slot -> Blender default
+        if (!m) { const d = new ctx.MeshPhysicalMaterial(); d.side = ctx.DoubleSide; return d } // empty slot -> Blender default
         const cached = loaded.get(m)
         if (cached) return cached
         const created = createMaterial(m, ctx)

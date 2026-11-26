@@ -1,4 +1,4 @@
-import {Light, LinearSRGBColorSpace} from 'threepipe'
+import type {Light} from 'threepipe'
 import {Ctx} from './ctx'
 
 // Blender Light.type — DNA_light_types.h (eLightType).
@@ -75,7 +75,7 @@ export function createLight(lamp: any, ctx: Ctx): Light | undefined {
     // Blender stores light color as scene-linear RGB floats; three.js light color lives in the linear
     // working space — match GLTFLoader (color.setRGB(..., LinearSRGBColorSpace)), no 8-bit packing.
     if ((light as any).color && typeof ldata.r === 'number')
-        (light as any).color.setRGB(ldata.r, ldata.g, ldata.b, LinearSRGBColorSpace)
+        (light as any).color.setRGB(ldata.r, ldata.g, ldata.b) // the default colour space is the linear working space
     light.castShadow = true
     return light
 }

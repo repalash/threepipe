@@ -1,4 +1,4 @@
-import {ClampToEdgeWrapping, DoubleSide, FrontSide, MirroredRepeatWrapping, RepeatWrapping, SRGBColorSpace, Texture} from 'threepipe'
+import type {Texture} from 'threepipe'
 import {Ctx} from './ctx'
 
 // Material.blend_flag bit for the "Backface Culling" toggle (DNA_material_types.h: MA_BL_CULL_BACKFACE).
@@ -66,7 +66,7 @@ function imageMime(b: Uint8Array): string | null {
     return null
 }
 // Load the packed image of an Image Texture node. `srgb` for color maps (base/emissive); false for data maps.
-function packedTexture(imageNode: any, srgb: boolean): Texture | null {
+function packedTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null {
     const img = imageNode && imageNode.id
     if (!img) return null
     const pf = img.packedfile || (img.packedfiles && img.packedfiles.first && img.packedfiles.first.packedfile)
@@ -83,8 +83,8 @@ function packedTexture(imageNode: any, srgb: boolean): Texture | null {
     if (!mime || typeof Blob === 'undefined' || typeof URL === 'undefined' || typeof Image === 'undefined') return null
     const url = URL.createObjectURL(new Blob([bytes], {type: mime}))
     const el = new Image()
-    const texture = new Texture(el)
-    if (srgb) texture.colorSpace = SRGBColorSpace
+    const texture = new ctx.Texture(el)
+    if (srgb) ctx.setSRGB(texture)
     texture.name = (typeof img.aname === 'string' ? img.aname : '') || 'blendTexture'
     el.onload = () => { texture.needsUpdate = true; URL.revokeObjectURL(url) }
     el.onerror = () => { URL.revokeObjectURL(url) }
@@ -103,10 +103,10 @@ const IMA_SRC_GENERATED = 4, IMA_SRC_VIEWER = 5
 // [0,1] (very common: tiled materials, the Poly Haven preview sphere whose unwrap spans U[-0.5,1.5]) clamps
 // to the edge texel and smears it into stripes instead of tiling. SHD_IMAGE_EXTENSION_*: 0 Repeat, 1 Extend,
 // 2 Clip, 3 Mirror.
-function applyWrap(tex: Texture | null, imageNode: any): Texture | null {
+function applyWrap(tex: Texture | null, imageNode: any, ctx: Ctx): Texture | null {
     if (!tex) return tex
     const ext = imageNode?.storage?.extension
-    tex.wrapS = tex.wrapT = ext === 1 || ext === 2 ? ClampToEdgeWrapping : ext === 3 ? MirroredRepeatWrapping : RepeatWrapping
+    tex.wrapS = tex.wrapT = ext === 1 || ext === 2 ? ctx.ClampToEdgeWrapping : ext === 3 ? ctx.MirroredRepeatWrapping : ctx.RepeatWrapping
     tex.needsUpdate = true
     return tex
 }
@@ -127,12 +127,12 @@ function applyMapping(tex: Texture | null, imageNode: any, links: any[]): Textur
     return tex
 }
 function imageNodeTexture(imageNode: any, srgb: boolean, ctx: Ctx, links: any[] = []): Texture | null {
-    const packed = packedTexture(imageNode, srgb)
-    if (packed) return applyMapping(applyWrap(packed, imageNode), imageNode, links)
+    const packed = packedTexture(imageNode, srgb, ctx)
+    if (packed) return applyMapping(applyWrap(packed, imageNode, ctx), imageNode, links)
     const img = imageNode && imageNode.id
     if (img && img.source !== IMA_SRC_GENERATED && img.source !== IMA_SRC_VIEWER
         && typeof img.name === 'string' && img.name && ctx.loadExternalTexture) {
-        return applyMapping(applyWrap(ctx.loadExternalTexture(img.name, srgb), imageNode), imageNode, links)
+        return applyMapping(applyWrap(ctx.loadExternalTexture(img.name, srgb), imageNode, ctx), imageNode, links)
     }
     return null
 }
@@ -199,7 +199,7 @@ const SELF_MAPPED = /^ShaderNode(Emission|Background|BsdfDiffuse)$/
  */
 function createUnlitMaterial(mat: any, surface: any, links: any[], ctx: Ctx) {
     const material = new ctx.MeshBasicMaterial()
-    material.side = typeof mat.blend_flag === 'number' && mat.blend_flag & MA_BL_CULL_BACKFACE ? FrontSide : DoubleSide
+    material.side = typeof mat.blend_flag === 'number' && mat.blend_flag & MA_BL_CULL_BACKFACE ? ctx.FrontSide : ctx.DoubleSide
     const inp = inputsOf(surface)
     const colSock = socketByName(inp, 'Color')
     const tex = textureFromSocket(links, colSock, true, ctx)
@@ -220,7 +220,7 @@ export function createMaterial(mat: any, ctx: Ctx) {
     // maps this directly: doubleSided = not use_backface_culling (materials.py:289). three.js defaults to
     // FrontSide, so without this most thin/open geometry (planes, leaves, interiors) is invisible from
     // behind. Only the explicit "Backface Culling" toggle (MA_BL_CULL_BACKFACE) forces single-sided.
-    material.side = (typeof mat.blend_flag === 'number' && (mat.blend_flag & MA_BL_CULL_BACKFACE)) ? FrontSide : DoubleSide
+    material.side = (typeof mat.blend_flag === 'number' && (mat.blend_flag & MA_BL_CULL_BACKFACE)) ? ctx.FrontSide : ctx.DoubleSide
 
     const nodes = mat.nodetree ? listBaseToArray(mat.nodetree.nodes) : []
     const links = mat.nodetree ? listBaseToArray(mat.nodetree.links) : []
@@ -317,7 +317,7 @@ export function createMaterial(mat: any, ctx: Ctx) {
 
         // Sheen (extensions/sheen.py — "Sheen Weight"/"Sheen" gates; color + roughness).
         const sheen = num(socketConst(socketByName(inp, 'Sheen Weight', 'Sheen')))
-        if (sheen !== undefined && sheen > 0 && (material as any).sheen !== undefined) {
+        if (sheen !== undefined && sheen > 0 && typeof (material as any).sheen === 'number') {
             (material as any).sheen = sheen
             const stint = socketConst(socketByName(inp, 'Sheen Tint'))
             if (stint && stint.length >= 3 && (material as any).sheenColor) (material as any).sheenColor.setRGB(stint[0], stint[1], stint[2])
