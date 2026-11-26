@@ -32,7 +32,7 @@ body[class*="tpTheme-"] .mb-root {
 .mb-root.mb-wide { align-items: stretch; padding: 10px 6px; }
 .mb-wide .mb-btn { width: auto; justify-content: flex-start; gap: 10px; padding: 0 8px; }
 .mb-wide .mb-label { display: block; }
-.mb-wide .mb-toggle .mb-label, .mb-wide .lay-float-btn .mb-label { color: inherit; font-weight: 400; }
+.mb-wide .mb-toggle .mb-label, .mb-wide .lay-mode-btn .mb-label { color: inherit; font-weight: 400; }
 /* the arrow names the next step: › hides the names or the panel, ‹ shows them again (the panel hidden) */
 body.mb-panel-hidden .mb-toggle svg { transform: rotate(180deg); }
 
@@ -40,9 +40,9 @@ body.mb-panel-hidden .mb-toggle svg { transform: rotate(180deg); }
 body.lay-titlebar { --lay-top: 36px; --lay-bottom: 0px; }
 body.lay-statusbar { --lay-top: 0px; --lay-bottom: 26px; }
 body.lay-floating { --lay-top: 0px; --lay-bottom: 0px; --lay-gap: 12px; --lay-card-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 2px 10px rgba(0,0,0,.08); }
-/* the areas of the frame: the left sidebar and the bottom strip (EditorFrame.setArea), and the right sidebar (the panel
-   and the mode bar). Their width or height: --lay-left-area, --lay-right-area, --lay-bottom-area. The left and the bottom
-   area show when they have an element (the body class lay-has-left, lay-has-bottom), --lay-left-area-size wide or
+/* the areas of the frame: the left sidebar and the bottom strip (places of EditorFrame.addPanel), and the right sidebar
+   (the panel and the mode bar). Their width or height: --lay-left-area, --lay-right-area, --lay-bottom-area. The left
+   and the bottom area show when they have a panel (the body class lay-has-left, lay-has-bottom), --lay-left-area-size wide or
    --lay-bottom-area-size tall; empty, they take no room (0px). In the floating layout, --lay-left-inset and
    --lay-bottom-inset are the parts of the canvas that the left and the bottom card cover, with their gap to the window
    (0px in the other layouts, where the canvas is smaller) */
@@ -64,11 +64,13 @@ body.lay-floating.lay-has-bottom { --lay-bottom-inset: calc(var(--lay-bottom-are
 }
 body.lay-has-left .lay-area-left, body.lay-has-bottom .lay-area-bottom { display: flex; }
 .lay-area > * { flex: 1 1 auto; min-height: 0; }
-/* a stack (EditorFrame.setArea with a list): the elements in sections, split by their weights (flex-grow, set by the
+/* a stack (more than one panel in a place): the panels in sections, split by their weights (flex-grow, set by the
    frame), with a line between two sections; a drag on it moves the split. The bottom area stacks left to right. */
 .lay-area-bottom.lay-split-area { flex-direction: row; }
 .lay-area > .lay-section { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .lay-section > * { flex: 1 1 auto; min-height: 0; }
+/* a panel of a stack that its entry hides (EditorFrame.setPanelHidden), and the split before it */
+.lay-area > .lay-section-hidden { display: none !important; }
 .lay-area > .lay-split {
     flex: 0 0 1px; position: relative; z-index: 1; touch-action: none; background: var(--tp-container-border-color, #e6e6e6);
     --lay-grip-color: var(--tp-label-foreground-color, #8a8f98);
@@ -80,6 +82,44 @@ body.lay-has-left .lay-area-left, body.lay-has-bottom .lay-area-bottom { display
 .lay-split::after { content: ''; position: absolute; }
 .lay-area-left > .lay-split::after { left: 0; right: 0; top: -3px; bottom: -3px; }
 .lay-area-bottom > .lay-split::after { top: 0; bottom: 0; left: -3px; right: -3px; }
+/* the right place (EditorFrame.addPanel with area right): in the panel, above the settings of the mode (the pane of the Tweakpane
+   UI), with a line between them; their heights by the weights that the frame sets (--lay-right-box-grow,
+   --lay-right-pane-grow; a drag of the line). Each part scrolls on its own. With the settings of the mode hidden
+   (lay-mode-hidden), the right area takes the whole panel. */
+.lay-area-right { position: static; z-index: auto; min-height: 0; }
+body.lay-frame.lay-right-shown #tweakpaneUiContainer { display: flex; flex-direction: column; overflow: hidden !important; }
+body.lay-frame.lay-right-shown #tweakpaneUiContainer > .lay-area-right { display: flex; flex: var(--lay-right-box-grow, 1) 1 0; min-height: 48px; }
+body.lay-frame.lay-right-shown #tweakpaneUiContainer > .tp-rotv { flex: var(--lay-right-pane-grow, 1) 1 0; min-height: 48px; overflow-y: auto; overscroll-behavior: contain; }
+body.lay-frame:not(.lay-right-shown) #tweakpaneUiContainer > .lay-pane-split { display: none; }
+body.lay-frame.lay-right-shown.lay-mode-hidden #tweakpaneUiContainer > .tp-rotv,
+body.lay-frame.lay-right-shown.lay-mode-hidden #tweakpaneUiContainer > .lay-pane-split { display: none; }
+body.lay-frame.lay-right-shown.lay-mode-hidden #tweakpaneUiContainer > .lay-area-right { flex-grow: 1; }
+/* the mode bar marks no mode while its settings are hidden (a click on the open mode shows them) */
+body.lay-frame.lay-right-shown.lay-mode-hidden .mb-btn.on { background: transparent; }
+#tweakpaneUiContainer > .lay-pane-split {
+    flex: 0 0 1px; position: relative; z-index: 1; touch-action: none; cursor: row-resize;
+    background: var(--tp-container-border-color, #e6e6e6); --lay-grip-color: var(--tp-label-foreground-color, #8a8f98);
+}
+#tweakpaneUiContainer > .lay-pane-split:hover, #tweakpaneUiContainer > .lay-pane-split.lay-active { background: #0d99ff; --lay-grip-color: #0d99ff; }
+#tweakpaneUiContainer > .lay-pane-split::after { left: 0; right: 0; top: -3px; bottom: -3px; }
+.lay-area-right > .lay-split { cursor: row-resize; }
+.lay-area-right > .lay-split::after { left: 0; right: 0; top: -3px; bottom: -3px; }
+/* floating: the right area and the settings are two cards with a gap and drag dots between them, as a stack */
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer { background: transparent; box-shadow: none; clip-path: none; overflow: visible !important; }
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-area-right,
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .tp-rotv {
+    background: var(--tp-base-background-color, #fff); border-radius: 8px 0 0 8px; box-shadow: var(--lay-card-shadow); clip-path: inset(-20px 0 -20px -20px);
+}
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split,
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split:hover,
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split.lay-active { flex-basis: var(--lay-gap); background: transparent; }
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split::after { inset: 0; }
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split::before {
+    content: ''; position: absolute; inset: 0; margin: auto; width: 24px; height: 4px; border-radius: 2px; opacity: 0.6; transition: opacity .12s;
+    background: radial-gradient(circle, var(--lay-grip-color) 1px, transparent 1.5px) 0 0 / 4px 4px;
+}
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split:hover::before,
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split.lay-active::before { opacity: 1; }
 /* a collapsed left or bottom area (EditorFrame.setAreaCollapsed, or a drag of its edge to the side): hidden, and it takes
    no room; its edge stays, to drag it out again or double-click it */
 body.lay-frame.lay-has-left.lay-collapsed-left { --lay-left-area: 0px; --lay-left-inset: 0px; }
@@ -123,6 +163,8 @@ body.lay-moving, body.lay-moving * { cursor: grabbing !important; user-select: n
 .lay-bottom { bottom: 0; height: 26px; border-top: 1px solid var(--tp-container-border-color, #e6e6e6); font-size: calc(var(--lay-font-size, 13px) - 1px); padding-left: 10px; }
 .lay-app { display: flex; align-items: center; gap: 6px; }
 .lay-app b { font-weight: 600; }
+/* the status bar is slimmer: a smaller logo */
+.lay-bottom .lay-app svg { width: 13px; height: 13px; }
 .lay-dim { color: var(--tp-label-foreground-color, #757575); }
 .lay-sep { width: 1px; height: 14px; background: var(--tp-container-border-color, #e6e6e6); margin: 0 8px; }
 .lay-file { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
@@ -130,7 +172,6 @@ body.lay-moving, body.lay-moving * { cursor: grabbing !important; user-select: n
 .lay-file.lay-editable { cursor: text; padding: 3px 5px; margin: 0 -5px; border-radius: 4px; outline: none; }
 .lay-file.lay-editable:hover { background: var(--tp-button-background-color-hover, rgba(0,0,0,.06)); }
 .lay-file.lay-editable:focus-visible, .lay-file.lay-editable[contenteditable] { box-shadow: inset 0 0 0 1px #0d99ff; background: var(--tp-input-background-color, transparent); text-overflow: clip; }
-.lay-fill { flex: 1; }
 /* no name set by the app: no name and no separator */
 .lay-noname .lay-sep, .lay-noname .lay-file { display: none; }
 /* the head of the floating layout, which has no bar: the logo, the app name and the file name, a card at the top of the
@@ -139,13 +180,6 @@ body.lay-moving, body.lay-moving * { cursor: grabbing !important; user-select: n
 .lay-head { display: none; right: auto; height: var(--lay-head, 36px); border-radius: 8px; box-shadow: var(--lay-card-shadow); }
 body.lay-side.lay-floating .lay-head { display: flex; top: var(--lay-gap); left: calc(var(--lay-gap) + var(--lay-left-offset)); width: var(--lay-left-area-size); }
 .lay-head .lay-file { flex: 1 1 auto; min-width: 0; max-width: none; }
-.lay-btn {
-    width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; padding: 0;
-    display: flex; align-items: center; justify-content: center; opacity: .75; flex-shrink: 0;
-}
-.lay-bottom .lay-btn { width: 22px; height: 22px; }
-.lay-btn:hover { opacity: 1; background: var(--tp-button-background-color-hover, #f2f3f5); }
-.lay-btn:focus-visible { outline: 2px solid #0d99ff; outline-offset: 1px; }
 /* the tool bar on the canvas: icon buttons with the hover and on states of the bars and the mode bar, not the larger
    buttons with dividers of the classic page. A margin keeps it above the card of the bottom area (floating) */
 body.lay-frame .util-buttons-container { gap: 2px; padding: 2px; margin-bottom: var(--lay-bottom-inset); }
@@ -179,16 +213,16 @@ body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) { --util-left-room
     body.lay-frame .pp-root.pp-bottom-left { bottom: 0.75rem; }
     body.lay-frame .pp-root.pp-bottom-left .pp-pill { height: 32px; min-width: 76px; justify-content: center; font-variant-numeric: tabular-nums; padding: 0 8px; border-radius: 8px; font-size: 12px; }
 }
-/* the entries of the areas in the mode bar, after the modes, with a line above them (EditorFrame.setArea). An entry is
-   marked while its area shows (lay-entry-on); a mode is marked by .on */
+/* the entries of the panels in the mode bar, after the modes, with a line above them (EditorFrame.addPanel). An entry is
+   marked while its panel shows (lay-entry-on); a mode is marked by .on */
 .lay-area-entries { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--mb-line); }
 .mb-wide .lay-area-entries { align-items: stretch; }
 .lay-area-entry { --mb-color: var(--tp-label-foreground-color, #8a8f98); }
 .mb-btn.lay-entry-on { background: color-mix(in srgb, var(--mb-color) 16%, transparent); }
-.lay-float-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
-.lay-float-actions + .mb-toggle { margin-top: 2px; }
+.lay-mode-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
+.lay-mode-actions + .mb-toggle { margin-top: 2px; }
 /* the wide bar: the actions are rows with their names, like the modes and the names toggle */
-.mb-wide .lay-float-actions { align-items: stretch; }
+.mb-wide .lay-mode-actions { align-items: stretch; }
 .lay-menu {
     position: fixed; z-index: 2000; display: flex; flex-direction: column; padding: 4px; min-width: 160px; border-radius: 8px;
     background: var(--tp-base-background-color, #fff); color: var(--tp-container-foreground-color, #1e1e1e);
@@ -212,14 +246,15 @@ body.lay-frame #tweakpaneUiContainer {
        than the room, and the panel scrolled sideways under a finger */
     overflow-x: hidden;
 }
-/* the sections of the panel: one line between them, no box, no gap above the first */
-body.lay-frame #tweakpaneUiContainer .tp-rotv_c { padding-top: 0 !important; }
-body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv {
+/* the sections of the panel: one line between them, no box, no gap above the first. Only the main pane (a child of the
+   container): a panel in the right place (TweakpaneEditorPlugin.addPanel) can hold a Tweakpane UI of its own */
+body.lay-frame #tweakpaneUiContainer > .tp-rotv > .tp-rotv_c { padding-top: 0 !important; }
+body.lay-frame #tweakpaneUiContainer > .tp-rotv > .tp-rotv_c > .tp-fldv {
     margin: 0 !important; border-radius: 0 !important;
     border-style: solid !important; border-width: 1px 0 0 !important; border-color: var(--tp-container-border-color, #e6e6e6) !important;
 }
 /* the first shown section: the hidden sections of the other modes come before it, so not :first-child */
-body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv.tp-v-vfst { border-top-width: 0 !important; }
+body.lay-frame #tweakpaneUiContainer > .tp-rotv > .tp-rotv_c > .tp-fldv.tp-v-vfst { border-top-width: 0 !important; }
 /* title and status bar: the canvas and the panel edge to edge, between the bars */
 body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container {
     margin: 0 !important; left: var(--lay-left-area); top: var(--lay-top); border-radius: 0; box-shadow: none;
@@ -230,9 +265,9 @@ body.lay-titlebar #tweakpaneUiContainer, body.lay-statusbar #tweakpaneUiContaine
     background: var(--tp-base-background-color, #fff); box-sizing: border-box;
     border-radius: 0;
 }
-body.lay-titlebar #tweakpaneUiContainer .tp-rotv, body.lay-statusbar #tweakpaneUiContainer .tp-rotv { border-radius: 0; box-shadow: none; }
+body.lay-titlebar #tweakpaneUiContainer > .tp-rotv, body.lay-statusbar #tweakpaneUiContainer > .tp-rotv { border-radius: 0; box-shadow: none; }
 /* no "Configuration" title: the mode bar names the open mode and hides the panel */
-body.lay-frame #tweakpaneUiContainer .tp-rotv_b { display: none; }
+body.lay-frame #tweakpaneUiContainer > .tp-rotv > .tp-rotv_b { display: none; }
 body.lay-titlebar .mb-root, body.lay-statusbar .mb-root { top: var(--lay-top); bottom: var(--lay-bottom); }
 body.lay-frame #mcanvas { border-radius: 0; }
 /* floating: the panel and the mode bar are one card (as in the other layouts, side by side with a line between them),
@@ -250,7 +285,7 @@ body.lay-floating #tweakpaneUiContainer {
     border-radius: 8px 0 0 8px; background: var(--tp-base-background-color, #fff); box-shadow: var(--lay-card-shadow);
     clip-path: inset(-20px 0 -20px -20px);
 }
-body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none; }
+body.lay-floating #tweakpaneUiContainer > .tp-rotv { box-shadow: none; }
 
 /* side by side (lay-side, EditorFrame.Breakpoints): the left area, the canvas with the bottom area below it, then the
    panel, then the mode bar */
@@ -411,8 +446,8 @@ body.lay-stack.lay-frame.mb-panel-hidden .mb-root {
     overflow-x: auto; overflow-y: hidden; border-left: 0;
 }
 body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .mb-toggle { margin: 0 0 0 auto; }
-body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions { flex-direction: row; margin: 0 0 0 auto; }
-body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions + .mb-toggle { margin-left: 2px; }
+body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .lay-mode-actions { flex-direction: row; margin: 0 0 0 auto; }
+body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .lay-mode-actions + .mb-toggle { margin-left: 2px; }
 body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .lay-area-entries { flex-direction: row; margin: 0 0 0 2px; padding: 0 0 0 6px; border-top: 0; border-left: 1px solid var(--mb-line); }
 
 /* one view at a time (body class lay-single, EditorFrame.Breakpoints): a narrow portrait window (stacked, below the

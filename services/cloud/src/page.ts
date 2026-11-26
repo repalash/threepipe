@@ -21,7 +21,7 @@ const HEADERS = {
     'x-content-type-options': 'nosniff',
     'referrer-policy': 'no-referrer',
     'x-frame-options': 'DENY',
-    'content-security-policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    'content-security-policy': 'default-src \'none\'; script-src \'self\'; style-src \'self\'; img-src \'self\' blob:; connect-src \'self\'; base-uri \'none\'; form-action \'none\'; frame-ancestors \'none\'',
 }
 const html = {'content-type': 'text/html; charset=utf-8', ...HEADERS}
 const js = {'content-type': 'text/javascript; charset=utf-8', ...HEADERS}

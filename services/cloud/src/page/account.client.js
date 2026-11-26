@@ -57,7 +57,7 @@ document.addEventListener('click', async e => {
     if (t.hasAttribute('data-new-link')) { newLink(); return }
     const l = S.links && S.links.find(x => x.id === idOf(t.getAttribute('data-revoke'))); if (!l) return
     if (!await UI.confirm('Revoke ' + (l.app || l.name || 'this link') + '?', l.app ? 'The app stops working with your drive now. Its folder and files stay; it can ask you again.' : 'Every key from this link stops working now.', {ok: 'Revoke'})) return
-    try { await api('/' + encodeURIComponent(l.id), {method: 'DELETE'}); toast('Revoked') } catch (e) { if (e.message !== 'signed out') toast('Could not revoke: ' + e.message, true) }
+    try { await api('/' + encodeURIComponent(l.id), {method: 'DELETE'}); toast('Revoked') } catch (err) { if (err.message !== 'signed out') toast('Could not revoke: ' + err.message, true) }
     load()
 })
 document.querySelector('[data-new-link]').innerHTML = icon('plus') + 'New access link'

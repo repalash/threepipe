@@ -27,7 +27,7 @@ import {appFolder, appLabel, AppOwner, grantFolder} from './appFolders'
  * Denying redirects back with `#tp_cloud_error=denied`.
  */
 export function connectRoutes(app: Hono<CloudEnv>) {
-    app.get('/api/v1/connect', async (c) => {
+    app.get('/api/v1/connect', async(c) => {
         const target = appTarget(c, c.req.query('return'), c.req.query('access'), c.req.query('state'))
         let user: CloudUser
         try {
@@ -47,7 +47,7 @@ export function connectRoutes(app: Hono<CloudEnv>) {
         return cardPage(c, consentPage(target, user, owner), {wide: true})
     })
 
-    app.post('/api/v1/connect', async (c) => {
+    app.post('/api/v1/connect', async(c) => {
         // a form post with the session cookie: guardRequest (src/auth.ts) already checked it comes from this origin
         const form = await c.req.parseBody()
         const target = appTarget(c, form.return, form.access, form.state)
@@ -137,7 +137,7 @@ async function appOwner(c: Context<CloudEnv>, t: AppTarget): Promise<AppOwner> {
 
 /** The grant for this app, served by this owner, with this access (the whole drive or the app's folder). */
 async function findGrant(c: Context<CloudEnv>, user: CloudUser, t: AppTarget, owner: {id: string} | null): Promise<{id: string, scope: string} | undefined> {
-    const row = await c.env.PRIMARY_DB.prepare(`SELECT id, scope FROM access_links WHERE owner_id = ? AND app = ? AND app_owner IS ? AND ${t.access === 'drive' ? "scope = '*'" : "scope != '*'"}`)
+    const row = await c.env.PRIMARY_DB.prepare(`SELECT id, scope FROM access_links WHERE owner_id = ? AND app = ? AND app_owner IS ? AND ${t.access === 'drive' ? 'scope = \'*\'' : 'scope != \'*\''}`)
         .bind(user.id, t.app, owner?.id ?? null).first<{id: string, scope: string}>()
     return row ?? undefined
 }
@@ -169,7 +169,7 @@ function consentPage(t: AppTarget, user: CloudUser, owner: AppOwner) {
     const folder = t.access === 'drive' ? 'your whole drive' : `Apps/${appLabel(t.app, owner)}`
     const who = owner ? `served by <b>@${esc(owner.username)}</b> at <code>${esc(t.returnUrl)}</code>` : `running on your computer at <code>${esc(t.returnUrl)}</code>`
     const what = t.access === 'drive'
-        ? `<b>All files in your drive</b>, including the files of other apps`
+        ? '<b>All files in your drive</b>, including the files of other apps'
         : `The files in <b>${esc(folder)}</b>`
     return `<h1>Connect ${esc(t.app)}?</h1>
 <p>The app ${who} wants to read, write, share and delete:</p>

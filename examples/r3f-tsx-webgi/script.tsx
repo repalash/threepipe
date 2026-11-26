@@ -75,7 +75,7 @@ function App() {
             onMount={async(viewer) => {
                 console.log('Loaded Viewer', viewer)
                 // Add a plugin with a debug UI for tweaking parameters
-                const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+                const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
                 // Add some debug UI elements for tweaking parameters
                 ui.setupPluginUi(SSAAPlugin)
                 ui.setupPluginUi(SSAOPlugin)

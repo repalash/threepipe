@@ -30,6 +30,7 @@ import {
     TCameraControlsMode,
 } from '../core'
 import {ViewerRenderManager} from './ViewerRenderManager'
+import {ViewerActions} from './ViewerActions'
 import {
     convertArrayBufferToStringsInMeta,
     EasingFunctionType,
@@ -351,6 +352,13 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     readonly assetManager: AssetManager
     readonly object3dManager: Object3DManager
 
+    /**
+     * The actions of the viewer and its plugins (`ViewerAction`): the commands that a person runs from a key, a
+     * toolbar, a menu or a command palette. Plugins register theirs here; a UI lists and runs them, and the app changes
+     * their keys ({@link ViewerActions.setShortcut}) or turns the keys off ({@link ViewerActions.enabled}).
+     */
+    readonly actions: ViewerActions
+
     @uiConfig(undefined, {label: 'Rendering', expanded: true}) @serialize('renderManager')
     readonly renderManager: ViewerRenderManager
 
@@ -480,6 +488,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         if (!container) container = globalThis.document?.body
         if (!container) throw new Error('No container(or canvas).')
         this._container = container // todo listen to canvas container change
+        this.actions = new ViewerActions(this)
         // if (getComputedStyle(this._container).position === 'static') {
         //     this.console.warn('ThreeViewer - The canvas container has static position, it must be set to relative or absolute for some plugins to work properly.')
         // }
@@ -803,6 +812,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
         this._scene.dispose(clear)
         this.renderManager.dispose(clear)
+        this.actions.dispose()
 
         if (clear) {
             this.object3dManager.dispose()

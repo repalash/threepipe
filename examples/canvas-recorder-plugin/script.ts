@@ -84,7 +84,7 @@ async function init() {
         },
     })
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.setupPluginUi(CanvasRecorderPlugin, {expanded: true})
     ui.setupPluginUi(CameraViewPlugin)
 

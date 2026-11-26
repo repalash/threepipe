@@ -22,7 +22,8 @@ import {
     Vector2,
     Vector3,
 } from 'three'
-import {handleGizmoKeyDown} from './gizmoKeyboardHandler'
+import {gizmoActions, type GizmoActionTarget} from './gizmoKeyboardHandler'
+import type {ViewerAction} from '../../viewer/ViewerActions'
 
 // ============================================================================
 // Math helpers (ported from drei)
@@ -194,28 +195,30 @@ export class PivotControls extends Group<PivotControlsEventMap & Object3DEventMa
         domElement.addEventListener('pointermove', this._onPointerMove)
         domElement.addEventListener('pointerup', this._onPointerUp)
 
-        this._onKeyDown = this._handleKeyDown.bind(this)
-        window.addEventListener('keydown', this._onKeyDown)
     }
 
     // ========================================================================
-    // Keyboard shortcuts (consistent with TransformControls2)
+    // Keyboard shortcuts (the same as TransformControls2)
     // ========================================================================
 
-    private _onKeyDown: (e: KeyboardEvent) => void
-
-    private _handleKeyDown(event: KeyboardEvent): void {
-        if (!this.enabled || !this.object) return
-
-        const handled = handleGizmoKeyDown(event, {
-            toggleSpace: () => { this.space = this.space === 'local' ? 'world' : 'local' },
-            adjustSize: (d) => { this.gizmoScale = Math.max(this.gizmoScale + d, 0.1) },
-            toggleAxis: (a) => { this.activeAxes[a] = !this.activeAxes[a]; this.updateHandleVisibility() },
-            toggleEnabled: () => { this.enabled = !this.enabled },
-        })
-
-        if (handled) this.dispatchEvent({type: 'change'})
-    }
+    /**
+     * The keys of the gizmo, as actions: Q (local or world space), + and - (the size), X, Y, Z (an axis) and Space (on or
+     * off), while it is enabled and attached; also with Shift held down. With a transform gizmo on too, the gizmo pressed
+     * last takes the keys they share (else the transform gizmo). The `PivotControlsPlugin` registers them in
+     * `viewer.actions`; without the plugin, register them yourself (`viewer.actions.register(controls.actions)`).
+     */
+    readonly actions: ViewerAction[] = gizmoActions('pivotControls', 'Pivot', {
+        // a press on a handle makes it the gizmo of the keys it shares with a transform gizmo
+        events: this as unknown as GizmoActionTarget['events'],
+        scope: () => this.domElement,
+        active: () => this.enabled && !!this.object,
+        attached: () => !!this.object,
+        toggleSpace: () => { this.space = this.space === 'local' ? 'world' : 'local' },
+        adjustSize: (d) => { this.gizmoScale = Math.max(this.gizmoScale + d, 0.1) },
+        toggleAxis: (a) => { this.activeAxes[a] = !this.activeAxes[a]; this.updateHandleVisibility() },
+        toggleEnabled: () => { this.enabled = !this.enabled },
+        changed: () => this.dispatchEvent({type: 'change'}),
+    })
 
     // ========================================================================
     // Annotation overlay
@@ -562,7 +565,6 @@ export class PivotControls extends Group<PivotControlsEventMap & Object3DEventMa
         this.domElement.removeEventListener('pointerdown', this._onPointerDown)
         this.domElement.removeEventListener('pointermove', this._onPointerMove)
         this.domElement.removeEventListener('pointerup', this._onPointerUp)
-        window.removeEventListener('keydown', this._onKeyDown)
         if (this._annotationEl) {
             this._annotationEl.remove()
             this._annotationEl = null

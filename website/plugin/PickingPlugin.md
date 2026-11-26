@@ -78,6 +78,8 @@ pickingPlugin.addEventListener('hoverObjectChanged', (e)=>{
 
 ```
 
+The UI of the plugin (the Picker folder) shows the settings of the selection: its uiConfig, its geometry and materials, and a Focus button. An app that shows the selection in another place sets `pickingPlugin.selectionUi = false`: the folder then shows only the picking settings. A uiConfig renders in one UI at a time, so the [`InspectorPlugin`](../package/plugin-tweakpane-editor#inspectorplugin) of the tweakpane editor does this while it is added.
+
 ## Multi-Selection
 
 Picking Plugin supports selecting multiple objects simultaneously using modifier keys. Multi-selection is enabled by default and can be disabled:
@@ -92,20 +94,22 @@ pickingPlugin.multiSelectEnabled = false // disable Shift+Click multi-selection
 |-----|--------|
 | **Shift/Ctrl/Cmd+Click** | Toggle object in/out of selection |
 | **Click** (no modifier) | Replace selection with single object |
-| **Ctrl/Cmd+A** | Select all visible model objects |
+| **Mod+A** | Select all visible model objects |
 | **Escape** | Clear entire selection |
 | **Delete / Backspace** | Delete selected objects (with confirmation dialog) |
-| **Ctrl/Cmd+D** | Duplicate selected objects (with smart offset) |
-| **Ctrl/Cmd+Shift+D** | Duplicate with alternate mode (simple↔compound) |
-| **Ctrl/Cmd+C** | Copy selected objects to clipboard |
-| **Ctrl/Cmd+X** | Cut selected objects (visual tint, no scene change until paste) |
-| **Ctrl/Cmd+V** | Paste from clipboard |
+| **Mod+D** | Duplicate selected objects (with smart offset) |
+| **Mod+Shift+D** | Duplicate with alternate mode (simple↔compound) |
+| **Mod+C** | Copy selected objects to clipboard |
+| **Mod+X** | Cut selected objects (visual tint, no scene change until paste) |
+| **Mod+V** | Paste from clipboard |
 | **H** | Toggle visibility of selected objects (based on primary object's state) |
 | **Shift+H** | Unhide all hidden objects in the scene |
 | **F** | Focus/zoom camera to selected object |
 | **Alt+G** | Reset position to (0, 0, 0) |
 | **Alt+R** | Reset rotation to identity |
 | **Alt+S** | Reset scale to (1, 1, 1) |
+
+The keys are actions (`picking.selectAll`, `picking.delete`, … in `PickingPlugin.actions`), registered in [`viewer.actions`](../guide/viewer-api#actions-and-shortcuts): a UI lists them, and the app changes or removes their keys there (`setShortcut`). Mod is Cmd on a Mac and Ctrl on other platforms. The edit keys (Mod+A, Mod+D, Mod+C, Mod+X, Mod+V) are letters, as in other apps: they follow the printed key on any layout; the other keys are places on the keyboard. A key that needs a selection is left to other handlers when nothing is selected. `keyboardShortcuts = false` (deprecated) still takes the keys off the actions.
 
 ### Smart Duplicate
 

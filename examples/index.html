@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Threepipe Examples</title>
+    <link rel="help" type="text/plain" href="./llms.txt" title="For agents: about threepipe, the source of this example and how to use it">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
         html, body {
@@ -403,8 +404,9 @@
                 deleteBtn.className = 'hov-btn delete-btn';
                 deleteBtn.onclick = (ev) => {
                     ev.stopPropagation();
-                    const customId = ev.target.parentElement.customIdLi;
-                    customExamples.splice(customExamples.findIndex(e => e.id === customId), 1);
+                    const customId = ev.target.parentElement.dataset.customIdLi;
+                    const index = customExamples.findIndex(e => e.id === customId);
+                    if (index >= 0) customExamples.splice(index, 1);
                     storage?.setItem('tp-examples-custom', JSON.stringify(customExamples));
                     storage?.removeItem(`tp-examples-custom-${customId}`);
                     ev.target.parentElement.remove();
@@ -528,6 +530,7 @@
 
 </head>
 <body>
+<noscript>This threepipe example needs JavaScript. Its source and instructions for agents: <a href="./llms.txt">llms.txt</a></noscript>
 <div class="root-container">
     <div class="sidebar" data-selected-example="Tweakpane Editor">
         <button class="hamburger"> &#9776;</button>
@@ -627,6 +630,7 @@
             <li><a href="./ssaa-plugin/">SSAA Plugin </a></li>
             <li><a href="./msaa-ssaa/">MSAA + SSAA </a></li>
             <li><a href="./viewer-render-size/">Viewer Render Size </a></li>
+            <li><a href="./hidden-tab-rendering/">Rendering in a Hidden Tab </a></li>
             <li><a href="./depth-buffer-plugin/">Depth Buffer Plugin </a></li>
             <li><a href="./normal-buffer-plugin/">Normal Buffer Plugin </a></li>
             <li><a href="./gbuffer-plugin/">GBuffer Plugin <br/>(NormalDepth+Flags) </a></li>
@@ -678,6 +682,8 @@
             <li><a href="./pivot-edit-plugin/">Pivot Edit Plugin </a></li>
             <li><a href="./editor-view-widget-plugin/">Editor View Widget Plugin </a></li>
             <li><a href="./editor-camera-plugin/">Editor Camera Plugin </a></li>
+            <li><a href="./viewer-actions/">Viewer Actions <br/>(Actions and shortcuts) </a></li>
+            <li><a href="./dialog-toasts/">Dialog Toasts <br/>(short messages over the canvas) </a></li>
             <li><a href="./editor-frame-areas/">Editor Frame Areas <br/>(sidebars, floating cards) </a></li>
             <li><a href="./loading-screen-plugin/">Loading Screen Plugin </a></li>
             <li><a href="./fullscreen-plugin/">FullScreen Plugin </a></li>
@@ -729,7 +735,7 @@
             <li><a href="./extra-importer-plugins/">Extra Importers (3ds, 3mf, collada, amf, bvh, vox, gcode, mdd, pcd, tilt, wrl, ldraw, vtk, xyz) </a></li>
             <li><a href="./gltf-meshopt-compression/">glTF MeshOpt Decode (Compression Extension) </a></li>
             <li><a href="./gltf-mesh-lines/">glTF Mesh Lines (Fat Lines) </a></li>
-            <li><a href="./gltf-spec-gloss-import">glTF pbrSpecularGlossiness <br/>(Convert/Import) </a></li>
+            <li><a href="./gltf-spec-gloss-import/">glTF pbrSpecularGlossiness <br/>(Convert/Import) </a></li>
             <li><a href="./assimpjs-plugin/">AssimpJs Plugin </a></li>
             <li><a href="./b3dm-load/">B3DM Load (3D Tile) </a></li>
             <li><a href="./i3dm-load/">I3DM Load (3D Tile) </a></li>
@@ -739,6 +745,7 @@
             <li><a href="./slippy-map-tiles/">Slippy Map Tiles Load<br/>(OpenStreetMap ZYX) </a></li>
             <li><a href="./ogc-tiles-google-maps/">Google Maps Globe (OGC Tiles)</a></li>
             <li><a href="./ogc-tiles-google-maps-3d/">Google Maps 3D (OGC Tiles)</a></li>
+            <li><a href="./ogc-tiles-mars/">Mars (OGC 3D Tiles)</a></li>
             <li><a href="./file-load/">File/Blob Load</a></li>
         </ul>
         <h2 class="category">Export</h2>
