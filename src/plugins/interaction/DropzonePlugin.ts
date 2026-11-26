@@ -123,14 +123,15 @@ export class DropzonePlugin extends AViewerPluginSync<DropzonePluginEventMap> {
     }
 
     /**
-     * Prompt for file url.
+     * Prompt for file url, and load it like {@link load} (no `drop` event).
+     * @returns what {@link load} returns: the loaded assets, or undefined when the prompt was cancelled or nothing was loaded
      */
     @uiButton('Import from URL')
-    public async promptForUrl(): Promise<void> {
+    public async promptForUrl() {
         if (this.isDisabled() || !this._viewer) return
         const res = await this._viewer.dialog.prompt('Enter URL: Enter a public URL for a 3d file with extension', '', true)
         if (!res || !res.length) return
-        await this.load(res, {}, true)
+        return await this.load(res, {}, true)
     }
 
     async load(res: string, options?: ImportAddOptions, dialog = false) {
@@ -178,6 +179,8 @@ export class DropzonePlugin extends AViewerPluginSync<DropzonePluginEventMap> {
         super.onAdded(viewer)
         this._inputEl = document.createElement('input')!
         this._inputEl.type = 'file'
+        // several files at once, like a drop: a model with the files it uses (an .obj with its .mtl and textures, a .gltf with its .bin)
+        this._inputEl.multiple = true
         if (!this._domElement) this._domElement = viewer.canvas
         this._dropzone = new Dropzone(this._domElement, this._inputEl, {
             drop: this._onFileDrop.bind(this),

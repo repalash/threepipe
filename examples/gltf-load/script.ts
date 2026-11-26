@@ -1,4 +1,6 @@
-import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, DropzonePlugin, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {createExampleCard} from '../examples-utils/example-card.js'
+import {modelStats} from '../examples-utils/model-stats.js'
 
 async function init() {
 
@@ -23,11 +25,24 @@ async function init() {
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
         setBackground: true,
     })
+    const loadStart = performance.now()
     const result = await viewer.load('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', {
         autoCenter: true,
         autoScale: true,
     })
+    const loadMs = Math.round(performance.now() - loadStart)
     console.log(result)
+
+    const stats = modelStats(viewer)
+    createExampleCard(viewer, {
+        description: 'Loads a glTF 2.0 file (.gltf with its .bin and textures, or one .glb), the format threepipe saves too. Drop a glTF/GLB file or an HDR environment on the page, or open one here.',
+        actions: [
+            {type: 'button', label: 'Open file…', icon: 'file-code', value: () => viewer.getPlugin(DropzonePlugin)?.promptForFile()},
+            {type: 'monitor', label: 'Meshes', getValue: () => stats.meshes.toLocaleString()},
+            {type: 'monitor', label: 'Triangles', getValue: () => stats.triangles.toLocaleString()},
+            {type: 'monitor', label: 'Load time', getValue: () => `${loadMs} ms`},
+        ],
+    })
 
 }
 

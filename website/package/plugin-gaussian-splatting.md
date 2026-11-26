@@ -11,7 +11,7 @@ next:
 
 # @threepipe/plugin-gaussian-splatting
 
-Exports [GaussianSplattingPlugin](https://threepipe.org/plugins/gaussian-splatting/docs/classes/GaussianSplattingPlugin.html) which adds support for loading .blend files.
+Exports [GaussianSplattingPlugin](https://threepipe.org/plugins/gaussian-splatting/docs/classes/GaussianSplattingPlugin.html) which adds support for loading Gaussian splat (.splat) files.
 
 It uses [`three-gaussian-splat`](https://github.com/repalash/threepipe/blob/master/plugins/gaussian-splatting/src/three-gaussian-splat), a rewrite of [@zappar/three-guassian-splat](https://github.com/zappar-xr/three-gaussian-splat) (and [gsplat.js](https://github.com/huggingface/gsplat.js) and [antimatter15/splat](https://github.com/antimatter15/splat)) for loading splat files and rendering gaussian splats.
 

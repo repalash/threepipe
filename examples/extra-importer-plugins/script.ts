@@ -62,7 +62,8 @@ async function init() {
     viewer.scene.mainCamera.autoNearFar = false
 
     viewer.scene.setBackgroundColor('#555555')
-    viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 2))
+    // in the root, not the model root: replacing the model (a drop, disposeSceneObjects) keeps the light
+    viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 2), {addToRoot: true})
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     // the portalgun .3ds file asks for its texture next to it (portalgun/color.jpg), but the file is in portalgun/textures:

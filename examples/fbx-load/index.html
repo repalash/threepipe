@@ -27,18 +27,38 @@
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script id="example-script" type="module">
-        import {_testFinish, _testStart, HemisphereLight, ThreeViewer} from 'threepipe'
+        import {_testFinish, _testStart, DropzonePlugin, HemisphereLight, ThreeViewer} from 'threepipe'
+        import {createExampleCard} from '../examples-utils/example-card.js'
+        import {modelStats} from '../examples-utils/model-stats.js'
 
-        const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas')})
+        const viewer = new ThreeViewer({
+            canvas: document.getElementById('mcanvas'),
+            // drop a file on the page (or Open file in the card) to load it in place of this one, with its textures
+            dropzone: {allowedExtensions: ['fbx', 'png', 'jpg', 'jpeg', 'webp'], addOptions: {disposeSceneObjects: true, autoCenter: true, autoScale: true}},
+        })
 
         async function init() {
 
-            viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 10))
+            // in the root, not the model root: replacing the model (a drop, disposeSceneObjects) keeps the light
+            viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 10), {addToRoot: true})
+            const loadStart = performance.now()
             const result = await viewer.load('https://threejs.org/examples/models/fbx/Samba Dancing.fbx', {
                 autoCenter: true,
                 autoScale: true,
             })
+            const loadMs = Math.round(performance.now() - loadStart)
             console.log(result)
+
+            const stats = modelStats(viewer)
+            createExampleCard(viewer, {
+                description: 'Loads an FBX file (Autodesk) with the FBX loader built into threepipe: a character from the three.js examples. Drop or open another .fbx.',
+                actions: [
+                    {type: 'button', label: 'Open file…', icon: 'file-code', value: () => viewer.getPlugin(DropzonePlugin)?.promptForFile()},
+                    {type: 'monitor', label: 'Meshes', getValue: () => stats.meshes.toLocaleString()},
+                    {type: 'monitor', label: 'Triangles', getValue: () => stats.triangles.toLocaleString()},
+                    {type: 'monitor', label: 'Load time', getValue: () => `${loadMs} ms`},
+                ],
+            })
 
         }
 
