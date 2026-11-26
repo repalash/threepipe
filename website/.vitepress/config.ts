@@ -38,6 +38,7 @@ export default defineConfig({
         items: [
           {text: '3D Assets', link: 'guide/3d-assets'},
           {text: 'Loading Files', link: 'guide/loading-files'},
+          {text: 'Sample Asset Catalog', link: 'guide/asset-catalog'},
           {text: 'Materials', link: 'guide/materials'},
           {text: 'Exporting Files', link: 'guide/exporting-files'},
           {text: 'Render Pipeline', link: 'guide/render-pipeline'},

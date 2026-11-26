@@ -4,8 +4,8 @@ prev:
     link: './3d-assets'
 
 next:
-    text: 'Materials Guide'
-    link: './materials'
+    text: 'Sample Asset Catalog'
+    link: './asset-catalog'
 ---
 
 # Loading files

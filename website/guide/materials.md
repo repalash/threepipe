@@ -1,7 +1,7 @@
 ---
 prev:
-    text: 'Loading Files'
-    link: './loading-files'
+    text: 'Sample Asset Catalog'
+    link: './asset-catalog'
 
 next:
     text: 'Exporting Files'
