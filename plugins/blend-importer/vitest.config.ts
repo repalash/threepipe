@@ -5,8 +5,8 @@ import path from 'node:path'
 /**
  * Node unit tests for the `.blend` loader.
  *
- * The `js.blend` parser is plain Node - no DOM, no three - so the tests parse real `.blend` files
- * rather than synthetic stand-ins. The repo's `tests/setup.ts`
+ * The `js.blend` parser and `loader/meshData.ts` are both plain Node - no DOM, no three - so the
+ * tests parse real `.blend` files rather than synthetic stand-ins. The repo's `tests/setup.ts`
  * polyfills are loaded anyway, because the bake round-trip test constructs three `BufferGeometry`
  * objects and three's module scope touches `ImageData`.
  *
@@ -19,6 +19,7 @@ export default defineConfig({
     ],
     resolve: {
         alias: {
+            '@threepipe/mesh-kernel': path.resolve(__dirname, '../mesh-kernel/src/index.ts'),
             'threepipe': path.resolve(__dirname, '../../src/index.ts'),
             'three': path.resolve(__dirname, '../../node_modules/three/'),
         },

@@ -1,8 +1,12 @@
+import {bakeGeometry, geometryDataToBufferGeometry, MeshData} from '@threepipe/mesh-kernel'
 import {Ctx} from './ctx'
 import {buildGeometry, MeshSource, withEmptyPosition} from './meshBuilder'
+import {createMeshData, MESH_DATA_KEY} from './meshData'
 
-// Reads a Blender Mesh datablock into a {@link MeshSource} and builds it with `buildGeometry`, which
-// does triangulation and normals the way Blender does. Blender has stored meshes in four layouts:
+// Every datablock the n-gon path (`meshData.ts`) can transcribe becomes a kernel `MeshData`, baked by
+// the kernel with Blender's normal rules (see `bakeMeshData`). The rest - mis-resolved or half-written
+// geometry - fall back to reading the datablock into a {@link MeshSource} and building it with
+// `buildGeometry`, which does triangulation and normals the way Blender does. Blender has stored meshes in four layouts:
 //   - MFace (< 2.63): one struct per tri/quad face.                          -> sourceFromMFace
 //   - MVert/MEdge/MPoly/MLoop (2.63 - 3.6; 3.x still writes these for compat) -> sourceFromMPoly
 //   - CustomData layers + poly_offset_indices (4.0 - 4.5)                    -> sourceFromLayers
@@ -382,7 +386,8 @@ function sourceFromAttributes(meshData: any, opts: GeometryOptions): MeshSource 
 }
 
 /**
- * The polygon cage the Subsurf modifier subdivides (`catmull.ts`): shared positions in three.js space,
+ * The polygon cage the Subsurf modifier subdivides (`catmull.ts`) when there is no `MeshData`, i.e. on
+ * the fallback path: shared positions in three.js space,
  * the faces as vertex lists, per-corner UVs and per-face material slots. Same faces as the triangulated
  * geometry, so Catmull-Clark smooths across them instead of across disconnected triangles.
  *
@@ -430,8 +435,62 @@ function build(src: MeshSource | null, name: string, ctx: Ctx) {
     return geometry
 }
 
+/**
+ * Bake an n-gon {@link MeshData} into a renderable `BufferGeometry`, and leave the mesh itself on the
+ * geometry's `userData` so it stays editable.
+ *
+ * The bake is corner-indexed (one output vertex per face corner) and ear-clips concave n-gons, which
+ * is what Blender's own draw path does. Normals follow the file's rules: before 4.1 the mesh's own
+ * Auto Smooth setting (off: smooth vertex normals, sharp edges ignored; on: split at sharp edges and
+ * above `smoothresh`), from 4.1 sharp edges always split and the angle comes from the object's Smooth
+ * by Angle modifier.
+ */
+function bakeMeshData(mesh: MeshData, meshData: any, name: string, ctx: Ctx, opts: GeometryOptions): any {
+    const rules = normalModeFor(meshData, opts)
+    const baked = bakeGeometry(mesh, {
+        includeNormals: true,
+        vertexNormals: rules.normalMode === 'vertex',
+        autoSmoothAngle: rules.autoSmoothAngle ?? null,
+        ignoreSharp: !!opts.ignoreSharpness,
+    })
+    const geometry = geometryDataToBufferGeometry<any>(baked.data, ctx)
+    geometry.name = name
+    geometry.userData = geometry.userData || {}
+    // Double-underscored so threepipe's serialiser leaves it alone: `MeshData` is a class, and a
+    // half-JSONified copy in glTF `primitive.extras` would be worse than none. Binary persistence is
+    // a glTF extension of its own (see issues/open/modelling-tools/00-synthesis.md 3.3).
+    geometry.userData[MESH_DATA_KEY] = mesh
+    return geometry
+}
+
+/**
+ * How many times one parsed file may complain about a datablock it could not decode as n-gons, before
+ * it stops. A geometry-nodes scene can hold hundreds of affected meshes and the console is not the
+ * place to list them all; the count is reported at the cut-off so nothing is hidden.
+ */
+const MAX_FALLBACK_WARNINGS = 8
+const fallbackWarnings = new WeakMap<object, number>()
+
+function warnFallback(meshData: any, name: string, reason: string) {
+    const file = meshData.__blender_file__
+    if (!file) return
+    const seen = (fallbackWarnings.get(file) ?? 0) + 1
+    fallbackWarnings.set(file, seen)
+    if (seen > MAX_FALLBACK_WARNINGS) return
+    console.warn(`BlendLoader - "${name}": not importable as n-gons (${reason}), falling back to the triangulating path.` +
+        (seen === MAX_FALLBACK_WARNINGS ? ' Further meshes in this file will not be reported.' : ''))
+}
+
 export function createBufferGeometry(meshData: any, ctx: Ctx, opts: GeometryOptions = {}) {
     const name = meshData.aname || ''
+
+    // N-gon path: transcribe the datablock into a `MeshData` and bake that. It reads all three DNA
+    // layouts, so this is the path for every file the parser resolves cleanly.
+    let reason = ''
+    const mesh = createMeshData(meshData, r => { reason ||= r })
+    if (mesh) return bakeMeshData(mesh, meshData, name, ctx, opts)
+    if (reason) warnFallback(meshData, name, reason)
+
     let src: MeshSource | null = null
     if (meshData.attribute_storage) src = sourceFromAttributes(meshData, opts)
     if (!src && meshData.mpoly && meshData.totpoly > 0) src = sourceFromMPoly(meshData)
@@ -440,7 +499,7 @@ export function createBufferGeometry(meshData: any, ctx: Ctx, opts: GeometryOpti
     return build(src, name, ctx)
 }
 
-/** A pre-4.0 (`MPoly`/`MLoop`) mesh datablock as geometry. Kept for tests that target that layout. */
+/** A pre-4.0 (`MPoly`/`MLoop`) mesh datablock through the fallback builder. Kept for tests of that layout. */
 export function createBufferGeometryOld(meshData: any, ctx: Ctx) {
     return build(sourceFromMPoly(meshData), meshData.aname || '', ctx)
 }
