@@ -1,4 +1,4 @@
-import {createBufferGeometry, GeometryOptions} from './geometry'
+import {cageOf, createBufferGeometry, GeometryOptions} from './geometry'
 import {createMaterial} from './material'
 import {subdivideGeometry} from './subdivide'
 import {cageFromMeshData, subdivideCage} from './catmull'
@@ -146,9 +146,10 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
                 if (levels > 0 && (globalThis as any).__NO_SUBSURF !== true) {
                     // Catmull-Clark needs the polygon topology; the baked triangles no longer have it. It
                     // comes from the editable n-gon mesh the importer attached, or - when that could not be
-                    // built and the legacy triangulators ran instead - from the cage they record.
+                    // built and the legacy triangulators ran instead - from the mesh source kept for this
+                    // import (`cageOf`).
                     const ngons = geometry.userData && geometry.userData[MESH_DATA_KEY]
-                    const cage = ngons ? cageFromMeshData(ngons) : geometry.userData && geometry.userData.__cage
+                    const cage = ngons ? cageFromMeshData(ngons) : cageOf(geometry, ctx)
                     if (m.subdivType !== 1 && cage) {
                         // Faithful Catmull-Clark on the n-gon cage (Blender's OSD_SCHEME_CATMARK) with face-varying
                         // UVs (seams stay sharp) + smooth normals + material groups. Falls back to the Loop
@@ -196,6 +197,8 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
         const cached = loaded.get(m)
         if (cached) return cached
         const created = createMaterial(m, ctx)
+        // Blender's material name, as the glTF exporter keeps it
+        if (typeof m.aname === 'string' && m.aname) created.name = m.aname
         loaded.set(m, created)
         return created
     }

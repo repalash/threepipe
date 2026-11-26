@@ -41,7 +41,36 @@ function inputsOf(node: any): any[] { return node ? listBaseToArray(node.inputs)
 // A socket's constant value (bNodeSocketValueRGBA/Float/Vector expose default_value.value).
 function socketConst(sock: any): any {
     const dv = sock && sock.default_value
-    return dv ? dv.value : undefined
+    if (!dv) return undefined
+    return dv.value !== undefined ? dv.value : rawSocketValue(dv, sock.type)
+}
+
+// Blender 2.80 and older write a socket's default value as raw bytes (`writedata`, no struct type), so the
+// parser can't give it fields, and every unlinked color and factor read as missing: a plain red Principled
+// BSDF came out white. Read it by the socket's type instead, with the bNodeSocketValue* layouts of
+// DNA_node_types.h (the same from 2.6x to 5.x): Float/Int `{int subtype; value; min, max}`, Vector
+// `{int subtype; float value[3]; ...}`, RGBA `{float value[4]}`, Boolean `{char value; ...}`.
+const SOCK_FLOAT = 0, SOCK_VECTOR = 1, SOCK_RGBA = 2, SOCK_BOOLEAN = 4, SOCK_INT = 6 // eNodeSocketDatatype
+function rawSocketValue(dv: any, type: unknown): number | number[] | undefined {
+    const bf = dv.__blender_file__
+    const at = dv.__data_address__
+    const size = dv.__byte_length__
+    if (!bf?.dv || typeof at !== 'number' || typeof size !== 'number') return undefined
+    const le = bf.template?.endianess
+    const floats = (offset: number, n: number) => {
+        if (offset + n * 4 > size) return undefined
+        const out: number[] = []
+        for (let i = 0; i < n; i++) out.push(bf.dv.getFloat32(at + offset + i * 4, le))
+        return out
+    }
+    switch (type) {
+    case SOCK_FLOAT: return floats(4, 1)?.[0]
+    case SOCK_VECTOR: return floats(4, 3)
+    case SOCK_RGBA: return floats(0, 4)
+    case SOCK_INT: return size >= 8 ? bf.dv.getInt32(at + 4, le) : undefined
+    case SOCK_BOOLEAN: return size >= 1 ? bf.dv.getInt8(at) : undefined
+    default: return undefined
+    }
 }
 const num = (v: any): number | undefined => (typeof v === 'number' ? v : undefined)
 const clamp01 = (c: number) => Math.max(0, Math.min(1, c))
@@ -68,6 +97,41 @@ function imageMime(b: Uint8Array): string | null {
 }
 const imageName = (img: any): string => (typeof img?.aname === 'string' ? img.aname : '') || (typeof img?.name === 'string' ? img.name : '') || 'blendTexture'
 
+// ── Downsizing (Ctx.maxTextureSize) ───────────────────────────────
+function makeCanvas(width: number, height: number): any {
+    if (typeof document !== 'undefined') {
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        return canvas
+    }
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height)
+    return null
+}
+
+// `image` (an <img>, canvas or ImageBitmap) drawn at most `max` pixels on its longest side, keeping its aspect
+// ratio, or undefined when it is small enough already (or there is no canvas to draw on).
+function downsized(image: any, max: number | undefined): any {
+    if (!max || !(max > 0)) return undefined
+    const w = image.naturalWidth || image.width, h = image.naturalHeight || image.height
+    if (!(w > 0 && h > 0) || Math.max(w, h) <= max) return undefined
+    const scale = max / Math.max(w, h)
+    const width = Math.max(1, Math.round(w * scale)), height = Math.max(1, Math.round(h * scale))
+    const canvas = makeCanvas(width, height)
+    const c2d = canvas && canvas.getContext('2d')
+    if (!c2d) return undefined
+    c2d.imageSmoothingEnabled = true
+    c2d.imageSmoothingQuality = 'high'
+    c2d.drawImage(image, 0, 0, width, height)
+    return canvas
+}
+
+function setDownsized(texture: Texture, ctx: Ctx) {
+    if (ctx.downsizedMipmaps !== false) return
+    texture.generateMipmaps = false
+    texture.minFilter = ctx.LinearFilter
+}
+
 // A packed TGA (Blender packs whatever file the image came from): decoded here, since browsers can't.
 function tgaTexture(bytes: Uint8Array, img: any, srgb: boolean, ctx: Ctx): Texture | null {
     let tga
@@ -76,12 +140,24 @@ function tgaTexture(bytes: Uint8Array, img: any, srgb: boolean, ctx: Ctx): Textu
     } catch (e) {
         return null
     }
-    const texture = new ctx.DataTexture(tga.data, tga.width, tga.height)
-    // Rows are top-down like an image, so upload flipped like one; DataTexture defaults to Nearest, no mips.
-    texture.flipY = true
-    texture.generateMipmaps = true
-    texture.minFilter = ctx.LinearMipmapLinearFilter
-    texture.magFilter = ctx.LinearFilter
+    let texture: Texture
+    const full = ctx.maxTextureSize && Math.max(tga.width, tga.height) > ctx.maxTextureSize ? makeCanvas(tga.width, tga.height) : null
+    const small = full && (() => {
+        full.getContext('2d')?.putImageData(new ImageData(new Uint8ClampedArray(tga.data.buffer, tga.data.byteOffset, tga.data.byteLength), tga.width, tga.height), 0, 0)
+        return downsized(full, ctx.maxTextureSize)
+    })()
+    if (small) {
+        // rows top-down like an image, so the texture's default flipY is right
+        texture = new ctx.Texture(small)
+        setDownsized(texture, ctx)
+    } else {
+        texture = new ctx.DataTexture(tga.data, tga.width, tga.height)
+        // Rows are top-down like an image, so upload flipped like one; DataTexture defaults to Nearest, no mips.
+        texture.flipY = true
+        texture.generateMipmaps = true
+        texture.minFilter = ctx.LinearMipmapLinearFilter
+        texture.magFilter = ctx.LinearFilter
+    }
     if (srgb) ctx.setSRGB(texture)
     texture.name = imageName(img)
     texture.needsUpdate = true
@@ -90,9 +166,34 @@ function tgaTexture(bytes: Uint8Array, img: any, srgb: boolean, ctx: Ctx): Textu
 
 // Load the packed image of an Image Texture node. `srgb` for color maps (base/emissive); false for data maps.
 // Returns undefined when the image isn't packed, null when it is but can't be decoded here.
+//
+// Each packed image is decoded once per import and color space: the next node using it gets a clone, which
+// shares the image (and, on three r138+, the upload to the GPU) but has its own wrap and UV transform. It used
+// to be decoded again for every use: 44 decodes for 37 images in Blender's Mr Elephant demo.
+interface PackedImage {texture: Texture | null | undefined, users: Texture[], loaded: boolean}
 function packedTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null | undefined {
     const img = imageNode && imageNode.id
     if (!img) return undefined
+    if (!ctx.packedImages) ctx.packedImages = new Map()
+    let byColorSpace: Record<string, PackedImage> = ctx.packedImages.get(img)
+    if (!byColorSpace) ctx.packedImages.set(img, byColorSpace = {})
+    const key = srgb ? 'srgb' : 'linear'
+    const known = byColorSpace[key]
+    if (known) {
+        if (!known.texture) return known.texture
+        const clone = known.texture.clone()
+        known.users.push(clone)
+        if (known.loaded) clone.needsUpdate = true
+        return clone
+    }
+    const entry: PackedImage = {texture: undefined, users: [], loaded: false}
+    byColorSpace[key] = entry
+    entry.texture = decodePacked(img, srgb, ctx, entry)
+    if (entry.texture) entry.users.push(entry.texture)
+    return entry.texture
+}
+
+function decodePacked(img: any, srgb: boolean, ctx: Ctx, entry: PackedImage): Texture | null | undefined {
     const pf = img.packedfile || (img.packedfiles && img.packedfiles.first && img.packedfiles.first.packedfile)
     const block = pf && pf.data
     const size = pf && typeof pf.size === 'number' ? pf.size : 0
@@ -107,24 +208,42 @@ function packedTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null 
     if (!mime) {
         const tga = /\.tga$/i.test(String(img.name ?? '')) || /\.tga$/i.test(imageName(img)) ? tgaTexture(bytes, img, srgb, ctx) : null
         if (!tga && ctx.onTextureIssue) ctx.onTextureIssue('packed-unsupported', imageName(img))
+        entry.loaded = !!tga
         return tga
     }
     if (typeof Blob === 'undefined' || typeof URL === 'undefined' || typeof Image === 'undefined') return null
-    const url = URL.createObjectURL(new Blob([bytes], {type: mime}))
     const el = new Image()
     const texture = new ctx.Texture(el)
     if (srgb) ctx.setSRGB(texture)
     texture.name = imageName(img)
-    const decoded = new Promise<void>((resolve) => {
-        el.onload = () => { texture.needsUpdate = true; URL.revokeObjectURL(url); resolve() }
+    const decode = () => new Promise<void>((resolve) => {
+        const url = URL.createObjectURL(new Blob([bytes], {type: mime}))
+        el.onload = () => {
+            URL.revokeObjectURL(url)
+            // Shrunk to Ctx.maxTextureSize: the textures get the small canvas and the full-size <img> is let go.
+            const small = downsized(el, ctx.maxTextureSize)
+            for (const t of entry.users) {
+                if (small) {
+                    t.image = small
+                    setDownsized(t, ctx)
+                }
+                t.needsUpdate = true
+            }
+            entry.loaded = true
+            resolve()
+        }
         el.onerror = () => {
             URL.revokeObjectURL(url)
             if (ctx.onTextureIssue) ctx.onTextureIssue('packed-unsupported', imageName(img))
             resolve()
         }
+        el.src = url
     })
+    // With a size cap, one image at a time, so only one is ever in memory at full size; without, all at once.
+    const decoded = ctx.maxTextureSize && ctx.maxTextureSize > 0
+        ? ctx.decodeQueue = (ctx.decodeQueue || Promise.resolve()).then(decode)
+        : decode()
     if (ctx.onPending) ctx.onPending(decoded)
-    el.src = url
     return texture
 }
 // Image source enum (DNA_image_types.h): GENERATED = 4, VIEWER = 5 have no backing file.

@@ -296,6 +296,23 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
      */
     evaluationMode: BlendEvaluationMode = 'viewport'
 
+    /**
+     * Longest side, in pixels, of the images packed in a `.blend`: a bigger one is shrunk while it is
+     * decoded, keeping its aspect ratio, before it becomes a texture, and packed images then decode one at
+     * a time so only one is ever held at full size. `0` (the default): images as stored. Packed images only;
+     * external files load through the asset importer at their own size.
+     *
+     * For memory-bound pages: Blender's Mr Elephant demo packs 88 megapixels of images (~340 MB as RGBA,
+     * ~450 MB with mipmaps); at 2048 that is 52 megapixels, at 1024 18.
+     */
+    maxTextureSize = 0
+
+    /**
+     * `false`: no mipmaps for the images {@link maxTextureSize} shrank, a quarter less GPU memory each
+     * (and coarser shading of those textures far away). Images that weren't shrunk keep their mipmaps.
+     */
+    downsizedMipmaps = true
+
     constructor() {
         super()
     }
@@ -407,6 +424,8 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
                 BufferGeometry: BufferGeometry2,
                 BufferAttribute: BufferAttribute,
                 evaluationMode: this.plugin?.evaluationMode,
+                maxTextureSize: this.plugin?.maxTextureSize,
+                downsizedMipmaps: this.plugin?.downsizedMipmaps,
                 loadExternalTexture: importer
                     ? (p: string, srgb: boolean) => {
                         const req = resolveExternalTexture(p, srgb, importer, url, issues)
