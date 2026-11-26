@@ -1,6 +1,7 @@
 import {defineConfig} from 'vite'
 import json from '@rollup/plugin-json';
 import dts from 'vite-plugin-dts'
+import {fixDtsImports} from '../../scripts/vite-utils.mjs';
 import packageJson from './package.json';
 import license from 'rollup-plugin-license';
 import replace from '@rollup/plugin-replace';
@@ -53,7 +54,9 @@ export default defineConfig({
         },
     },
     plugins: [
-        isProd ? dts({tsconfigPath: './tsconfig.json'}) : null,
+        // The tsconfig `paths` map `three` to `threepipe`; vite-plugin-dts would turn that into a relative
+        // `import('./threepipe')` that exists in no published package. Keep `three` as a package name.
+        isProd ? dts({tsconfigPath: './tsconfig.json', aliasesExclude: [/^three$/], afterBuild: fixDtsImports}) : null,
         replace({
             'from \'three\'': 'from \'threepipe\'',
             delimiters: ['', ''],

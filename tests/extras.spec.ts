@@ -27,8 +27,7 @@ test('import-test', async({page}) => expect(page).toHaveTitle('Basic Lib Import 
 test('ktx-load', async({page}) => expect(page).toHaveTitle('KTX Texture Load'))
 test('ktx2-load', async({page}) => expect(page).toHaveTitle('KTX2 Texture Load'))
 test('material-uiconfig', async({page}) => expect(page).toHaveTitle('Material UiConfig'))
-test('obj-mtl-load', async({page}) => expect(page).toHaveTitle('OBJ MTL Load'))
-test('obj-to-glb', async({page}) => expect(page).toHaveTitle('OBJ To GLB'))
+// obj-mtl-load, obj-to-glb — covered by interactive tests
 test('object-uiconfig', async({page}) => expect(page).toHaveTitle('Object UiConfig'))
 test('parallel-asset-import', async({page}) => expect(page).toHaveTitle('Parallel Asset Import/Download'))
 test('ply-load', async({page}) => expect(page).toHaveTitle('PLY Load'))

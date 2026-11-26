@@ -1,4 +1,4 @@
-import {type GLTF, GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader'
+import {type GLTF, GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {ILoader} from '../IImporter'
 import {LoadingManager} from 'three'
 import {ImportAddOptions} from '../AssetManager'

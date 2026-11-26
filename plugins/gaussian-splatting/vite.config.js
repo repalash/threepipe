@@ -1,6 +1,7 @@
 import {defineConfig} from 'vite'
 import json from '@rollup/plugin-json';
 import dts from 'vite-plugin-dts'
+import {fixDtsImports} from '../../scripts/vite-utils.mjs';
 import packageJson from './package.json';
 import license from 'rollup-plugin-license';
 import replace from '@rollup/plugin-replace';
@@ -53,7 +54,8 @@ export default defineConfig({
         },
     },
     plugins: [
-        isProd ? dts({tsconfigPath: './tsconfig.json'}) : null,
+        // copyDtsFiles: worker.d.ts imports the hand-written src/three-gaussian-splat/cpp-sorter/ISort.d.ts
+        isProd ? dts({tsconfigPath: './tsconfig.json', copyDtsFiles: true, afterBuild: fixDtsImports}) : null,
         replace({
             'from \'three\'': 'from \'threepipe\'',
             delimiters: ['', ''],

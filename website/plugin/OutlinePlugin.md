@@ -13,7 +13,7 @@ aside: false
 # OutlinePlugin
 
 [Example](https://threepipe.org/examples/#outline-plugin/) &mdash;
-[API Reference](https://webgi.dev/docs/classes/OutlinePlugin.html)
+[API Reference](https://threepipe.org/plugins/webgi-plugins/docs/classes/OutlinePlugin.html)
 
 <iframe src="https://threepipe.org/examples/outline-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Outline Plugin Example"></iframe>
 
@@ -36,7 +36,7 @@ The plugin renders selected objects to a separate depth buffer and processes it 
 
 ## Installation
 
-This plugin is part of the `@threepipe/webgi-plugins` package:
+This plugin is part of the [`@threepipe/webgi-plugins`](../package/webgi-plugins) package:
 
 ```bash
 npm install @threepipe/webgi-plugins

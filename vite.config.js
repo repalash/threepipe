@@ -5,7 +5,7 @@ import packageJson from './package.json';
 import license from 'rollup-plugin-license';
 import glsl from 'rollup-plugin-glsl';
 import path from 'node:path';
-import {globalsReplacePlugin} from './scripts/vite-utils.mjs';
+import {fixDtsImports, globalsReplacePlugin} from './scripts/vite-utils.mjs';
 
 const isProd = process.env.NODE_ENV === 'production'
 const { name, version, author } = packageJson
@@ -49,7 +49,7 @@ export default defineConfig({
         },
     },
     plugins: [
-        isProd ? dts({tsconfigPath: './tsconfig.json'}) : null,
+        isProd ? dts({tsconfigPath: './tsconfig.json', afterBuild: fixDtsImports}) : null,
         ...globalsReplacePlugin(globals, isProd),
         glsl({ // todo: minify glsl.
             include: 'src/**/*.glsl',

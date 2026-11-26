@@ -8,6 +8,28 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
+- **Blender-accurate normals.** Flat-shaded faces, Auto Smooth (`Mesh.flag`/`smoothresh` before 4.1, the "Smooth by Angle" modifier from 4.1), sharp edges and sharp faces are now honoured. Normals are angle-weighted per corner like Blender's, and vertices are split at hard edges and UV seams. Previously every mesh got three.js `computeVertexNormals` (or Blender's smooth vertex normals), so hard-surface models looked blobby, with shading smeared across their edges. Checked against Blender 5.3's evaluated corner normals: 0.00° error on a Blender 3.0 scene and on a 5.x test file (flat cube, smooth sphere, sharp edges, Smooth by Angle modifier, concave n-gons). The error was 29° on average before.
+- **Emission and Background shaders** wired straight into the output now load as an unlit material (Color × Strength, with the texture as `map`), as Blender's glTF exporter does. Before, they rendered as lit 0.8 grey with the emission added on top. **Diffuse BSDF** outputs map to a fully rough, non-specular material.
+- Pre-2.63 meshes (`MFace` only) load instead of coming out empty.
+
+### Fixed
+
+- **Missing triangles on n-gons.** Pre-4.0 files (`MPoly`) were triangulated with a step-2 strip that dropped triangles from every face with 5+ corners, and padded the index with zeros. All mesh layouts now share one triangulation that matches Blender's: quads split like `is_quad_flip_v3_first_third_fast`, and n-gons are ear-clipped in their plane, so concave faces are no longer filled across their gaps.
+- **Blender 5.x files with more than one mesh showed the same geometry everywhere.** Blender 5.x writes per-datablock pointer addresses, so the same address recurs in every mesh. The parser kept one global address map, so each mesh resolved to the last mesh's attribute arrays. Pointers now resolve within the owning ID's DATA blocks first, as Blender's reader does.
+- **Fields after a 3-D array in a struct were read from the wrong offset.** The parser only understood two array dimensions, so in Blender 3.0+ `Image` (`*gputexture[3][2][2]`) `source`, `packedfile` and `packedfiles` were misread, and packed textures fell back to loading a file that isn't there.
+- Multi-material meshes get one geometry group per material slot, not one per run of faces.
+
+## [0.3.1] - 2026-10-24
+
+### Fixed
+
+- **Metallic textures had no effect.** A texture linked to the Principled BSDF Metallic input set `metalnessMap` but left `metalness` at 0, and three.js multiplies the map by that factor, so the surface stayed non-metallic. `metalness` is now 1 when the map is set.
+- **Emission textures were not applied.** The emission texture was loaded and used to pick the emissive color, but never assigned to `emissiveMap`, so the surface emitted a flat color (white with Blender's default black factor) instead of the texture pattern. It is now set as `emissiveMap`.
+
+## [0.3.0] - 2026-10-23
+
+### Added
+
 - **Blender 5.0 (file format version 1) support.** Reads the new 17-byte header (`BLENDER17-01v0500`) and the reordered 32-byte `LargeBHead8` block layout (64-bit lengths, `SDNAnr`/`len` swapped). Added `int8_t`/`int16_t`/`int32_t`/`int64_t`/`uint*` explicit-width SDNA field types (Blender 5.0 DNA uses them widely). Verified against the bundled Blender 5.0 startup file and 3 geometry-nodes scenes; all 41 legacy fixtures (Blender 1.69 → 4.5) remain byte-identical.
 - **Blender 5.0 mesh geometry via `attribute_storage`.** Blender 5.0 moved mesh data out of CustomData (`vdata`/`ldata`) into a new `AttributeStorage` of named attributes. The loader now reads `position` (Float3) and `.corner_vert` (Int32) from it, using each attribute's stored `AttributeArray.size` (the Mesh `tot*` fields are runtime/post-geometry-nodes counts that don't match the stored arrays). NaN/Inf verts are sanitized; out-of-range face indices are skipped.
 - **UV extraction** from the first user `UVMap` (Float2 corner-domain attribute) on the Blender 5.0 path. Per-vertex assignment (exact away from UV seams).
@@ -59,6 +81,8 @@ All notable changes to this plugin will be documented in this file.
 - Update [threepipe](https://threepipe.org/) `peerDependency` to [0.1.0](https://github.com/repalash/threepipe/releases/tag/v0.1.0)
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/blend-importer
+[0.3.1]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-0.3.1
+[0.3.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-0.3.0
 [0.2.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-0.2.0
 [0.1.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-0.1.0
 [0.0.9]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-0.0.9

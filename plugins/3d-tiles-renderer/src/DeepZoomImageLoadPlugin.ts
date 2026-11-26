@@ -38,7 +38,7 @@ export class DeepZoomImageLoader extends TilesRendererLoader {
     }
 }
 
-declare module 'TilesRendererPlugin'{
+declare module './TilesRendererPlugin'{
     interface TilesImportOptions {
         DeepZoomImagePlugin?: boolean | {
             center?: boolean,

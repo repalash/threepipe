@@ -10,7 +10,13 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": ">=0.4.0"
+        "threepipe": ">=0.4.0",
+        "three-gpu-pathtracer": "^0.0.23"
+    },
+    "peerDependenciesMeta": {
+        "three-gpu-pathtracer": {
+            "optional": true
+        }
     },
     "overrides": {
         "threepipe": "$threepipe",

@@ -10,6 +10,12 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.2.7] - 2026-10-23
+
+### Fixed
+
+- Type declarations resolve in consumer projects with `moduleResolution: bundler`, `node16` and `nodenext` ([#60](https://github.com/repalash/threepipe/pull/60)): the `.d.ts` files imported a tsconfig `paths` alias of `three`, which resolves nowhere; relative imports carry `.js`
+
 ## [0.2.6] - 2025-19-24
 
 ### Fixes
@@ -24,5 +30,6 @@ All notable changes to this plugin will be documented in this file.
 - Update [threepipe](https://threepipe.org/) `peerDependency` to [0.1.0](https://github.com/repalash/threepipe/releases/tag/v0.1.0)
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/extra-importers
+[0.2.7]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugins-extra-importers-0.2.7
 [0.2.5]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugins-extra-importers-0.2.5
 [0.2.4]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugins-extra-importers-0.2.4
