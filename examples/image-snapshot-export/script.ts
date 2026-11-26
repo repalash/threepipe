@@ -1,5 +1,5 @@
 import {_testFinish, _testStart, downloadBlob, isWebpExportSupported, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({
     renderScale: 'auto',
@@ -27,27 +27,23 @@ async function init() {
         else alert('Unable to get screenshot')
     }
 
-    createSimpleButtons({
-        ['Download snapshot (PNG)']: async(btn: HTMLButtonElement) => {
-            btn.disabled = true
-            await downloadSnapshot()
-            btn.disabled = false
-        },
-        ['Download snapshot (JPEG)']: async(btn: HTMLButtonElement) => {
-            btn.disabled = true
-            await downloadSnapshot('jpeg')
-            btn.disabled = false
-        },
-        ['Download snapshot (WEBP)']: async(btn: HTMLButtonElement) => {
-            btn.disabled = true
-            if (!isWebpExportSupported()) {
-                alert('WebP export is not supported in this browser, try the latest version of chrome, firefox or edge.')
-                btn.disabled = false
-                return
-            }
-            await downloadSnapshot('webp')
-            btn.disabled = false
-        },
+    createExampleCard(viewer, {
+        description: 'Saves the canvas as an image with viewer.getScreenshotBlob: PNG, JPEG or WebP. See the Canvas Snapshot Plugin for sizes, crops and tiles.',
+        actions: [
+            {type: 'button', label: 'Download snapshot (PNG)', icon: 'image', value: async() => {
+                await downloadSnapshot()
+            }},
+            {type: 'button', label: 'Download snapshot (JPEG)', icon: 'image', value: async() => {
+                await downloadSnapshot('jpeg')
+            }},
+            {type: 'button', label: 'Download snapshot (WEBP)', icon: 'image', value: async() => {
+                if (!isWebpExportSupported()) {
+                    alert('WebP export is not supported in this browser, try the latest version of chrome, firefox or edge.')
+                    return
+                }
+                await downloadSnapshot('webp')
+            }},
+        ],
     })
 
 }
