@@ -87,3 +87,33 @@ describe('UndoManagerPlugin actions', () => {
         expect(undo).toHaveBeenCalledTimes(1)
     })
 })
+
+/** The plugin with an undo manager and its presets, as `onAdded` sets them up (no viewer, no UI plugin: so not the uiconfig.js presets) */
+function withPresets() {
+    const p: any = new UndoManagerPlugin()
+    p.undoManager = new JSUndoManager({bindHotKeys: false, limit: p.limit, debug: false})
+    p._refresh()
+    return p
+}
+
+describe('UndoManagerPlugin.performAction', () => {
+    it('records an action that undoes and redoes with the plugin presets', async() => {
+        const p = withPresets()
+        const target = {count: 0, add(n: number) {
+            this.count += n
+            return () => this.count -= n
+        }}
+        let undoRedo = 0
+        await p.performAction(target, target.add, [2], 'add', () => undoRedo++)
+        expect(target.count).toBe(2)
+        expect(p.undoManager.peek().type).toBe(p.undoCommandTypes.action)
+
+        p.undo()
+        await Promise.resolve()
+        expect(target.count).toBe(0)
+        p.redo()
+        await Promise.resolve()
+        expect(target.count).toBe(2)
+        expect(undoRedo).toBe(2)
+    })
+})
