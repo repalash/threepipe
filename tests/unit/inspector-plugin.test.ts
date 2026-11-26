@@ -388,6 +388,25 @@ describe('InspectorPlugin', () => {
         }
     })
 
+    test('the keyboard focus stays on a bar button: after its action runs, and when the bar is made again', () => {
+        const {el} = setup()
+        try {
+            picking.select(mesh(new PhysicalMaterial()))
+            const hide = el.find('isp-action')[1]
+            doc.activeElement = hide
+            hide.click() // Enter or Space on the focused button
+            expect(picking.runs).toEqual(['hide'])
+            expect(el.find('isp-action')[1]).toBe(hide)
+            // another selection makes the bar again: the button of the same action takes the focus
+            picking.select(mesh(new PhysicalMaterial()))
+            const hide2 = el.find('isp-action')[1]
+            expect(hide2).not.toBe(hide)
+            expect(hide2.focused).toBe(true)
+        } finally {
+            delete doc.activeElement
+        }
+    })
+
     test('an action that the app replaces in viewer.actions (the same id): the bar shows and runs the new one', async() => {
         const win = new EventTarget()
         vi.stubGlobal('addEventListener', win.addEventListener.bind(win))

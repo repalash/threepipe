@@ -357,7 +357,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         viewer.scene.addEventListener('objectUpdate', this._onObjectUpdate)
         viewer.scene.addEventListener('geometryUpdate', this._onGeometryUpdate)
         viewer.addEventListener('update', this._onViewerUpdate)
-        viewer.actions.addEventListener('actionsChange', this._onActionsChange)
+        viewer.actions.addEventListener('actionsChange', this._refreshBar)
         // the PickingPlugin can be removed and added again
         viewer.addPluginListener('add', this._onPluginAdded, 'PickingPlugin')
         viewer.addPluginListener('remove', this._onPluginRemoved, 'PickingPlugin')
@@ -371,7 +371,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         viewer.scene.removeEventListener('objectUpdate', this._onObjectUpdate)
         viewer.scene.removeEventListener('geometryUpdate', this._onGeometryUpdate)
         viewer.removeEventListener('update', this._onViewerUpdate)
-        viewer.actions.removeEventListener('actionsChange', this._onActionsChange)
+        viewer.actions.removeEventListener('actionsChange', this._refreshBar)
         viewer.removePluginListener('add', this._onPluginAdded)
         viewer.removePluginListener('remove', this._onPluginRemoved)
         this._setPicking(undefined)
@@ -604,9 +604,14 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         else a.run()
     }
 
-    /** The icons of the actions of the selected object ({@link BarActions}) */
+    /**
+     * The icons of the actions of the selected object ({@link BarActions}). A button that had the keyboard focus gives it
+     * to the new button of the same action, so a keyboard user stays in the bar (another selection makes it again).
+     */
     private _renderBar() {
         if (!this._bar) return // the first set of enabled, before the constructor makes the elements
+        const active = document.activeElement as HTMLElement | null
+        const focused = active?.parentElement === this._bar ? active.dataset.action : undefined
         this._bar.replaceChildren()
         this._barButtons = []
         for (const a of this._barActions()) {
@@ -623,17 +628,19 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
             b.addEventListener('focus', tip)
             b.addEventListener('click', () => {
                 this._runAction(a)
-                this._renderBar() // Select the parent: enabled or not for the new selection
+                this._refreshBar() // the buttons stay (the focus too) while the actions are the same
             })
         }
         this._syncBar()
+        if (focused) this._barButtons.find(i => i.action.id === focused)?.button.focus()
     }
 
     /**
-     * An action was registered, removed or given another key in `viewer.actions`: the bar is made again when its actions
-     * are not the ones of its buttons (the app replaced one with the same id), else the buttons are set again (a key)
+     * After an action runs, and when an action was registered, removed or given another key in `viewer.actions`: the bar
+     * is made again when its actions are not the ones of its buttons (the app replaced one with the same id), else the
+     * buttons are set again (a state, a key) and stay
      */
-    private _onActionsChange = () => {
+    private _refreshBar = () => {
         const now = this._barActions().filter(a => a.icon)
         if (now.length !== this._barButtons.length || now.some((a, i) => a !== this._barButtons[i].action)) this._renderBar()
         else this._syncBar()
