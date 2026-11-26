@@ -232,6 +232,21 @@ function readAttrArray(attr: any, Ctor: any, count: number): any | null {
     return block.__blender_file__.readTypedArray(Ctor, block.__data_address__, count)
 }
 
+/**
+ * `storage_type` Single (1): `data` points to an `AttributeSingle { void *data; ... }` holding one value
+ * for every element. Blender writes this for constant attributes, e.g. `sharp_face` on a mesh whose
+ * faces are all flat.
+ */
+const STORAGE_SINGLE = 1
+function readAttrSingle(attr: any, arrayType: any, components: number, count: number): any | null {
+    const block = attr && attr.data && attr.data.data // AttributeSingle.data -> one value
+    if (!block || block.__data_address__ === undefined || !block.__blender_file__) return null
+    const one = block.__blender_file__.readTypedArray(arrayType, block.__data_address__, components)
+    const out = new arrayType(count * components)
+    for (let i = 0; i < count; i++) out.set(one, i * components)
+    return out
+}
+
 // endregion
 
 // region attribute name/type mapping
@@ -608,12 +623,13 @@ function rawFromAttributeStorage(meshData: any, skip: Skip): RawMesh | null {
         if (domain < DOMAIN_POINT || domain > DOMAIN_CORNER) continue
         const count = domainCount[domain]
         if (count <= 0) continue
-        if (attrSize(a) < count) continue
+        const single = a.storage_type === STORAGE_SINGLE
+        if (!single && attrSize(a) < count) continue
         const type = attrPropType(a.data_type | 0)
         if (!type) continue
         if (layers.some(l => l.name === name)) continue
         const {ctor, components} = TYPE_READ[type]
-        const data = readAttrArray(a, ctor, count * components)
+        const data = single ? readAttrSingle(a, ctor, components, count) : readAttrArray(a, ctor, count * components)
         if (!data) continue
         layers.push({name, domain: domain as AttrDomain, type, data})
     }

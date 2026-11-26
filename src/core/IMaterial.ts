@@ -149,7 +149,9 @@ export interface IMaterialUserData extends IImportResultUserData{
 
     renderToGBuffer?: boolean
     /**
-     * Same as {@link renderToGBuffer} but for depth only, not normal or flags etc
+     * Same as {@link renderToGBuffer}, and takes precedence over it, for the passes that render depth:
+     * DepthBufferPlugin and GBufferPlugin, and the normal buffer of NormalBufferPlugin when its
+     * `renderTransparent` is `false`. When not set, {@link renderToGBuffer} is used.
      */
     renderToDepth?: boolean
 

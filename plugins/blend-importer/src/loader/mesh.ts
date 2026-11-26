@@ -1,5 +1,5 @@
 import {DoubleSide} from 'threepipe'
-import {createBufferGeometry} from './geometry'
+import {createBufferGeometry, GeometryOptions} from './geometry'
 import {createMaterial} from './material'
 import {subdivideGeometry} from './subdivide'
 import {cageFromMeshData, subdivideCage} from './catmull'
@@ -17,7 +17,7 @@ function listToArray(lb: any): any[] {
     return out
 }
 // DNA_modifier_types.h — ModifierType / eModifierMode.
-const eModifierType_Subsurf = 1, eModifierType_Mirror = 5, eModifierType_Array = 12, eModifierType_Solidify = 33
+const eModifierType_Subsurf = 1, eModifierType_Mirror = 5, eModifierType_Array = 12, eModifierType_Solidify = 33, eModifierType_Nodes = 57
 const eModifierMode_Realtime = 1 << 0, eModifierMode_Render = 1 << 1
 // Names for the "unsupported modifier" warning (so missing geometry isn't silent). Values per
 // DNA_modifier_types.h `eModifierType_*`.
@@ -35,6 +35,56 @@ const MODIFIER_NAMES: Record<number, string> = {
     56: 'Fluid', 57: 'GeometryNodes', 58: 'MeshToVolume', 59: 'VolumeDisplace', 60: 'VolumeToMesh', 64: 'Remesh',
 }
 
+// IDProperty.type (DNA_ID_enums.h)
+const IDP_INT = 1, IDP_FLOAT = 2, IDP_DOUBLE = 8, IDP_BOOLEAN = 10
+const SMOOTH_BY_ANGLE = /smooth by angle|auto ?smooth/i
+
+function idPropNumber(p: any): number | undefined {
+    const d = p?.data
+    if (!d) return undefined
+    const dv = new DataView(new ArrayBuffer(8))
+    dv.setInt32(0, d.val | 0, true)
+    dv.setInt32(4, d.val2 | 0, true)
+    if (p.type === IDP_FLOAT) return dv.getFloat32(0, true)
+    if (p.type === IDP_DOUBLE) return dv.getFloat64(0, true)
+    if (p.type === IDP_INT || p.type === IDP_BOOLEAN) return d.val | 0
+    return undefined
+}
+
+/** True for the "Smooth by Angle" geometry-nodes modifier, which the geometry builder evaluates itself. */
+function isSmoothByAngle(m: any): boolean {
+    return m?.modifier?.type === eModifierType_Nodes && SMOOTH_BY_ANGLE.test(m.node_group?.aname || '')
+}
+
+/**
+ * Blender 4.1 replaced the mesh's Auto Smooth setting with a "Smooth by Angle" geometry-nodes modifier
+ * (old files are converted to it on load). We can't run geometry nodes, but this one only marks edges
+ * sharp above an angle, which the geometry builder does itself — so read its Angle (the group's float
+ * input) and Ignore Sharpness (its boolean input) from the modifier's properties.
+ */
+function smoothByAngleOptions(object: any, requiredMode: number): GeometryOptions {
+    for (const m of listToArray(object.modifiers)) {
+        if (!isSmoothByAngle(m)) continue
+        if (typeof m.modifier.mode === 'number' && !(m.modifier.mode & requiredMode)) continue
+        let angle: number | undefined, ignore = false
+        let p = m.settings?.properties?.data?.group?.first, guard = 0
+        while (p && guard++ < 64) {
+            const name = typeof p.name === 'string' ? p.name : ''
+            if (!/_use_attribute$|_attribute_name$/.test(name)) {
+                const v = idPropNumber(p)
+                if (angle === undefined && (p.type === IDP_FLOAT || p.type === IDP_DOUBLE) && v !== undefined && Number.isFinite(v)) angle = v
+                else if (p.type === IDP_BOOLEAN && v) ignore = true
+            }
+            p = p.next
+        }
+        return {smoothByAngle: angle ?? Math.PI / 6, ignoreSharpness: ignore}
+    }
+    return {}
+}
+
+// Geometry for objects whose Smooth by Angle settings differ from the mesh's own, per mesh datablock.
+const smoothVariants = new WeakMap<any, Map<string, any>>()
+
 export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
     if (!object.data) {
         return undefined
@@ -43,11 +93,29 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
     // Base geometry is cached per mesh datablock; the modifier stack lives on the OBJECT, so it's applied
     // per-object below. (Caching the *modified* result per datablock was wrong for objects that share a
     // datablock but have different modifier stacks — Alt+D linked duplicates.)
-    let geometry = loaded.get(object.data)
-    const firstUse = !geometry
-    if (!geometry) {
-        geometry = createBufferGeometry(object.data, ctx)
-        loaded.set(object.data, geometry)
+    // Normals also depend on the object's Smooth by Angle modifier: objects without one share `loaded`'s
+    // entry; the others get a variant per angle.
+    const render = ctx.evaluationMode === 'render'
+    const requiredMode = render ? eModifierMode_Render : eModifierMode_Realtime
+    const opts = smoothByAngleOptions(object, requiredMode)
+    let geometry: any
+    let firstUse = false
+    if (opts.smoothByAngle === undefined) {
+        geometry = loaded.get(object.data)
+        if (!geometry) {
+            firstUse = true
+            geometry = createBufferGeometry(object.data, ctx)
+            loaded.set(object.data, geometry)
+        }
+    } else {
+        const key = `${opts.smoothByAngle}|${opts.ignoreSharpness ? 1 : 0}`
+        let variants = smoothVariants.get(object.data)
+        if (!variants) smoothVariants.set(object.data, variants = new Map())
+        geometry = variants.get(key)
+        if (!geometry) {
+            firstUse = true // a variant is a fresh MeshData of its own
+            variants.set(key, geometry = createBufferGeometry(object.data, ctx, opts))
+        }
     }
     const baseGeometry = geometry
 
@@ -57,14 +125,13 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
     // those with eModifierMode_Render - see `BlendEvaluationMode`. Unsupported ones are flagged loudly.
     // Subsurf smooths + tessellates (so a displacement map has geometry to move); Mirror
     // duplicates/reflects across the object's axes.
-    const render = ctx.evaluationMode === 'render'
-    const requiredMode = render ? eModifierMode_Render : eModifierMode_Realtime
     const unsupported: string[] = []
     const failed: string[] = []
     for (const m of listToArray(object.modifiers)) {
         const hdr = m.modifier
         if (!hdr) continue
         if (typeof hdr.mode === 'number' && !(hdr.mode & requiredMode)) continue
+        if (isSmoothByAngle(m)) continue // already applied by createBufferGeometry
         // One modifier failing must not fail the whole file. Blender evaluates the rest of the stack on
         // the input to a modifier that errors, and shows the error in that modifier's panel; here the
         // geometry from before the failing step is kept and the failure is reported. Without this, a

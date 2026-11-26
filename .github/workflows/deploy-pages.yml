@@ -32,7 +32,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x]
+        node-version: [22.x] # same as the build check in publish.yml; vite 7 needs ^20.19 or >=22.12
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:

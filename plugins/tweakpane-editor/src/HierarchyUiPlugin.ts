@@ -17,7 +17,8 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
 
     toJSON: any = undefined
 
-    treeView?: Tree = undefined
+    // treejs is bundled from a git repository, not published on npm, so its type stays out of the declarations.
+    treeView?: any = undefined
     private _lastPointerShift = false
     private _onPointerDown = (e: PointerEvent) => { this._lastPointerShift = e.shiftKey || e.ctrlKey || e.metaKey }
 

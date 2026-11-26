@@ -8,7 +8,7 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
-- NA
+- `three-gpu-pathtracer` (`^0.0.23`) as an optional `peerDependency`: its types (`WebGLPathTracer`) are in the declarations; install it for `skipLibCheck: false`. The bundle includes it.
 
 ## [0.2.0] - 2025-10-27
 

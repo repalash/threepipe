@@ -167,12 +167,13 @@ function textureFromSocket(links: any[], socket: any, srgb: boolean, ctx: Ctx): 
 // ── Surface shader resolution ───────────────────────────────────────
 // Prefer the Principled BSDF feeding the active Material Output (matches the exporter's
 // check_if_is_linked_to_active_output); fall back to any Principled in the tree.
-function resolveShaders(nodes: any[], links: any[]): {principled: any, emission: any} {
+function resolveShaders(nodes: any[], links: any[]): {principled: any, emission: any, surface: any} {
     const outputs = nodes.filter(n => idnameOf(n).includes('OutputMaterial'))
     const activeOut = outputs.find(n => n.is_active_output) || outputs[0]
-    let principled: any = null, emission: any = null
+    let principled: any = null, emission: any = null, surface: any = null
     if (activeOut) {
         let surf = nodeFeeding(links, socketByName(inputsOf(activeOut), 'Surface'))
+        surface = surf
         // hop through a single Mix/Add Shader to find a Principled, best-effort
         let guard = 0
         while (surf && !idnameOf(surf).includes('BsdfPrincipled') && guard++ < 4) {
@@ -183,9 +184,30 @@ function resolveShaders(nodes: any[], links: any[]): {principled: any, emission:
         }
         if (surf && idnameOf(surf).includes('BsdfPrincipled')) principled = surf
     }
-    if (!principled) principled = nodes.find(n => idnameOf(n).includes('BsdfPrincipled'))
+    // Fall back to any Principled in the tree, unless the output is driven by a different shader we map
+    // ourselves (Emission/Background/Diffuse) — a stray Principled elsewhere would be the wrong surface.
+    if (!principled && !(surface && SELF_MAPPED.test(idnameOf(surface)))) principled = nodes.find(n => idnameOf(n).includes('BsdfPrincipled'))
     if (!emission) emission = nodes.find(n => idnameOf(n) === 'ShaderNodeEmission')
-    return {principled, emission}
+    return {principled, emission, surface}
+}
+const SELF_MAPPED = /^ShaderNode(Emission|Background|BsdfDiffuse)$/
+
+/**
+ * Emission or Background straight into the output: the surface shows exactly Color x Strength with no
+ * lighting. Like Blender's glTF exporter (KHR_materials_unlit for "shadeless" materials), use an unlit
+ * material, with the colour texture as its map.
+ */
+function createUnlitMaterial(mat: any, surface: any, links: any[], ctx: Ctx) {
+    const material = new ctx.MeshBasicMaterial()
+    material.side = typeof mat.blend_flag === 'number' && mat.blend_flag & MA_BL_CULL_BACKFACE ? FrontSide : DoubleSide
+    const inp = inputsOf(surface)
+    const colSock = socketByName(inp, 'Color')
+    const tex = textureFromSocket(links, colSock, true, ctx)
+    const strength = num(socketConst(socketByName(inp, 'Strength'))) ?? 1
+    const c = tex ? [1, 1, 1] : socketConst(colSock) || [1, 1, 1]
+    material.color.setRGB(c[0] * strength, c[1] * strength, c[2] * strength)
+    if (tex) material.map = tex
+    return material
 }
 
 /**
@@ -202,7 +224,12 @@ export function createMaterial(mat: any, ctx: Ctx) {
 
     const nodes = mat.nodetree ? listBaseToArray(mat.nodetree.nodes) : []
     const links = mat.nodetree ? listBaseToArray(mat.nodetree.links) : []
-    const {principled, emission} = resolveShaders(nodes, links)
+    const {principled, emission, surface} = resolveShaders(nodes, links)
+    const surfaceType = idnameOf(surface)
+    if (!principled && (surfaceType === 'ShaderNodeEmission' || surfaceType === 'ShaderNodeBackground')) {
+        material.dispose()
+        return createUnlitMaterial(mat, surface, links, ctx)
+    }
 
     let applied = false
     if (principled) {
@@ -228,7 +255,8 @@ export function createMaterial(mat: any, ctx: Ctx) {
         else { const r = num(socketConst(roughSock)); if (r !== undefined) material.roughness = r }
         const metalSock = socketByName(inp, 'Metallic')
         const metalTex = textureFromSocket(links, metalSock, false, ctx)
-        if (metalTex) material.metalnessMap = metalTex
+        // three.js multiplies the map by the factor (default 0), so use 1 like the white base color above.
+        if (metalTex) { material.metalnessMap = metalTex; material.metalness = 1 }
         else { const m = num(socketConst(metalSock)); if (m !== undefined) material.metalness = m }
 
         // Normal map + strength (materials.py:376; Normal Map node "Strength").
@@ -336,6 +364,7 @@ export function createMaterial(mat: any, ctx: Ctx) {
     const emStrSock = emission ? socketByName(inputsOf(emission), 'Strength')
         : (principled ? socketByName(inputsOf(principled), 'Emission Strength') : null)
     const emTex = textureFromSocket(links, emSock, true, ctx)
+    if (emTex) material.emissiveMap = emTex
     let emCol = socketConst(emSock)
     // When a texture drives emission, the Emission Color factor multiplies it. Blender's default factor is
     // black [0,0,0] (and stays black even with a texture linked), which would zero out the map — so treat a
@@ -349,6 +378,20 @@ export function createMaterial(mat: any, ctx: Ctx) {
         const peak = Math.max(f[0], f[1], f[2])
         if (peak > 1) { material.emissiveIntensity = peak; material.emissive.setRGB(f[0] / peak, f[1] / peak, f[2] / peak) }
         else material.emissive.setRGB(f[0], f[1], f[2])
+    }
+
+    if (!applied && surfaceType === 'ShaderNodeBsdfDiffuse') {
+        // Diffuse BSDF: a fully rough dielectric with no specular highlight.
+        applied = true
+        const colSock = socketByName(inputsOf(surface), 'Color')
+        const tex = textureFromSocket(links, colSock, true, ctx)
+        if (tex) { material.map = tex; material.color.setRGB(1, 1, 1) } else {
+            const c = socketConst(colSock)
+            if (c && c.length >= 3) material.color.setRGB(clamp01(c[0]), clamp01(c[1]), clamp01(c[2]))
+        }
+        material.roughness = 1
+        material.metalness = 0
+        if ((material as any).specularIntensity !== undefined) (material as any).specularIntensity = 0
     }
 
     if (!applied) {

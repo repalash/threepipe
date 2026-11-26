@@ -10,7 +10,13 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": ">=0.1.0"
+        "threepipe": ">=0.1.0",
+        "3d-tiles-renderer": "^0.4.9"
+    },
+    "peerDependenciesMeta": {
+        "3d-tiles-renderer": {
+            "optional": true
+        }
     },
     "overrides": {
         "threepipe": "$threepipe",

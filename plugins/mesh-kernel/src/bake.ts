@@ -33,6 +33,18 @@ export interface BakeOptions {
     includeFaceIndex?: boolean
     /** Emit normals. Face normals are used for flat faces, smoothed ones otherwise. */
     includeNormals?: boolean
+    /**
+     * Also split normals at edges whose faces meet at more than this angle, in radians: Blender's Auto
+     * Smooth (`Mesh.smoothresh` before 4.1, the "Smooth by Angle" modifier after). Null for none.
+     */
+    autoSmoothAngle?: number | null
+    /**
+     * Blender before 4.1 with Auto Smooth off: smooth faces take one angle-weighted normal per vertex,
+     * from every face around it, and `sharp_edge` has no effect. Flat faces still use their face normal.
+     */
+    vertexNormals?: boolean
+    /** Treat every edge and face as smooth, ignoring `sharp_edge` and `sharp_face` (Smooth by Angle's "Ignore Sharpness"). */
+    ignoreSharp?: boolean
 }
 
 /** Plain-array geometry, ready to be handed to any renderer. */
@@ -257,7 +269,7 @@ export function bakeGeometry(mesh: MeshData, options: BakeOptions = {}): BakeRes
 
     // --- normals ---
     if (options.includeNormals !== false) {
-        computeNormals(mesh, cornerVerts, cornersNum, data)
+        computeNormals(mesh, cornerVerts, cornersNum, data, options)
     }
 
     // --- uvs ---
@@ -367,13 +379,17 @@ export {ATTR_TYPE_INFO}
  * sharp along an edge loop renders smooth across it, and `sharp_edge` is carried by every `.blend`
  * that has one.
  *
- * Not ported: the auto-smooth angle and `custom_normal`, which the kernel has no layer for.
+ * **Auto Smooth** (`BakeOptions.autoSmoothAngle`, `vertexNormals`): see those options.
+ *
+ * Not ported: `custom_normal`, which the kernel has no layer for.
  */
 function computeNormals(
-    mesh: MeshData, cornerVerts: Int32Array, cornersNum: number, data: GeometryData,
+    mesh: MeshData, cornerVerts: Int32Array, cornersNum: number, data: GeometryData, options: BakeOptions = {},
 ): void {
-    const sharpFace = mesh.attributes.get(AttrName.sharpFace)
-    const sharpEdge = mesh.attributes.get(AttrName.sharpEdge)
+    const sharpFace = options.ignoreSharp ? undefined : mesh.attributes.get(AttrName.sharpFace)
+    const sharpEdge = options.ignoreSharp || options.vertexNormals ? undefined : mesh.attributes.get(AttrName.sharpEdge)
+    const cosAngle = typeof options.autoSmoothAngle === 'number' && Number.isFinite(options.autoSmoothAngle)
+        ? Math.cos(options.autoSmoothAngle) : null
     const cornerEdges = mesh.cornerEdges
     const offsets = mesh.faceOffsets
     const positions = mesh.positions
@@ -392,6 +408,11 @@ function computeNormals(
     const cornerFace = new Int32Array(cornersNum)
     for (let f = 0; f < facesNum; f++) {
         for (let c = offsets[f]; c < offsets[f + 1]; c++) cornerFace[c] = f
+    }
+
+    if (options.vertexNormals) {
+        computeVertexNormals(mesh, cornerVerts, cornersNum, cornerFace, faceNormals, sharpFace, data)
+        return
     }
 
     // --- fans: union corners that share a vertex across a smooth manifold edge ---
@@ -451,6 +472,8 @@ function computeNormals(
             const f2 = cornerFace[c2]
             if (f1 === f2) continue
             if (sharpFace && (sharpFace.data[f1] || sharpFace.data[f2])) continue
+            if (cosAngle !== null && faceNormals[f1 * 3] * faceNormals[f2 * 3] + faceNormals[f1 * 3 + 1] * faceNormals[f2 * 3 + 1]
+                + faceNormals[f1 * 3 + 2] * faceNormals[f2 * 3 + 2] < cosAngle) continue
 
             // The edge's two vertices, found in each face, then matched up.
             const a = cornerVerts[c1]
@@ -507,6 +530,42 @@ function computeNormals(
     }
 
     data.normal = outNormals
+}
+
+/**
+ * Blender's normals before 4.1 with Auto Smooth off: one angle-weighted normal per vertex, from every
+ * face around it (flat ones included), used by the corners of smooth faces; flat faces use their own
+ * normal. Sharp edges play no part.
+ */
+function computeVertexNormals(
+    mesh: MeshData, cornerVerts: Int32Array, cornersNum: number, cornerFace: Int32Array,
+    faceNormals: Float32Array, sharpFace: {data: ArrayLike<number | boolean>} | undefined, data: GeometryData,
+): void {
+    const offsets = mesh.faceOffsets
+    const positions = mesh.positions
+    const vn = new Float64Array(mesh.vertsNum * 3)
+    for (let c = 0; c < cornersNum; c++) {
+        const f = cornerFace[c]
+        const start = offsets[f], end = offsets[f + 1]
+        const p = cornerVerts[c > start ? c - 1 : end - 1]
+        const n = cornerVerts[c + 1 < end ? c + 1 : start]
+        const v = cornerVerts[c]
+        const factor = cornerAngle(positions, v, p, n)
+        vn[v * 3] += faceNormals[f * 3] * factor
+        vn[v * 3 + 1] += faceNormals[f * 3 + 1] * factor
+        vn[v * 3 + 2] += faceNormals[f * 3 + 2] * factor
+    }
+    const out = new Float32Array(cornersNum * 3)
+    for (let c = 0; c < cornersNum; c++) {
+        const f = cornerFace[c], v = cornerVerts[c]
+        let x = faceNormals[f * 3], y = faceNormals[f * 3 + 1], z = faceNormals[f * 3 + 2]
+        if (!(sharpFace && sharpFace.data[f])) {
+            const len = Math.hypot(vn[v * 3], vn[v * 3 + 1], vn[v * 3 + 2])
+            if (len > 0) { x = vn[v * 3] / len; y = vn[v * 3 + 1] / len; z = vn[v * 3 + 2] / len }
+        }
+        out[c * 3] = x; out[c * 3 + 1] = y; out[c * 3 + 2] = z
+    }
+    data.normal = out
 }
 
 /**

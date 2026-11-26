@@ -1,6 +1,7 @@
 import {defineConfig} from 'vite'
 import json from '@rollup/plugin-json';
 import dts from 'vite-plugin-dts'
+import {fixDtsImports} from '../../scripts/vite-utils.mjs';
 import packageJson from './package.json';
 import license from 'rollup-plugin-license';
 import replace from '@rollup/plugin-replace';
@@ -54,7 +55,7 @@ export default defineConfig({
         },
     },
     plugins: [
-        isProd ? dts({tsconfigPath: './tsconfig.json'}) : null,
+        isProd ? dts({tsconfigPath: './tsconfig.json', afterBuild: fixDtsImports}) : null,
         replace({
             'from \'three\'': 'from \'threepipe\'',
             // 'from \'three/examples/jsm/.*\'': 'from \'threepipe\'', // todo regex doesnt work...

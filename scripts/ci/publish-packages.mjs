@@ -10,6 +10,9 @@ import {execSync} from 'node:child_process';
  * - Build artifacts (dist/, lib/) are already present (from artifact download)
  * - Docs have already been generated (from check job)
  * - Dependencies are installed via npm ci --ignore-scripts
+ *
+ * After each publish it pushes the release tag: `v<version>` for core, `<name>-<version>` for a plugin
+ * (the tags the changelog links and publish-check's commit list use). A failed tag only warns.
  */
 
 const changes = JSON.parse(process.env.PUBLISH_CHANGES || '[]');
@@ -41,6 +44,13 @@ for (const pkg of changes) {
             // Publish
             execSync(`npm publish --provenance ${accessFlag} "${tarball}"`, {cwd, stdio: 'inherit'});
             console.log(`  ✓ Published ${pkg.name}@${pkg.to}`);
+            const tag = isCore ? `v${pkg.to}` : `${pkg.name}-${pkg.to}`;
+            try {
+                execSync(`git tag "${tag}" && git push origin "refs/tags/${tag}"`, {cwd: repoRoot, stdio: 'inherit'});
+                console.log(`  ✓ Tagged ${tag}`);
+            } catch (e) {
+                console.warn(`  ! Published, but could not push the tag ${tag}: ${e.message}`);
+            }
         } finally {
             // Always restore package.json
             execSync(`${cleanPackageBin} restore`, {cwd, stdio: 'inherit'});

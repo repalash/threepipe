@@ -78,7 +78,8 @@ describe.skipIf(!PUDDING)('MPoly triangulation: buffer size', () => {
         // triangle face, which is not divisible by three.
         expect(index.count % 3).toBe(0)
         expect(index.count / 3).toBe(expected)
-        expect(geometry.getAttribute('position').count).toBe(index.count)
+        // Corners are welded into shared vertices (split only at hard edges and UV seams).
+        expect(geometry.getAttribute('position').count).toBeLessThanOrEqual(index.count)
     })
 })
 
@@ -93,24 +94,23 @@ describe.skipIf(!HEXGRID)('MPoly triangulation: n-gons keep their area', () => {
             const pos = geometry.getAttribute('position').array as Float32Array
             const index = geometry.getIndex()!.array as Uint32Array
 
-            // Triangles come out in face order, n - 2 per face, so each face owns a known index range.
-            let tri = 0
+            // Triangles are grouped by material slot, so compare totals rather than per-face ranges: the
+            // triangles must cover exactly the area of the faces. The old strip dropped the middle triangle
+            // of every face with five or more corners, so its triangles covered only part of the face.
+            let faceArea = 0, triCount = 0
             for (const face of faces) {
                 const corners: number[][] = []
                 for (let c = 0; c < face.totloop; c++) {
                     const co = mesh.mvert[mesh.mloop[face.loopstart + c].v].co
                     corners.push([co[0], co[2], -co[1]])
                 }
-                let covered = 0
-                for (let k = 0; k < face.totloop - 2; k++, tri++) {
-                    covered += triangleArea(pos, index[tri * 3], index[tri * 3 + 1], index[tri * 3 + 2])
-                }
-                // The old strip dropped the middle triangle of every face with five or more corners, so
-                // its triangles covered only part of the face. These faces are convex, where a fan is
-                // exact.
-                expect(covered).toBeCloseTo(polygonArea(corners), 5)
+                faceArea += polygonArea(corners)
+                triCount += Math.max(0, face.totloop - 2)
             }
-            expect(tri * 3).toBe(index.length)
+            let covered = 0
+            for (let t = 0; t < index.length; t += 3) covered += triangleArea(pos, index[t], index[t + 1], index[t + 2])
+            expect(covered).toBeCloseTo(faceArea, 4)
+            expect(triCount * 3).toBe(index.length)
         })
     }
 
@@ -120,19 +120,18 @@ describe.skipIf(!HEXGRID)('MPoly triangulation: n-gons keep their area', () => {
         const pos = geometry.getAttribute('position').array as Float32Array
         const index = geometry.getIndex()!.array as Uint32Array
 
-        let tri = 0
+        // Every output triangle as a key of its three corner positions, in winding order (any rotation).
+        const key = (p: number[][]) => p.map(c => c.map(x => x.toFixed(5)).join(',')).join('|')
+        const tris = new Set<string>()
+        for (let t = 0; t < index.length; t += 3) {
+            const c = [0, 1, 2].map(k => [pos[index[t + k] * 3], pos[index[t + k] * 3 + 1], pos[index[t + k] * 3 + 2]])
+            tris.add(key(c)); tris.add(key([c[1], c[2], c[0]])); tris.add(key([c[2], c[0], c[1]]))
+        }
         for (const face of polys(mesh)) {
-            if (face.totloop === 3) {
-                // One triangle, corners 0, 1, 2 in order - what the strip produced too.
-                const want = [0, 1, 2].map(c => mesh.mvert[mesh.mloop[face.loopstart + c].v].co)
-                for (let k = 0; k < 3; k++) {
-                    const v = index[tri * 3 + k]
-                    expect(pos[v * 3]).toBeCloseTo(want[k][0], 6)
-                    expect(pos[v * 3 + 1]).toBeCloseTo(want[k][2], 6)
-                    expect(pos[v * 3 + 2]).toBeCloseTo(-want[k][1], 6)
-                }
-            }
-            tri += Math.max(0, face.totloop - 2)
+            if (face.totloop !== 3) continue
+            // One triangle, corners 0, 1, 2 with the face's winding - what the strip produced too.
+            const want = [0, 1, 2].map(c => mesh.mvert[mesh.mloop[face.loopstart + c].v].co).map((co: any) => [co[0], co[2], -co[1]])
+            expect(tris.has(key(want))).toBe(true)
         }
     })
 })

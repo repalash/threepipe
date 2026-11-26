@@ -11,8 +11,10 @@ import {
     LoadingManager,
     ThreeViewer,
 } from 'threepipe'
-import type {CMPTResult} from '3d-tiles-renderer/src/three/loaders/CMPTLoader'
 import {CMPTLoader, LoaderBase} from '3d-tiles-renderer'
+
+// The package root exports the loader but not its result type (deep src/ paths are outside its exports map).
+type CMPTResult = Awaited<ReturnType<CMPTLoader['parse']>>
 
 /**
  * Adds support for loading .cmpt files and data uris.

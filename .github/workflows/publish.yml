@@ -46,6 +46,9 @@ jobs:
         continue-on-error: true
         env:
           PUBLISH_CHANGES: ${{ steps.check.outputs.changes }}
+      - name: Check the published declarations as a consumer
+        if: steps.verify.outputs.has_publishable == 'true'
+        run: npm run test:types
       - name: Generate docs
         if: steps.verify.outputs.has_publishable == 'true'
         run: npm run docs-all
@@ -78,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: npm-publish
     permissions:
-      contents: read
+      contents: write # push the release tags (scripts/ci/publish-packages.mjs)
       id-token: write
     steps:
       - uses: actions/checkout@v4

@@ -259,3 +259,43 @@ describe('normals, against mesh_normals.cc', () => {
         }
     })
 })
+
+describe('Auto Smooth options', () => {
+    // A smooth cube: every edge is a 90 degree crease between faces.
+    function smoothCube(): MeshData {
+        const mesh = primitiveCube({size: 2})
+        mesh.attributes.get(AttrName.sharpFace)!.data.fill(0)
+        return mesh
+    }
+    function distinctNormals(mesh: MeshData, options: Parameters<typeof bakeGeometry>[1]): number {
+        const {data} = bakeGeometry(mesh, {includeNormals: true, ...options})
+        const normals = new Set<string>()
+        for (let i = 0; i < data.normal!.length; i += 3) {
+            normals.add([data.normal![i], data.normal![i + 1], data.normal![i + 2]].map(n => n.toFixed(4)).join(','))
+        }
+        return normals.size
+    }
+
+    it('splits at edges sharper than autoSmoothAngle', () => {
+        // 30 degrees: every 90 degree edge splits, so the cube shades flat (six face normals).
+        expect(distinctNormals(smoothCube(), {autoSmoothAngle: Math.PI / 6})).toBe(6)
+        // 120 degrees: no edge is that sharp, so the cube stays smooth (eight corner normals).
+        expect(distinctNormals(smoothCube(), {autoSmoothAngle: Math.PI * 2 / 3})).toBe(8)
+    })
+
+    it('ignores sharp_edge in vertexNormals mode, as Blender before 4.1 without Auto Smooth', () => {
+        const mesh = smoothCube()
+        const sharp = new Uint8Array(mesh.edgesNum).fill(1)
+        mesh.attributes.add({name: AttrName.sharpEdge, domain: AttrDomain.Edge, type: 'bool', data: sharp})
+        expect(distinctNormals(mesh, {})).toBe(6) // sharp edges split the fans
+        expect(distinctNormals(mesh, {vertexNormals: true})).toBe(8) // ...but not in legacy mode
+    })
+
+    it('still shades flat faces flat in vertexNormals mode', () => {
+        expect(distinctNormals(primitiveCube({size: 2}), {vertexNormals: true})).toBe(6)
+    })
+
+    it('ignoreSharp treats flat faces and sharp edges as smooth', () => {
+        expect(distinctNormals(primitiveCube({size: 2}), {ignoreSharp: true})).toBe(8)
+    })
+})
