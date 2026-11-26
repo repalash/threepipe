@@ -8,6 +8,7 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
+- Needs threepipe 0.7.0 or later: its keys are actions in `viewer.actions` (the peer range said `>=0.6.0`)
 - ← and → are actions (`AnnotationsPlugin.actions`: `annotations.next`, `annotations.prev`), registered in `viewer.actions`, so a UI lists them and the app can change their keys; they run before the arrow keys of the camera controls (`capture`), also while an arrow is held (it goes on through the annotations); with the focus on the page and more viewers, the viewer with the last pointer press takes them. Esc stays a key of the card. A key on a focused checkbox or button is not a key typed in a text field
 - First version. `AnnotationsPlugin`: numbered markers on objects with a title, a text and a saved camera view, like Sketchfab annotations. A click on a marker flies the camera to its view and opens a card. Editable mode: add (click a surface), edit, move (drag) and delete, undoable with `UndoManagerPlugin`. Saved in the viewer config and in the exported .glb. Tour (`next`, `prev`, `playTour`) and events for an outside list. `renderAnnotationText` formats the text (bold, italic, links, bullets)
 - The card in the style of the editor: a compact layout (12px sides, 8px rows), icon buttons (14px icons in 24px buttons), the tools in the bottom bar, and the colours of the Tweakpane theme (`--tp-*`, light and dark). Long text scrolls inside a card of at most 360px
