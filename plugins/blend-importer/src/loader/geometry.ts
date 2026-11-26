@@ -53,7 +53,10 @@ function normalModeFor(meshData: any, opts: GeometryOptions): Pick<MeshSource, '
 function rawBlock(d: any, arrayType: any): any {
     const b = Array.isArray(d) ? d[0] : d
     if (!b || b.__data_address__ === undefined || !b.__blender_file__) return null
-    const n = Math.floor((b.__byte_length__ || 0) / arrayType.BYTES_PER_ELEMENT)
+    // The parser gives an array block's first element the whole block's length (later elements get their
+    // own); count x element size covers the block too, should that ever change.
+    const bytes = Math.max(b.__byte_length__ || 0, Array.isArray(d) ? d.length * (b._length || 0) : 0)
+    const n = Math.floor(bytes / arrayType.BYTES_PER_ELEMENT)
     if (!(n > 0)) return null
     return b.__blender_file__.readTypedArray(arrayType, b.__data_address__, n)
 }
