@@ -88,6 +88,8 @@ export interface Ctx {
      * for them before handing the scene over, the way three's GLTFLoader waits for its textures.
      */
     onPending?: (done: Promise<void>) => void
+    /** Set by the loader: each base geometry's mesh source, for the Subsurf cage (`geometry.ts` `cageOf`). Lives as long as this import. */
+    cageSources?: WeakMap<object, any>
 }
 
 /**

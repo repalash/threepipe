@@ -66,8 +66,90 @@ function sanitize(a: Float32Array): Float32Array {
     return a
 }
 
+// An array block of structs (a mesh's MVert, MLoop, MPoly... array) as bytes, with each field's offset, to
+// read a field of every struct without making a JS object per struct (the parser makes them only when
+// read: one per vertex, loop and face is hundreds of MB for a big mesh). Null when the parser didn't give
+// the layout; the caller then reads through the struct objects.
+interface StructBlock {dv: DataView, stride: number, count: number, fields: Record<string, number>}
+function structBlock(value: any, ...fields: string[]): StructBlock | null {
+    const list = asArray(value)
+    const e = list[0]
+    const bf = e?.__blender_file__
+    if (!bf?.AB || e.__data_address__ === undefined || !e.__fields__ || !(e._length > 0)) return null
+    if (fields.some(f => typeof e.__fields__[f] !== 'number')) return null
+    const bytes = list.length * e._length
+    if (e.__data_address__ + bytes > bf.AB.byteLength) return null
+    return {dv: new DataView(bf.AB, e.__data_address__, bytes), stride: e._length, count: list.length, fields: e.__fields__}
+}
+
 // ── Legacy MPoly/MLoop (2.63 - 3.x) ─────────────────────────────────
 function sourceFromMPoly(meshData: any): MeshSource {
+    return sourceFromMPolyBytes(meshData) ?? sourceFromMPolyObjects(meshData)
+}
+
+// All supported files are little-endian (big-endian is rejected by the parser).
+function sourceFromMPolyBytes(meshData: any): MeshSource | null {
+    const verts = structBlock(meshData.mvert, 'co')
+    const loops = structBlock(meshData.mloop, 'v')
+    const polys = structBlock(meshData.mpoly, 'loopstart', 'totloop', 'mat_nr', 'flag')
+    if (!verts || !loops || !polys) return null
+    const uvs = meshData.mloopuv ? structBlock(meshData.mloopuv, 'uv') : null
+    if (meshData.mloopuv && !uvs) return null
+    const edges = meshData.medge ? structBlock(meshData.medge, 'v1', 'v2', 'flag') : null
+    if (meshData.medge && !edges) return null
+
+    const vertCount = verts.count
+    const positions = new Float32Array(vertCount * 3)
+    {
+        const {dv, stride, fields: {co}} = verts
+        for (let i = 0, o = co; i < vertCount; i++, o += stride) {
+            positions[i * 3] = finite(dv.getFloat32(o, true))
+            positions[i * 3 + 1] = finite(dv.getFloat32(o + 4, true))
+            positions[i * 3 + 2] = finite(dv.getFloat32(o + 8, true))
+        }
+    }
+
+    const faceCount = polys.count
+    const pdv = polys.dv, ps = polys.stride, {loopstart: pLs, totloop: pTot, mat_nr: pMat, flag: pFlag} = polys.fields
+    const faceOffsets = new Int32Array(faceCount + 1)
+    let loopCount = 0
+    for (let f = 0; f < faceCount; f++) { faceOffsets[f] = loopCount; loopCount += Math.max(0, pdv.getInt32(f * ps + pTot, true)) }
+    faceOffsets[faceCount] = loopCount
+    const cornerVerts = new Int32Array(loopCount).fill(-1)
+    const cornerUVs = uvs && uvs.count ? new Float32Array(loopCount * 2) : null
+    const faceMat = new Int32Array(faceCount)
+    const faceFlat = new Uint8Array(faceCount)
+    const ldv = loops.dv, lstride = loops.stride, lv = loops.fields.v
+    for (let f = 0; f < faceCount; f++) {
+        const ls = pdv.getInt32(f * ps + pLs, true), o = faceOffsets[f], n = faceOffsets[f + 1] - o
+        faceMat[f] = pdv.getInt16(f * ps + pMat, true)
+        faceFlat[f] = pdv.getUint8(f * ps + pFlag) & ME_SMOOTH ? 0 : 1
+        for (let k = 0; k < n; k++) {
+            const l = ls + k
+            if (l >= 0 && l < loops.count) cornerVerts[o + k] = ldv.getUint32(l * lstride + lv, true)
+            if (cornerUVs && l >= 0 && l < uvs!.count) {
+                const u = l * uvs!.stride + uvs!.fields.uv
+                cornerUVs[(o + k) * 2] = finite(uvs!.dv.getFloat32(u, true))
+                cornerUVs[(o + k) * 2 + 1] = finite(uvs!.dv.getFloat32(u + 4, true))
+            }
+        }
+    }
+
+    const sharp: number[] = []
+    if (edges) {
+        const {dv, stride, fields: {v1, v2, flag}} = edges
+        for (let e = 0, o = 0; e < edges.count; e++, o += stride)
+            if (dv.getInt16(o + flag, true) & ME_SHARP) sharp.push(dv.getUint32(o + v1, true), dv.getUint32(o + v2, true))
+    }
+
+    return {
+        positions, vertCount, faceOffsets, faceCount, cornerVerts, cornerUVs, faceMat, faceFlat,
+        materialSlots: meshData.totcol || 0, sharpEdges: sharp, ...legacyNormalMode(meshData),
+    }
+}
+
+// The same through the struct objects: for a file whose layout the parser couldn't give.
+function sourceFromMPolyObjects(meshData: any): MeshSource {
     const verts = asArray(meshData.mvert)
     const loops = asArray(meshData.mloop)
     const polys = asArray(meshData.mpoly)
@@ -303,8 +385,20 @@ function sourceFromAttributes(meshData: any, opts: GeometryOptions): MeshSource 
  * The polygon cage the Subsurf modifier subdivides (`catmull.ts`): shared positions in three.js space,
  * the faces as vertex lists, per-corner UVs and per-face material slots. Same faces as the triangulated
  * geometry, so Catmull-Clark smooths across them instead of across disconnected triangles.
+ *
+ * Made only when a Subsurf modifier asks for it (`cageOf`), from the mesh's source kept for the length of
+ * the import (`ctx.cageSources`). It used to be made for every mesh and kept on `geometry.userData.__cage`
+ * for the life of the scene: nested arrays, one per vertex, face and corner, ~200 MB of heap that nothing
+ * used after the import for Blender's Mr Elephant demo.
  */
-function attachCage(geometry: any, src: MeshSource) {
+type Cage = {positions: number[][], faces: number[][], uvs: number[][][] | null, materialIndices: number[] | null}
+
+export function cageOf(geometry: any, ctx: Ctx): Cage | undefined {
+    const src = ctx.cageSources?.get(geometry)
+    return src ? makeCage(src) : undefined
+}
+
+function makeCage(src: MeshSource): Cage | undefined {
     const {positions: p, cornerVerts: cv, faceOffsets: fo, faceCount, vertCount} = src
     const positions: number[][] = new Array(vertCount)
     for (let i = 0; i < vertCount; i++) positions[i] = [p[i * 3], p[i * 3 + 2], -p[i * 3 + 1]] // Z-up -> Y-up
@@ -324,15 +418,15 @@ function attachCage(geometry: any, src: MeshSource) {
         if (uvs) uvs.push(fuv)
         if (mats) mats.push(src.faceMat![f] || 0)
     }
-    if (!faces.length) return
-    geometry.userData = geometry.userData || {}
-    geometry.userData.__cage = {positions, faces, uvs, materialIndices: mats}
+    if (!faces.length) return undefined
+    return {positions, faces, uvs, materialIndices: mats}
 }
 
 function build(src: MeshSource | null, name: string, ctx: Ctx) {
     if (!src) return withEmptyPosition(new ctx.BufferGeometry(), ctx)
     const geometry = buildGeometry(src, name, ctx)
-    attachCage(geometry, src)
+    if (!ctx.cageSources) ctx.cageSources = new WeakMap()
+    ctx.cageSources.set(geometry, src)
     return geometry
 }
 

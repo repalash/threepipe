@@ -1,4 +1,4 @@
-import {createBufferGeometry, GeometryOptions} from './geometry'
+import {cageOf, createBufferGeometry, GeometryOptions} from './geometry'
 import {createMaterial} from './material'
 import {subdivideGeometry} from './subdivide'
 import {subdivideCage} from './catmull'
@@ -136,7 +136,7 @@ export function createMesh(object: any, loaded: WeakMap<any, any>, ctx: Ctx) {
                 const levels = Math.max(0, Math.min(5, (requested ?? 0) as number))
                 // subdivType: 0 = Catmull-Clark (smooth), 1 = Simple (linear, no smoothing).
                 if (levels > 0 && (globalThis as any).__NO_SUBSURF !== true) {
-                    const cage = geometry.userData && geometry.userData.__cage
+                    const cage = cageOf(geometry, ctx)
                     if (m.subdivType !== 1 && cage) {
                         // Faithful Catmull-Clark on the n-gon cage (Blender's OSD_SCHEME_CATMARK) with face-varying
                         // UVs (seams stay sharp) + smooth normals + material groups. Falls back to the Loop

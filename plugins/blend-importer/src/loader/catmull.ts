@@ -126,7 +126,7 @@ export function catmullClark(positions: V3[], cells: number[][], levels: number)
     return obj
 }
 
-/** A polygon cage extracted from the mesh datablock (see geometry.ts `userData.__cage`). */
+/** A polygon cage extracted from the mesh datablock (see geometry.ts `cageOf`). */
 export interface Cage { positions: V3[]; faces: number[][]; uvs: number[][][] | null; materialIndices?: number[] | null }
 
 /**
