@@ -12,6 +12,19 @@ const blenderObjectTypes = {
     camera: 11,
 }
 
+/**
+ * Width / height of the active scene's render (`RenderData` resolution x pixel aspect), which Blender fits its
+ * cameras to. The active scene is the one open when the file was saved (`FileGlobal.curscene`).
+ */
+function sceneRenderAspect(file: any): number | undefined {
+    const scenes: any[] = file.objects.Scene ?? []
+    const current = file.objects.FileGlobal?.[0]?.curscene
+    const r = (scenes.includes(current) ? current : scenes[0])?.r
+    if (!r) return undefined
+    const w = (r.xsch || 0) * (r.xasp || 1), h = (r.ysch || 0) * (r.yasp || 1)
+    return w > 0 && h > 0 ? w / h : undefined
+}
+
 // Object.type names for the warning (DNA_object_types.h, ObjectType).
 const OBJECT_TYPE_NAMES = new Map<number, string>([
     [2, 'curve'], [3, 'surface'], [4, 'text'], [5, 'metaball'], [12, 'speaker'], [13, 'light probe'], [22, 'lattice'],
@@ -25,6 +38,7 @@ export async function createObjects(file: any, ctx: Ctx) {
     const objMap = new Map<any, Object3D>()
     const blendObjects = file.objects.Object ?? []
     const loaded = new WeakMap()
+    const renderAspect = sceneRenderAspect(file)
     // console.log(bakeGetters(file))
     for (const object of blendObjects) {
         if (loaded.has(object)) {
@@ -43,7 +57,7 @@ export async function createObjects(file: any, ctx: Ctx) {
             obj = createLight(object, ctx)
             break
         case blenderObjectTypes.camera:
-            obj = createCamera(object, ctx)
+            obj = createCamera(object, ctx, renderAspect)
             break
         default:
             // Kept as an empty so the hierarchy and transforms survive; reported once below.
