@@ -18,7 +18,7 @@ import {ACCESS_KEY_SECONDS, DAY, LABEL_MAX, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, 
  * The /account page lists and revokes them. (teenybase's /api/v1/table/access_links/… works too, owner only.)
  */
 export function accessRoutes(app: Hono<CloudEnv>) {
-    app.post('/api/v1/access-links', async (c) => {
+    app.post('/api/v1/access-links', async(c) => {
         const user = await requireUser(c)
         if (user.link) throw new HTTPException(403, {message: 'an access key cannot create access links'})
         const body = await jsonBody<{name?: unknown}>(c)
@@ -30,7 +30,7 @@ export function accessRoutes(app: Hono<CloudEnv>) {
         return c.json({id, name, url: `${apiOrigin(c)}/api/v1/access/${code}/agents.md`})
     })
 
-    app.get('/api/v1/access-links', async (c) => {
+    app.get('/api/v1/access-links', async(c) => {
         const user = await requireUser(c)
         if (user.link) throw new HTTPException(403, {message: 'an access key cannot list access links'})
         const {results} = await c.env.PRIMARY_DB.prepare(`SELECT l.id, l.name, l.app, l.scope, l.created, l.last_used, o.username AS app_owner, f.name AS folder_name
@@ -41,7 +41,7 @@ export function accessRoutes(app: Hono<CloudEnv>) {
             ...l.app ? {app: l.app, app_owner: l.app_owner, access: l.scope === '*' ? 'drive' : 'folder', folder: l.scope === '*' ? null : {id: l.scope, name: l.folder_name}} : {}}))})
     })
 
-    app.delete('/api/v1/access-links/:id', async (c) => {
+    app.delete('/api/v1/access-links/:id', async(c) => {
         const user = await requireUser(c)
         if (user.link) throw new HTTPException(403, {message: 'an access key cannot revoke access links'})
         const r = await c.env.PRIMARY_DB.prepare('DELETE FROM access_links WHERE id = ? AND owner_id = ?').bind(c.req.param('id'), user.id).run()
@@ -49,7 +49,7 @@ export function accessRoutes(app: Hono<CloudEnv>) {
         return c.json({deleted: c.req.param('id')})
     })
 
-    app.get('/api/v1/access/:code/agents.md', async (c) => {
+    app.get('/api/v1/access/:code/agents.md', async(c) => {
         const link = await findLink(c.env, c.req.param('code'))
         const origin = apiOrigin(c)
         return c.text(agentsMd(origin, filesOrigin(c.env, origin), c.req.param('code'), link.username), 200, {
@@ -58,7 +58,7 @@ export function accessRoutes(app: Hono<CloudEnv>) {
         })
     })
 
-    app.get('/api/v1/access/:code/key', async (c) => {
+    app.get('/api/v1/access/:code/key', async(c) => {
         const link = await findLink(c.env, c.req.param('code'))
         const key = await mintKey(c, {id: link.owner_id, email: link.email}, link.id, ACCESS_KEY_SECONDS)
         touchLink(c, link.id)
@@ -67,7 +67,7 @@ export function accessRoutes(app: Hono<CloudEnv>) {
 }
 
 async function findLink(env: CloudflareBindings, code: string) {
-    const link = await env.PRIMARY_DB.prepare(`SELECT l.id, l.owner_id, u.email, u.username FROM access_links l JOIN users u ON u.id = l.owner_id WHERE l.code_hash = ? AND l.app IS NULL`)
+    const link = await env.PRIMARY_DB.prepare('SELECT l.id, l.owner_id, u.email, u.username FROM access_links l JOIN users u ON u.id = l.owner_id WHERE l.code_hash = ? AND l.app IS NULL')
         .bind(await sha256Hex(code)).first<{id: string, owner_id: string, email: string, username: string}>()
     if (!link) throw new HTTPException(404, {message: 'unknown or revoked access link'})
     return link

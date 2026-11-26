@@ -93,7 +93,7 @@ async function init() {
 
     console.log(myText.customDepthMaterial.transparent)
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.appendChild({
         type: 'folder',
         expanded: true,

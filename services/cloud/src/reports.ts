@@ -242,7 +242,7 @@ function checkFiles(files: SentFile[]): {error: string, status: number} | null {
 
 // ---- small helpers --------------------------------------------------------------
 
-const hmac = async (key: string, msg: string) => hex(await hmacSha256(key, msg))
+const hmac = async(key: string, msg: string) => hex(await hmacSha256(key, msg))
 
 /** The /64 of an IPv6 address — one home or one server gets that much — or the IPv4 address. */
 function ipSender(ip: string): string {
@@ -278,7 +278,7 @@ const imageKey = (key: string, ext: string) => `reports/${key}/image.${ext}`
 const IMAGE_EXTS = ['jpg', 'png', 'webp']
 
 type Row = Record<string, any>
-type Result = {status: number, body: unknown}
+interface Result {status: number, body: unknown}
 
 /** A project's report: reports are only ever looked up inside their project. */
 async function rowById(env: CloudflareBindings, project: string, id: string): Promise<Row | null> {
@@ -502,6 +502,9 @@ const LIST_COLUMNS = `id, created_at, origin, type, surface, email, user_id, sum
 
 interface ListQuery {status?: string, type?: string, q?: string, deleted?: boolean, limit?: number, before?: string}
 
+/** A report's row without its keys and project, for the sender and the staff pages. */
+const visibleOf = ({key: _k, client_key: _c, rate_key: _rk, project_id: _p, ...visible}: Row) => visible
+
 function rowOut(r: Row) {
     const {versions_json, has_image, ...rest} = r
     let versions = {}
@@ -543,8 +546,7 @@ export async function getReport(env: CloudflareBindings, project: string, id: st
     if (!row) return {status: 404, body: {error: 'no such report'}}
     const doc = row.deleted_at ? null : await env.CLOUD_BUCKET.get(bundleKey(row.key))
     const files = (await filesOf(env, id)).map(({report_id: _r, id: _i, ...f}) => f)
-    const {key: _k, client_key: _c, rate_key: _rk, project_id: _p, ...visible} = row
-    return {status: 200, body: {row: rowOut(visible), files, report: doc ? await doc.json() : null}}
+    return {status: 200, body: {row: rowOut(visibleOf(row)), files, report: doc ? await doc.json() : null}}
 }
 
 const fileHeaders = (type: string, extra: Record<string, string> = {}) => ({
@@ -595,8 +597,7 @@ export async function updateReport(env: CloudflareBindings, project: string, id:
     await env.PRIMARY_DB.prepare(`UPDATE reports SET ${sets.join(', ')} WHERE id = ?${args.length} AND deleted_at IS NULL`).bind(...args).run()
     console.log('report update', JSON.stringify({id, by, status: body?.status}))
     // the row only: the page keeps the report and files it has (no R2 read again)
-    const {key: _k, client_key: _c, rate_key: _rk, project_id: _p, ...visible} = (await rowById(env, project, id))!
-    return {status: 200, body: {row: rowOut(visible)}}
+    return {status: 200, body: {row: rowOut(visibleOf((await rowById(env, project, id))!))}}
 }
 
 /** DELETE the report: the R2 objects go, the personal columns are cleared, the row stays. The rate
@@ -611,7 +612,7 @@ export async function deleteReport(env: CloudflareBindings, project: string, id:
     await env.PRIMARY_DB.batch([
         env.PRIMARY_DB.prepare(`UPDATE reports SET deleted_at = ?1, deleted_by = ?2, email = NULL, summary = NULL, note = NULL,
             has_image = 0 WHERE id = ?3`).bind(at, by, id),
-        env.PRIMARY_DB.prepare(`UPDATE report_files SET state = 'deleted', name = NULL WHERE report_id = ?1`).bind(id),
+        env.PRIMARY_DB.prepare('UPDATE report_files SET state = \'deleted\', name = NULL WHERE report_id = ?1').bind(id),
     ])
     console.log('report delete', JSON.stringify({id, by}))
     return {status: 200, body: {id, deleted_at: at}}

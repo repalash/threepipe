@@ -40,20 +40,20 @@ function checkPath(name: BucketName, path: string): string {
 }
 
 export function bucketRoutes(app: Hono<CloudEnv>) {
-    app.post('/api/v1/buckets/:bucket/missing', async (c) => {
+    app.post('/api/v1/buckets/:bucket/missing', async(c) => {
         const {name} = await staffBucket(c)
         const body = await jsonBody<{paths?: unknown}>(c)
         if (!Array.isArray(body.paths) || body.paths.length > MISSING_PATHS_MAX || body.paths.some(p => typeof p !== 'string'))
             throw new HTTPException(400, {message: `paths: up to ${MISSING_PATHS_MAX} paths`})
         const paths = (body.paths as string[]).map(p => checkPath(name, p))
         // one D1 query: every upload here is registered (below); cheaper than an R2 head per path
-        const {results} = await c.env.PRIMARY_DB.prepare(`SELECT path FROM files WHERE bucket = ? AND path IN (SELECT value FROM json_each(?))`)
+        const {results} = await c.env.PRIMARY_DB.prepare('SELECT path FROM files WHERE bucket = ? AND path IN (SELECT value FROM json_each(?))')
             .bind(name, JSON.stringify(paths)).all<{path: string}>()
         const have = new Set(results.map(r => r.path))
         return c.json({missing: paths.filter(p => !have.has(p))})
     })
 
-    app.put('/api/v1/buckets/:bucket/:path{.+}', async (c) => {
+    app.put('/api/v1/buckets/:bucket/:path{.+}', async(c) => {
         const {user, name, bucket, url} = await staffBucket(c)
         const path = checkPath(name, (c.req.param('path')))
         const size = uploadSize(c)
@@ -70,9 +70,9 @@ export function bucketRoutes(app: Hono<CloudEnv>) {
         })
         // the registry row (/missing reads it); also when the object is there already, so a retry after a failed insert
         // registers it
-        const register = (size: number, type: string) => c.env.PRIMARY_DB.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type)
+        const register = (bytes: number, type: string) => c.env.PRIMARY_DB.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (bucket, path) DO NOTHING`)
-            .bind(crypto.randomUUID(), user.id, name, path.split('/')[0], path, size, expected, type).run()
+            .bind(crypto.randomUUID(), user.id, name, path.split('/')[0], path, bytes, expected, type).run()
         if (!stored) {
             // the path exists (write-once): the same bytes again are fine. An object put there another way (wrangler, the
             // dashboard) has no sha256 on it: its bytes are hashed once, so it gets registered and /missing stops listing it.

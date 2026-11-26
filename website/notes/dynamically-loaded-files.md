@@ -22,6 +22,8 @@ By default, these files are loaded from one of the reliable CDNs, or from [three
 
 ### Core
 
+- `BVHPlugin.LIBRARY_MODULE` - The module specifier the BVHPlugin's default loader imports three-mesh-bvh from (a native `import()`, not bundled). Map it in an import map, set a full URL, or pass the module to the plugin instead (`{lib}` or `{load: () => import('three-mesh-bvh')}`).
+  - Default: `three-mesh-bvh`
 - `DRACOLoader2.DRACO_LIBRARY_PATH` - The URL to the Draco decoder/encoder library used for loading compressed 3D models.
   - Default: `https://cdn.jsdelivr.net/gh/google/draco@1.5.6/javascript/`
   - Alternatives:

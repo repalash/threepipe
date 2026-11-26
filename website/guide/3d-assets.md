@@ -1,7 +1,7 @@
 ---
 prev:
-    text: '@threepipe Packages'
-    link: './threepipe-packages'
+    text: 'FAQ'
+    link: './faq'
 
 next:
     text: 'Loading Files'

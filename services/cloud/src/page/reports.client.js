@@ -306,7 +306,7 @@ async function repFileGet(i) {
         const b = await api(base() + '/' + encodeURIComponent(r.id) + '/files/' + i)
         const url = URL.createObjectURL(new Blob([b], {type: 'application/octet-stream'}))
         const a = document.createElement('a')
-        a.href = url; a.download = r.id + '-' + String(f.name || 'file').replace(/[\\/:*?"<>|\x00-\x1f]+/g, '_')
+        a.href = url; a.download = r.id + '-' + String(f.name || 'file').replace(/[\\/:*?"<>|\p{Cc}]+/gu, '_')
         document.body.appendChild(a); a.click(); a.remove()
         setTimeout(() => URL.revokeObjectURL(url), 60000)
     } catch (e) { UI.toast('Download failed: ' + e.message, true) }

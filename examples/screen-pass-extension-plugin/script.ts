@@ -83,7 +83,7 @@ async function init() {
         })])
 
     // Add the color to the UI
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.setupPluginUi(CustomScreenPassExtensionPlugin, {expanded: true})
 
 }

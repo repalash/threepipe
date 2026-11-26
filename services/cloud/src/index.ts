@@ -21,7 +21,7 @@ import {guardRequest} from './auth'
 const app = new Hono<CloudEnv>()
 // Every 5xx, and every sign-in that failed at the provider (a wrong or expired client secret, the provider down, an
 // email it would not give), is logged for a person (logError). Cancelling at the provider is not an error.
-app.use('*', async (c, next) => {
+app.use('*', async(c, next) => {
     await next()
     const status = c.res.status
     const signIn = /\/auth\/oauth\/[^/]+\/callback$/.test(c.req.path)
@@ -32,7 +32,7 @@ app.use('*', async (c, next) => {
 })
 app.use('*', filesHost) // before teenybase: file reads never touch the database
 
-teenyHono<CloudEnv>(async (c) => {
+teenyHono<CloudEnv>(async(c) => {
     const db = new $Database(c, config, new D1Adapter(c.env.PRIMARY_DB))
     db.extensions.push(new OpenApiExtension(db, true))
     db.extensions.push(new PocketUIExtension(db))

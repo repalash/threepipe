@@ -180,7 +180,7 @@ describe('tweakpane editor frame on a phone', () => {
             expect(declarations('.lay-bar', vp).display, 'title or status bar').not.toBe('none')
             expect(declarations('.lay-menu', vp).display, 'layout menu').not.toBe('none')
             expect(declarations('body.lay-frame .mode-buttons-container', vp).display, 'mode tabs').toBe('none')
-            expect(declarations('body.lay-frame #tweakpaneUiContainer .tp-rotv_b', vp).display, 'panel title').toBe('none')
+            expect(declarations('body.lay-frame #tweakpaneUiContainer > .tp-rotv > .tp-rotv_b', vp).display, 'panel title').toBe('none')
         }
     })
 
