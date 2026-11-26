@@ -17,6 +17,8 @@ Release candidate of the three.js r172 upgrade lane, under the npm dist-tag `thr
 ### Changed
 
 - `download image` on render target textures awaits `RenderManager.exportRenderTarget()`, which is async since threepipe 0.7.0 (three.js r169 made `EXRExporter.parse()` async)
+- The dialogs of `viewer.dialog` (alert, confirm, prompt, choose) have the colours of the color mode: the card, the text, the second buttons and the field (the colour of a Tweakpane field), the accent of the clean modes for the main button, and a light or dark scheme. Before, they followed the light or dark mode of the system, also when it was not the mode of the panels. An app that sets its own `--dialog-*` variables sets them on `body` (or with a more specific rule), because the color mode sets them there.
+- Uses uiconfig-tweakpane 2.1.0 (was 1.0.1). The buttons with the tag `context-menu` (`UiTags.ContextMenu`: duplicate, delete, center geometry and the other object actions) are in the header of their folder: as buttons while they fit, and the rest in a ⋮ menu; before, they were full-width buttons in the folder body. `folderMenus = false` on the plugin (before the panels render) shows them in the body. The renderer now runs on the `uiconfig.js` of threepipe (0.4) instead of its own copy (0.2.1), so it has the same timing as the other UIs of threepipe: a value is set and `onChange` runs at once (`UiConfigMethods.DefaultDispatchMode`, `immediate`), not after the next frame; a config with `dispatchMode: 'postFrame'` keeps the old timing. `tweakpane` 3.1.10 and `@tweakpane/core` 1.1.9 are the exact versions that the renderer needs.
 - The context menu of a panel's ⋮ button (download/upload preset, reset defaults; `CustomContextMenu` of threepipe core) and of the image input use the colours and font of the color mode, and the panel menu opens below the button inside the panel. Before, it was always dark with a monospace font, and it opened past the right edge of the panel.
 - The default color mode, when none is stored, is `clean` (`clean-dark` when the system prefers dark), in every app with `TweakpaneUiPlugin`. Before, it was `light` (or `dark`). An app sets another one with `colorMode` (or the constructor argument).
 - Use [@threepipe/tweakpane-image-plugin](https://www.npmjs.com/package/@threepipe/tweakpane-image-plugin) 1.1.406 from npm in `devDependencies`, replacing the `tweakpane-image-plugin` 1.1.404 release tarball. A dropped file that is not an image (like `.hdr`, `.cube`) is now passed on as a `File` and loaded by the asset importer, instead of being set as a broken image texture.
@@ -25,6 +27,12 @@ Release candidate of the three.js r172 upgrade lane, under the npm dist-tag `thr
 
 - `download image` on a Float/HalfFloat `DataTexture` always threw `EXRExporter.parse: Unsupported first parameter` (the texture was passed as the second argument)
 - A dropped `File` was ignored when the current value of the image input was a texture whose image has no `src`, like an `.hdr` environment map.
+
+## [0.10.2] - 2026-11-15
+
+### Fixed
+
+- `TweakpaneUiPlugin` works in sandboxed documents (an opaque origin, like a page served with `CSP: sandbox` without `allow-same-origin`): the panel keeps its light or dark colour mode in `localStorage`, and any read of `localStorage` throws a SecurityError there, so the plugin stopped at startup. The colour mode now falls back to the system setting and is not remembered on such pages
 
 ## [0.10.1] - 2025-10-27
 

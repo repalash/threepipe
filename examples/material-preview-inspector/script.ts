@@ -34,7 +34,7 @@ const viewer = new ThreeViewer({
 
 const previews = viewer.getPlugin(MaterialPreviewPlugin)!
 const picking = viewer.getPlugin(PickingPlugin)!
-const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
 /** The first mesh of each material, for the "This mesh" shape */
 const users = new Map<IMaterial, IObject3D>()

@@ -36,7 +36,7 @@ export class HandlePending extends HTTPException {
  * handle typed at sign-up; an account a GitHub sign-in made takes the GitHub login, under the rules of /handle (lower
  * case, not reserved, not taken in another case). Anyone else (Google, a login that does not fit) picks one on the card.
  */
-export const setHandleOnSignIn = (env: CloudflareBindings): SignInHook<CloudEnv> => async ({provider, created, user, external}) => {
+export const setHandleOnSignIn = (env: CloudflareBindings): SignInHook<CloudEnv> => async({provider, created, user, external}) => {
     const db = env.PRIMARY_DB, now = new Date().toISOString()
     if (provider === 'password') {
         await db.prepare('UPDATE users SET handle_set = ? WHERE id = ? AND handle_set IS NULL').bind(now, user.id).run()

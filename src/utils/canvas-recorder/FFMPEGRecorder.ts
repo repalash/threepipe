@@ -56,6 +56,10 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
                 break
             }
             case 'error':
+                // this worker answers every 'image' message with this after storing the image: not a failure
+                if (msg.data === 'unknown command') break
+                this._workerFailed('the encoder stopped: ' + msg.data)
+                break
             case 'abort':
                 this._workerFailed('the encoder stopped: ' + msg.data)
                 break

@@ -75,7 +75,7 @@ async function init() {
         plugins: [LoadingScreenPlugin, SSAAPlugin],
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     await Promise.allSettled([
         viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr'),

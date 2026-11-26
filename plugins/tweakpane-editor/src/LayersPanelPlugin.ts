@@ -96,6 +96,7 @@ const ICONS = {
     lock: svg('<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>'),
     unlock: svg('<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.9-.7"/>'),
     search: svg('<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>'),
+    clear: svg('<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>', 12),
     closed: svg('<path d="M6 4l4 4-4 4"/>', 10),
     open: svg('<path d="M4 6l4 4 4-4"/>', 10),
     scene: svg('<path d="M8 2.5l5.5 2.75L8 8 2.5 5.25z"/><path d="M2.5 8L8 10.75 13.5 8M2.5 10.75L8 13.5l5.5-2.75"/>'),
@@ -125,14 +126,15 @@ const ICONS = {
  * - A double-click on a name (or F2) renames the object: Enter or a click outside keeps the name, Escape goes back.
  * - With the focus in the list: Up and Down select the next row (Shift adds it), Right opens a row or goes to its first
  *   child, Left closes a row or goes to its parent.
- * - The search field shows only the objects whose name has the text, with the groups that hold them.
+ * - The search field shows only the objects whose name has the text, with the groups that hold them; Escape or its ×
+ *   button clears it.
  * - Tabs for the materials, the textures and the geometries that the objects use ({@link tabs}, each turned on or off by
  *   {@link materialsTab} and the others; one tab shows no tab bar). An asset row has a swatch, a picture or an icon, the
  *   name, a short text (the size of a texture, the vertices of a geometry, the users), and an arrow that lists its users.
  *   A click selects the asset in the PickingPlugin, a double-click selects its users, a double-click on the name (or
  *   F2) renames a material or a texture ({@link renameAsset}); a hover outlines its users.
- * - The scene and the default camera are the first two rows, above the model ({@link sceneRows}), dimmer and with a line
- *   below them; a click selects them. Meshes, lines, points, cameras and lights show no children ({@link leafTypes},
+ * - The scene and the default camera are the first two rows, above the model ({@link sceneRows}), dimmer; a click
+ *   selects them. Meshes, lines, points, cameras and lights show no children ({@link leafTypes},
  *   {@link showLeafChildren}).
  * - A double-click on a row selects it and moves the camera to it ({@link doubleClickFocus}; the scene row frames the
  *   model); a double-click on the name renames it. With {@link clickToUnselect}, a click on a selected row unselects it.
@@ -143,16 +145,17 @@ const ICONS = {
  * Lights and cameras have the icon and the colour of their kind (`widgetKinds` of threepipe), as in the viewport.
  *
  * Where the panel goes: in the `container` given to the constructor, else the app puts {@link element} in the page. The
- * plugin does not depend on the editor: in the page frame of the `TweakpaneEditorPlugin`, the app calls
- * `editor.setArea('left', layers.element, LayersPanelPlugin.AreaEntry)`, and on the `enabledChange` event it takes the
- * area out (`setArea('left', null)`) or puts it back. The element fills its parent: give the parent a height. The plugin
+ * plugin does not depend on the editor: in the page frame of the `TweakpaneEditorPlugin`, the app adds it as a panel,
+ * `editor.addPanel('layers', layers.element, {...LayersPanelPlugin.AreaEntry, area: 'left'})` (the person can move it to
+ * another place with the menu of its entry), and on the `enabledChange` event it takes the panel out
+ * (`editor.removePanel('layers')`) or adds it back. The element fills its parent: give the parent a height. The plugin
  * takes the panel out of the page when it is removed.
  *
  * @example
  * ```ts
  * const layers = viewer.addPluginSync(LayersPanelPlugin)
  * const editor = viewer.getPlugin(TweakpaneEditorPlugin)!
- * const place = () => editor.setArea('left', layers.isDisabled() ? null : layers.element, LayersPanelPlugin.AreaEntry)
+ * const place = () => layers.isDisabled() ? editor.removePanel('layers') : editor.addPanel('layers', layers.element, {...LayersPanelPlugin.AreaEntry, area: 'left'})
  * place()
  * layers.addEventListener('enabledChange', place)
  * ```
@@ -171,7 +174,7 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
     static readonly RowHeight = 28
     /**
      * A name, an icon and a colour for the entry of the panel in the mode bar of the editor frame, for the app to pass to
-     * `TweakpaneEditorPlugin.setArea`. The plugin does not use it.
+     * `TweakpaneEditorPlugin.addPanel`. The plugin does not use it.
      */
     static AreaEntry: EditorFrameAreaOptions = {name: 'Layers', icon: ICONS.layers, color: '#6366f1'}
 
@@ -211,9 +214,9 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
         maxChildren = 5
 
     /**
-     * The scene and the default camera as the first two rows of the Objects tab, above the model, with a line below them.
+     * The scene and the default camera as the first two rows of the Objects tab, above the model, dimmer.
      * A click selects them (the UI of the editor shows their settings). They are not in the model: they have no eye, lock
-     * or arrow, and a search hides them.
+     * or arrow. A search shows them when their name has the text (`camera` finds the default camera).
      */
     @onChange(LayersPanelPlugin.prototype._structureChanged)
     @uiToggle('Scene and camera rows')
@@ -321,7 +324,7 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
 
     /**
      * @param container - the element that holds the panel while the plugin is added. Without it, the app puts
-     * {@link element} in the page (in the editor frame: `TweakpaneEditorPlugin.setArea`).
+     * {@link element} in the page (in the editor frame: `TweakpaneEditorPlugin.addPanel`).
      */
     constructor(container?: HTMLElement) {
         super()
@@ -347,6 +350,18 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
         this._search = search.appendChild(el('input', 'lyp-search-input'))
         this._search.placeholder = 'Search'
         this._search.setAttribute('aria-label', 'Search the layers')
+        // shown while the field has text (CSS, :placeholder-shown): empties it and keeps the focus in it
+        const clear = search.appendChild(el('button', 'lyp-search-clear'))
+        clear.type = 'button'
+        clear.innerHTML = ICONS.clear
+        clear.title = 'Clear the search'
+        clear.setAttribute('aria-label', 'Clear the search')
+        clear.addEventListener('click', e => {
+            e.preventDefault() // not a click on the label
+            this._search.value = ''
+            this._setFilter('')
+            this._search.focus()
+        })
         this._list = this.element.appendChild(el('div', 'lyp-list'))
         this._list.tabIndex = 0
         this._list.setAttribute('role', 'tree')
@@ -1011,11 +1026,11 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
         const root = this._viewer?.scene.modelRoot as IObject3D | undefined
         if (!root) return
         const filter = this._filter
-        // the scene and the default camera, above the model; not in a search
+        // the scene and the default camera, above the model; in a search, when their name has the text
         const scene = this._viewer!.scene
-        if (this.sceneRows && !filter) {
+        if (this.sceneRows) {
             for (const o of [scene, scene.defaultCamera] as (IObject3D | undefined)[]) {
-                if (!o) continue
+                if (!o || filter && !this._pinnedName(o).toLowerCase().includes(filter)) continue
                 this._index.set(o, this._flat.length)
                 this._flat.push({object: o, depth: 0, kids: 0, open: false, pinned: true})
             }
@@ -1188,7 +1203,7 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
         setIfChanged(row.style, 'paddingLeft', 4 + r.depth * INDENT + 'px')
         row.setAttribute('aria-level', String(r.depth + 1))
         if (r.more) return this._fillMore(p, r.more)
-        if (r.pinned) return this._fillPinned(p, i, r.object, isSel)
+        if (r.pinned) return this._fillPinned(p, r.object, isSel)
         setIfChanged(p.lock.style, 'visibility', '')
         setIfChanged(p.eye.style, 'visibility', '')
         setIfChanged(p.meta, 'textContent', '')
@@ -1278,10 +1293,14 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
         setIfChanged(p.meta, 'textContent', this._assetMeta(r))
     }
 
-    /** Fills the row of the scene or of the default camera: a grey icon, a dimmer name, no buttons; a line below the last one */
-    private _fillPinned(p: RowElements, i: number, o: IObject3D, isSel: boolean) {
-        const end = !this._flat[i + 1]?.pinned
-        setIfChanged(p.row, 'className', 'lyp-row lyp-pinned' + (isSel ? ' lyp-sel' : '') + (end ? ' lyp-pinned-end' : ''))
+    /** The name in the row of the scene or of the default camera, also for the search */
+    private _pinnedName(o: IObject3D) {
+        return o === this._viewer?.scene ? 'Scene' : o.name || 'Default camera'
+    }
+
+    /** Fills the row of the scene or of the default camera: a grey icon, a dimmer name, no buttons */
+    private _fillPinned(p: RowElements, o: IObject3D, isSel: boolean) {
+        setIfChanged(p.row, 'className', 'lyp-row lyp-pinned' + (isSel ? ' lyp-sel' : ''))
         p.row.removeAttribute('aria-expanded')
         p.row.setAttribute('aria-selected', String(isSel))
         this._setCaret(p, '', '')
@@ -1292,7 +1311,7 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
             p.kind.style.color = ''
             p.kind.innerHTML = isScene ? ICONS.scene : svg(`<path d="${widgetKinds[getWidgetKind(o) ?? 'perspectiveCamera'].icon}"/>`)
         }
-        const name = isScene ? 'Scene' : o.name || 'Default camera'
+        const name = this._pinnedName(o)
         setIfChanged(p.name, 'textContent', name)
         setIfChanged(p.name, 'title', name)
         setIfChanged(p.meta, 'textContent', '')

@@ -22,7 +22,7 @@ export async function appFolder(c: Context<CloudEnv>, userId: string, app: strin
     const db = c.env.PRIMARY_DB
     const find = (mark: string) => db.prepare('SELECT id FROM drive_folders WHERE owner_id = ? AND app = ?').bind(userId, mark).first<{id: string}>()
     // made here, or found: an approval at the same time may have made it first (the name is then taken: 409)
-    const make = async (parent: string, label: string, mark: string) => {
+    const make = async(parent: string, label: string, mark: string) => {
         const found = await find(mark)
         if (found) return found.id
         try {

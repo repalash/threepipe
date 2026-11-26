@@ -30,6 +30,7 @@ export default defineConfig({
           {text: 'Viewer API', link: 'guide/viewer-api'},
           {text: 'Core Plugins', link: 'guide/core-plugins'},
           {text: '@threepipe Packages', link: 'guide/threepipe-packages'},
+          {text: 'FAQ', link: 'guide/faq'},
         ]
       },
       {

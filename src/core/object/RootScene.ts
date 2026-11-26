@@ -114,8 +114,18 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         backgroundIntensity = 1
 
     /**
+     * Blurs the background when it is an environment map or a texture (0: sharp, 1: most blurred), as in three.js.
+     * It does not change the environment light of the materials.
+     */
+    @serialize() @onChange3(RootScene.prototype.setDirty)
+    @uiSlider('Background Blurriness', [0, 1], 0.01)
+        backgroundBlurriness = 0
+
+    /**
      * Enable/Disable tonemapping selectively for the background.
-     * Note - This requires both TonemapPlugin and GBufferPlugin or DepthBufferPlugin to be in the viewer to work.
+     * Note - This requires both TonemapPlugin and GBufferPlugin or DepthBufferPlugin to be in the viewer to work: the
+     * screen pass finds the background pixels from the depth. Without them the background is tone mapped, and the
+     * TonemapPlugin logs a warning.
      */
     @uiToggle('Background Tonemap'/* , (e)=>({e._viewer?.renderManager.gbufferTarget})*/) // todo let scene access the viewer
     @onChange3(RootScene.prototype.setDirty)
