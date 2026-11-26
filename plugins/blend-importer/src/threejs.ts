@@ -135,6 +135,7 @@ export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
         const ctx = createCtx(three, {
             loadExternalTexture: (p: string, srgb: boolean) => this._loadExternal(p, srgb, resourcePath, pending, issues),
             onTextureIssue: (_issue, name) => issues.packedUnsupported.push(name),
+            onPending: (done) => pending.push(done),
         })
         const objects = await createObjects(blend, ctx)
         if (pending.length) await Promise.all(pending)
@@ -195,7 +196,8 @@ export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
         }
         // Same class as what arrives, so copy() carries a valid upload path (a DataTexture's data can't
         // go through a plain Texture).
-        const placeholder: Texture = isTga && !custom ? new three.DataTexture(new Uint8Array(4), 1, 1) : new three.Texture()
+        // It starts as 1x1 white, so a material whose image never arrives renders untextured, not broken.
+        const placeholder: Texture = isTga && !custom ? new three.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1) : new three.Texture(whitePixel())
         pending.push(load.then((tex) => {
             if (!tex) {
                 issues.missing.push(path)
@@ -219,6 +221,18 @@ export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
         }))
         return placeholder
     }
+}
+
+// A 1x1 white canvas (external textures only load where there is a DOM).
+function whitePixel(): HTMLCanvasElement {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 1
+    const c2d = canvas.getContext('2d')
+    if (c2d) {
+        c2d.fillStyle = '#ffffff'
+        c2d.fillRect(0, 0, 1, 1)
+    }
+    return canvas
 }
 
 /** Images of one .blend that couldn't be used, reported in one warning. */

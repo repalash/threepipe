@@ -197,12 +197,20 @@ function flipDataTextureRowsY(tex: DataTexture): void {
  */
 async function importExternalTexture(req: ExternalTextureRequest, importer: IAssetImporter, issues: TextureIssues): Promise<void> {
     // A missing file would make the AssetImporter log three errors; check first with a HEAD request
-    // (http(s) only - blob:/data: URLs of dropped files exist by construction). If the server or CORS
+    // (http(s), relative URLs resolved against the page - blob:/data: URLs of dropped files exist). If the server or CORS
     // refuses HEAD, fall through and let the import try.
-    if (/^https?:/i.test(req.url) && typeof fetch === 'function') {
+    let absolute: URL | null = null
+    try {
+        absolute = new URL(req.url, typeof location !== 'undefined' ? location.href : undefined)
+    } catch (e) {
+        absolute = null
+    }
+    if (absolute && /^https?:$/.test(absolute.protocol) && typeof fetch === 'function') {
         try {
-            const res = await fetch(req.url, {method: 'HEAD'})
-            if (res.status === 404 || res.status === 410) {
+            const res = await fetch(absolute.href, {method: 'HEAD'})
+            // Single-page-app servers (Vite's included) answer a missing path with 200 and index.html.
+            const html = res.ok && /text\/html/i.test(res.headers.get('content-type') ?? '')
+            if (res.status === 404 || res.status === 410 || html) {
                 issues.missing.push(req.path)
                 return
             }
@@ -333,6 +341,7 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
             const importer = this.assetImporter
             const texReqs: ExternalTextureRequest[] = []
             const issues: TextureIssues = {missing: [], unsupported: [], packedUnsupported: [], failed: []}
+            const pending: Promise<void>[] = []
             const ctx = createCtx({
                 Texture, DataTexture, Vector2, Vector3, Euler, Matrix4, Quaternion, ShapeUtils, SRGBColorSpace,
                 FrontSide, DoubleSide, RepeatWrapping, ClampToEdgeWrapping, MirroredRepeatWrapping,
@@ -359,8 +368,10 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
                     }
                     : undefined,
                 onTextureIssue: (_issue, name) => issues.packedUnsupported.push(name),
+                onPending: (done) => pending.push(done),
             })
             const objects = await createObjects(blend, ctx)
+            if (pending.length) await Promise.all(pending)
             if (importer && texReqs.length) await Promise.all(texReqs.map(r => importExternalTexture(r, importer, issues)))
             reportTextureIssues(issues, url)
             const root = new Object3D()

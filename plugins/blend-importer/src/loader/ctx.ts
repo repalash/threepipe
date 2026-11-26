@@ -83,6 +83,11 @@ export interface Ctx {
      * (e.g. HDR or EXR). External images are reported by whoever provides `loadExternalTexture`.
      */
     onTextureIssue?: (issue: 'packed-unsupported', name: string) => void
+    /**
+     * Given each asynchronous step the import started (packed images decoding), so the caller can wait
+     * for them before handing the scene over, the way three's GLTFLoader waits for its textures.
+     */
+    onPending?: (done: Promise<void>) => void
 }
 
 /**

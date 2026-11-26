@@ -1,5 +1,5 @@
 import {Ctx} from './ctx'
-import {buildGeometry, MeshSource} from './meshBuilder'
+import {buildGeometry, MeshSource, withEmptyPosition} from './meshBuilder'
 
 // Reads a Blender Mesh datablock into a {@link MeshSource} and builds it with `buildGeometry`, which
 // does triangulation and normals the way Blender does. Blender has stored meshes in four layouts:
@@ -330,7 +330,7 @@ function attachCage(geometry: any, src: MeshSource) {
 }
 
 function build(src: MeshSource | null, name: string, ctx: Ctx) {
-    if (!src) return new ctx.BufferGeometry()
+    if (!src) return withEmptyPosition(new ctx.BufferGeometry(), ctx)
     const geometry = buildGeometry(src, name, ctx)
     attachCage(geometry, src)
     return geometry

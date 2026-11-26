@@ -234,6 +234,16 @@ function computeCornerNormals(src: MeshSource, valid: Uint8Array, fn: Float64Arr
 }
 
 /**
+ * A mesh with no faces (loose edges or points only, e.g. a geometry-nodes input) renders nothing in
+ * Blender. three's renderer needs a `position` attribute on every geometry it draws, so give it an empty
+ * one rather than none.
+ */
+export function withEmptyPosition(geometry: any, ctx: Ctx) {
+    if (!geometry.attributes.position) geometry.setAttribute('position', new ctx.BufferAttribute(new Float32Array(0), 3))
+    return geometry
+}
+
+/**
  * Build a three.js BufferGeometry from a {@link MeshSource}: triangulates every face like Blender,
  * computes Blender's corner normals, and splits vertices wherever corners that share a Blender vertex
  * differ in normal or UV (hard edges, flat faces, UV seams). Triangles are ordered by material slot so a
@@ -244,7 +254,7 @@ export function buildGeometry(src: MeshSource, name: string, ctx: Ctx) {
     geometry.name = name
     const {positions: pos, cornerVerts: cv, faceOffsets: fo, faceCount, vertCount} = src
     const loopCount = cv.length
-    if (!vertCount || !faceCount) return geometry
+    if (!vertCount || !faceCount) return withEmptyPosition(geometry, ctx)
 
     // Skip faces that reference missing corners/vertices (corrupt or partial data) instead of failing.
     const valid = new Uint8Array(faceCount)

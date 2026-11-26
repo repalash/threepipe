@@ -115,8 +115,15 @@ function packedTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null 
     const texture = new ctx.Texture(el)
     if (srgb) ctx.setSRGB(texture)
     texture.name = imageName(img)
-    el.onload = () => { texture.needsUpdate = true; URL.revokeObjectURL(url) }
-    el.onerror = () => { URL.revokeObjectURL(url) }
+    const decoded = new Promise<void>((resolve) => {
+        el.onload = () => { texture.needsUpdate = true; URL.revokeObjectURL(url); resolve() }
+        el.onerror = () => {
+            URL.revokeObjectURL(url)
+            if (ctx.onTextureIssue) ctx.onTextureIssue('packed-unsupported', imageName(img))
+            resolve()
+        }
+    })
+    if (ctx.onPending) ctx.onPending(decoded)
     el.src = url
     return texture
 }
@@ -136,7 +143,8 @@ function applyWrap(tex: Texture | null, imageNode: any, ctx: Ctx): Texture | nul
     if (!tex) return tex
     const ext = imageNode?.storage?.extension
     tex.wrapS = tex.wrapT = ext === 1 || ext === 2 ? ctx.ClampToEdgeWrapping : ext === 3 ? ctx.MirroredRepeatWrapping : ctx.RepeatWrapping
-    tex.needsUpdate = true
+    // No needsUpdate: the texture hasn't been uploaded yet (an image still decoding, or a placeholder),
+    // and flagging one without image data makes three warn on every frame.
     return tex
 }
 // Apply a Mapping node feeding the Image Texture's "Vector" input to the texture's UV transform. Blender's
@@ -152,7 +160,7 @@ function applyMapping(tex: Texture | null, imageNode: any, links: any[]): Textur
     if (scl && scl.length >= 2) tex.repeat.set(num(scl[0]) ?? 1, num(scl[1]) ?? 1)
     if (loc && loc.length >= 2) tex.offset.set(num(loc[0]) ?? 0, num(loc[1]) ?? 0)
     if (rot && rot.length >= 3) tex.rotation = num(rot[2]) ?? 0
-    tex.needsUpdate = true
+    // The UV transform is a uniform; no re-upload needed.
     return tex
 }
 function imageNodeTexture(imageNode: any, srgb: boolean, ctx: Ctx, links: any[] = []): Texture | null {

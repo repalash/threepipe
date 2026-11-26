@@ -35,6 +35,7 @@ Works with threepipe 0.3.0 and later: every name the build imports from threepip
 - **Fields after a 3-D array in a struct were read from the wrong offset.** The parser only understood two array dimensions, so in Blender 3.0+ `Image` (`*gputexture[3][2][2]`) `source`, `packedfile` and `packedfiles` were misread, and packed textures fell back to loading a file that isn't there.
 - **Missing images are one warning per file.** An external image that isn't there, or whose format no importer reads, used to log several AssetImporter errors each. The plugin now checks first (the importer's registered extensions, and a `HEAD` request for http(s) URLs) and reports what it left out in one warning when the import finishes; packed images in formats it can't decode (HDR, EXR) are in the same warning. Objects of types that aren't imported (curves, armatures, light probes...) are listed in one warning too, instead of a warning per object.
 - Multi-material meshes get one geometry group per material slot, not one per run of faces.
+- **Meshes without faces crashed three's renderer.** A mesh with only loose edges or points (common as a geometry-nodes input, e.g. in Blender's hexgrid demo) became a `BufferGeometry` with no `position` attribute, and three's `WebGLRenderer` throws on that every frame. It now gets an empty `position` and draws nothing, as in Blender.
 
 ### Changed
 
