@@ -100,6 +100,15 @@ function worker_code () {
 
         this.objects = {};
         this.memory_lookup = {},
+        // Per-ID pointer maps. Blender resolves a DATA block's old address only among the DATA blocks
+        // written after the same ID (blo_read_file.cc clears `fd->datamap` per ID); ID blocks resolve
+        // globally. Blender 5.x writes deterministic per-ID addresses, so the SAME address recurs in
+        // every mesh/material (e.g. each Mesh's attribute array) and a single global map makes every
+        // mesh resolve to the last one's data. `scope_lookup[scope][address]` holds the DATA blocks of
+        // one ID; `id_lookup` holds the ID blocks. See `resolve`.
+        this.scope_lookup = [];
+        this.id_lookup = {};
+        this.current_scope = -1;
         this.object_array = [];
 
         this.template = null;
@@ -110,6 +119,19 @@ function worker_code () {
             this.object_array.push(obj);
             if (!this.objects[obj.blender_name]) this.objects[obj.blender_name] = [];
             this.objects[obj.blender_name].push(obj);
+        },
+
+        // Resolve an old (file) address read from a struct that belongs to ID scope `scope`: DATA of
+        // that ID first, then ID blocks, then the legacy global map (last-written block wins).
+        resolve: function (pointer, scope) {
+            const scoped = scope >= 0 ? this.scope_lookup[scope] : undefined;
+            if (scoped) {
+                const hit = scoped[pointer];
+                if (hit !== undefined) return hit;
+            }
+            const id = this.id_lookup[pointer];
+            if (id !== undefined) return id;
+            return this.memory_lookup[pointer];
         },
 
         getPointer: function (offset) {
@@ -302,8 +324,9 @@ function worker_code () {
         return {
             get: function () {
                 const bf = this.__blender_file__;
+                const scope = this.__scope__;
                 let pointer = bf.getPointer(this.__data_address__ + offset, bf);
-                const link = bf.memory_lookup[pointer];
+                const link = bf.resolve(pointer, scope);
 
                 const results = [];
 
@@ -320,14 +343,14 @@ function worker_code () {
                     if (count > 0) {
                         for (let j = 0; j < count; j++) {
                             pointer = bf.getPointer(address + j * ps, bf);
-                            results.push(bf.memory_lookup[pointer] || null);
+                            results.push(bf.resolve(pointer, scope) || null);
                         }
                     } else {
                         // Fallback (no known block length): read until the first null, as before.
                         let j = 0;
                         while (true) {
                             pointer = bf.getPointer(address + j * ps, bf);
-                            const obj = bf.memory_lookup[pointer];
+                            const obj = bf.resolve(pointer, scope);
                             if (!obj) break;
                             results.push(obj);
                             j++;
@@ -353,7 +376,7 @@ function worker_code () {
                     while (j < Blender_Array_Length) {
                         let pointer = this.__blender_file__.getPointer(this.__data_address__ + off, this.__blender_file__);
 
-                        array.push(this.__blender_file__.memory_lookup[pointer]);
+                        array.push(this.__blender_file__.resolve(pointer, this.__scope__));
                         off += length;
                         j++;
                     }
@@ -361,7 +384,7 @@ function worker_code () {
                     return array;
                 } else {
                     let pointer = this.__blender_file__.getPointer(this.__data_address__ + offset, this.__blender_file__);
-                    return this.__blender_file__.memory_lookup[pointer];
+                    return this.__blender_file__.resolve(pointer, this.__scope__);
                 }
             },
             set: function () {},
@@ -514,11 +537,15 @@ function worker_code () {
                             PointerToArray = true;
                         }
 
-                        // arrays
+                        // arrays. DNA names can have more than two dimensions (Blender 3.0+ Image has
+                        // `*gputexture[3][2][2]`): the last dimension is the element array, the rest
+                        // are flattened into the outer (super-array) count, so the field takes its full
+                        // size and every field after it keeps the right offset.
                         if (match[4]) {
-                            if (match[6]) {
-                                Suparray_match = parseInt(match[5]);
-                                Blender_Array_Length = parseInt(match[7]);
+                            const dims = (original_name.match(/\[(\d+)\]/g) || []).map(d => parseInt(d.slice(1, -1)));
+                            if (dims.length > 1) {
+                                Blender_Array_Length = dims[dims.length - 1];
+                                Suparray_match = dims.slice(0, -1).reduce((a, b) => a * b, 1);
                             } else {
                                 Blender_Array_Length = parseInt(match[5]);
                             }
@@ -618,6 +645,8 @@ function worker_code () {
             BLENDER_FILE.addObject(this);
 
             this.__blender_file__ = BLENDER_FILE;
+            // ID scope this block (and its embedded structs) was read in — see BLENDER_FILE.resolve.
+            this.__scope__ = BLENDER_FILE.current_scope;
             // Byte length of this block's payload (data_block_length is the end offset). Lets
             // consumers derive element counts for raw DATA blocks (e.g. poly_offset_indices) whose
             // logical length isn't available elsewhere — needed for Blender 5.0 where Mesh.tot* are
@@ -640,6 +669,8 @@ function worker_code () {
                 obj = null;
                 name = struct[i];
                 type = struct[i + 1];
+                length = struct[i + 2]; // field byte length (pushed at compileProp/__list__) — was never read,
+                // leaving `length` undefined → inline-struct array members got NaN addresses (see line 653/661).
                 Blender_Array_Length = struct[i + 4];
                 Pointer_Match = struct[i + 5];
                 offset = this.__data_address__ + struct[i + 3];
@@ -701,6 +732,10 @@ function worker_code () {
         let curr_count2 = 0;
 
         FILE.memory_lookup = {};
+        // Scope 0 catches any DATA written before the first ID block.
+        FILE.scope_lookup = [{}];
+        FILE.id_lookup = {};
+        FILE.current_scope = 0;
         struct_names = [];
         offset = 0;
 
@@ -994,6 +1029,13 @@ function worker_code () {
                 }
             }
             else {
+                // Every non-DATA block (an ID such as ME/OB/MA, or GLOB/REND/...) opens a new pointer
+                // scope for the DATA blocks that follow it — mirrors Blender's per-ID datamap.
+                const is_data = code_str === 'DATA';
+                if (!is_data) {
+                    FILE.current_scope = FILE.scope_lookup.length;
+                    FILE.scope_lookup.push({});
+                }
                 // Create a Blender object using a constructor template from current_SDNA_template
                 const data_start = data_offset + BLOCK_HDR;
 
@@ -1015,6 +1057,7 @@ function worker_code () {
                     obj.address = address + '';
 
                     obj.setData(address, data_start, data_start + size, FILE);
+                    let stored = obj;
 
                     if (count > 1) {
                         let array = [];
@@ -1024,10 +1067,11 @@ function worker_code () {
                             obj.setData(address, data_start + length * u, data_start + (length * u) + length, FILE);
                             array.push(obj);
                         }
-                        FILE.memory_lookup[address] = array;
-                    } else {
-                        FILE.memory_lookup[address] = obj;
+                        stored = array;
                     }
+                    FILE.memory_lookup[address] = stored;
+                    if (is_data) FILE.scope_lookup[FILE.current_scope][address] = stored;
+                    else FILE.id_lookup[address] = stored;
                 }
             }
         }

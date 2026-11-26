@@ -1,4 +1,3 @@
-import {gunzipSync} from 'threepipe'
 import {decompress as zstdDecompress} from 'fzstd'
 
 type BlendCompression = 'none' | 'gzip' | 'zstd' | 'unknown'
@@ -34,11 +33,14 @@ function toArrayBuffer(u8: Uint8Array): ArrayBuffer {
  * Decompress a `.blend` payload if needed and return a plain `ArrayBuffer`.
  * Returns the input unchanged for uncompressed files.
  *
+ * `gunzipSync` is fflate's (passed in so each entry point brings its own: threepipe re-exports it,
+ * the plain three.js entry bundles it).
+ *
  * Throws if the file magic is unrecognised, or if a decompressor produces
  * output too short to be a valid .blend header (which would otherwise hang
  * the downstream parser).
  */
-export function decompressBlend(buf: ArrayBuffer): ArrayBuffer {
+export function decompressBlend(buf: ArrayBuffer, gunzipSync: (data: Uint8Array) => Uint8Array): ArrayBuffer {
     const u8 = new Uint8Array(buf)
     const kind = detectBlendCompression(u8)
     if (kind === 'none') return buf

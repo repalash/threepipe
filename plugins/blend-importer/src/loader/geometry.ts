@@ -1,16 +1,224 @@
 import {Ctx} from './ctx'
+import {buildGeometry, MeshSource, withEmptyPosition} from './meshBuilder'
 
-function getLayer(layers: any, i: number) {
-    if (!Array.isArray(layers)) return layers
-    return layers[i]
-}
+// Reads a Blender Mesh datablock into a {@link MeshSource} and builds it with `buildGeometry`, which
+// does triangulation and normals the way Blender does. Blender has stored meshes in four layouts:
+//   - MFace (< 2.63): one struct per tri/quad face.                          -> sourceFromMFace
+//   - MVert/MEdge/MPoly/MLoop (2.63 - 3.6; 3.x still writes these for compat) -> sourceFromMPoly
+//   - CustomData layers + poly_offset_indices (4.0 - 4.5)                    -> sourceFromLayers
+//   - attribute_storage (5.0+, file format version 1)                        -> sourceFromAttributes
 // https://projects.blender.org/blender/blender/pulls/108015/files
-// https://projects.blender.org/blender/blender/commit/1b63a290c68636211b16c5e212a699e6b63031b9
 // https://developer.blender.org/docs/release_notes/4.0/python_api/#breaking-changes
-// https://developer.blender.org/docs/release_notes/4.0/#blend-files
-// https://projects.blender.org/blender/blender/commit/7966cd16d6dc4e66d01f7bd68a090107c1a7978c
-// https://projects.blender.org/blender/blender/issues/95967
-// https://projects.blender.org/blender/blender/pulls/106638
+// https://developer.blender.org/docs/release_notes/4.1/modeling/#auto-smooth
+
+/** Options that come from the object rather than the mesh. */
+export interface GeometryOptions {
+    /**
+     * Angle of a "Smooth by Angle" (Auto Smooth) modifier on the object, in radians. Blender 4.1+ only;
+     * older files keep Auto Smooth on the mesh (`Mesh.flag`/`smoothresh`).
+     */
+    smoothByAngle?: number | null
+    /** The modifier's "Ignore Sharpness" option: sharp edges and flat faces become smooth too. */
+    ignoreSharpness?: boolean
+}
+
+// DNA_mesh_types.h / DNA_meshdata_types.h
+const ME_AUTOSMOOTH = 1 << 5 // Mesh.flag, < 4.1
+const ME_SMOOTH = 1 << 0 // MPoly.flag / MFace.flag
+const ME_SHARP = 1 << 9 // MEdge.flag
+
+const asArray = (v: any): any[] => v === undefined || v === null ? [] : Array.isArray(v) ? v : typeof v.length === 'number' && typeof v !== 'string' && !v.blender_name ? Array.from(v) : [v]
+const finite = (x: any) => typeof x === 'number' && Number.isFinite(x) ? x : 0
+
+/** Blender version of the file the struct was read from, e.g. 300 for 3.0, 405 for 4.5, 500 for 5.0. */
+function fileVersion(block: any): number {
+    const v = parseInt(block?.__blender_file__?.template?.version, 10)
+    return Number.isFinite(v) ? v : 0
+}
+
+// Normal rules from the mesh's own Auto Smooth setting (files before 4.1).
+function legacyNormalMode(meshData: any): Pick<MeshSource, 'normalMode' | 'autoSmoothAngle'> {
+    if ((meshData.flag || 0) & ME_AUTOSMOOTH) {
+        const a = typeof meshData.smoothresh === 'number' ? meshData.smoothresh : meshData.smoothresh_legacy
+        return {normalMode: 'split', autoSmoothAngle: typeof a === 'number' && Number.isFinite(a) ? a : Math.PI / 6}
+    }
+    return {normalMode: 'vertex', autoSmoothAngle: null}
+}
+function normalModeFor(meshData: any, opts: GeometryOptions): Pick<MeshSource, 'normalMode' | 'autoSmoothAngle'> {
+    if (fileVersion(meshData) < 401) return legacyNormalMode(meshData)
+    return {normalMode: 'split', autoSmoothAngle: opts.smoothByAngle ?? null}
+}
+
+// Raw TypedArray over a pointed-to DATA block (whole block), alignment-safe.
+function rawBlock(d: any, arrayType: any): any {
+    const b = Array.isArray(d) ? d[0] : d
+    if (!b || b.__data_address__ === undefined || !b.__blender_file__) return null
+    // The parser gives an array block's first element the whole block's length (later elements get their
+    // own); count x element size covers the block too, should that ever change.
+    const bytes = Math.max(b.__byte_length__ || 0, Array.isArray(d) ? d.length * (b._length || 0) : 0)
+    const n = Math.floor(bytes / arrayType.BYTES_PER_ELEMENT)
+    if (!(n > 0)) return null
+    return b.__blender_file__.readTypedArray(arrayType, b.__data_address__, n)
+}
+
+function sanitize(a: Float32Array): Float32Array {
+    for (let i = 0; i < a.length; i++) if (!Number.isFinite(a[i])) a[i] = 0
+    return a
+}
+
+// ── Legacy MPoly/MLoop (2.63 - 3.x) ─────────────────────────────────
+function sourceFromMPoly(meshData: any): MeshSource {
+    const verts = asArray(meshData.mvert)
+    const loops = asArray(meshData.mloop)
+    const polys = asArray(meshData.mpoly)
+    const edges = asArray(meshData.medge)
+    const uvs = asArray(meshData.mloopuv)
+
+    const vertCount = verts.length
+    const positions = new Float32Array(vertCount * 3)
+    for (let i = 0; i < vertCount; i++) {
+        const co = verts[i]?.co
+        if (co) { positions[i * 3] = finite(co[0]); positions[i * 3 + 1] = finite(co[1]); positions[i * 3 + 2] = finite(co[2]) }
+    }
+
+    const faceCount = polys.length
+    const faceOffsets = new Int32Array(faceCount + 1)
+    let loopCount = 0
+    for (let f = 0; f < faceCount; f++) { faceOffsets[f] = loopCount; loopCount += Math.max(0, polys[f].totloop | 0) }
+    faceOffsets[faceCount] = loopCount
+    const cornerVerts = new Int32Array(loopCount).fill(-1)
+    const cornerUVs = uvs.length ? new Float32Array(loopCount * 2) : null
+    const faceMat = new Int32Array(faceCount)
+    const faceFlat = new Uint8Array(faceCount)
+    for (let f = 0; f < faceCount; f++) {
+        const p = polys[f], ls = p.loopstart | 0, o = faceOffsets[f], n = faceOffsets[f + 1] - o
+        faceMat[f] = p.mat_nr || 0
+        faceFlat[f] = p.flag & ME_SMOOTH ? 0 : 1
+        for (let k = 0; k < n; k++) {
+            const l = loops[ls + k]
+            cornerVerts[o + k] = l ? l.v : -1
+            const uv = cornerUVs && uvs[ls + k]?.uv
+            if (uv) { cornerUVs![(o + k) * 2] = finite(uv[0]); cornerUVs![(o + k) * 2 + 1] = finite(uv[1]) }
+        }
+    }
+
+    const sharp: number[] = []
+    for (const e of edges) if (e && e.flag & ME_SHARP) sharp.push(e.v1, e.v2)
+
+    return {
+        positions, vertCount, faceOffsets, faceCount, cornerVerts, cornerUVs, faceMat, faceFlat,
+        materialSlots: meshData.totcol || 0, sharpEdges: sharp, ...legacyNormalMode(meshData),
+    }
+}
+
+// ── Legacy MFace (< 2.63): tris and quads only, no loops ────────────
+function sourceFromMFace(meshData: any): MeshSource {
+    const verts = asArray(meshData.mvert)
+    const faces = asArray(meshData.mface)
+    const tfaces = asArray(meshData.mtface)
+    const edges = asArray(meshData.medge)
+    const vertCount = verts.length
+    const positions = new Float32Array(vertCount * 3)
+    for (let i = 0; i < vertCount; i++) {
+        const co = verts[i]?.co
+        if (co) { positions[i * 3] = finite(co[0]); positions[i * 3 + 1] = finite(co[1]); positions[i * 3 + 2] = finite(co[2]) }
+    }
+    const faceCount = faces.length
+    const faceOffsets = new Int32Array(faceCount + 1)
+    const cv: number[] = [], uv: number[] = []
+    const faceMat = new Int32Array(faceCount), faceFlat = new Uint8Array(faceCount)
+    const hasUv = tfaces.length >= faceCount && faceCount > 0
+    for (let f = 0; f < faceCount; f++) {
+        const fa = faces[f]
+        faceOffsets[f] = cv.length
+        // A quad is stored with v4 != 0 (Blender rotates the indices so that v4 is never 0 on a quad).
+        const ids = fa.v4 ? [fa.v1, fa.v2, fa.v3, fa.v4] : [fa.v1, fa.v2, fa.v3]
+        cv.push(...ids)
+        if (hasUv) {
+            const t = tfaces[f]?.uv
+            for (let k = 0; k < ids.length; k++) {
+                const c = Array.isArray(t?.[k]) ? t[k] : t ? [t[k * 2], t[k * 2 + 1]] : [0, 0]
+                uv.push(finite(c?.[0]), finite(c?.[1]))
+            }
+        }
+        faceMat[f] = fa.mat_nr || 0
+        faceFlat[f] = fa.flag & ME_SMOOTH ? 0 : 1
+    }
+    faceOffsets[faceCount] = cv.length
+    const sharp: number[] = []
+    for (const e of edges) if (e && e.flag & ME_SHARP) sharp.push(e.v1, e.v2)
+    return {
+        positions, vertCount, faceOffsets, faceCount, cornerVerts: new Int32Array(cv), cornerUVs: hasUv ? new Float32Array(uv) : null,
+        faceMat, faceFlat, materialSlots: meshData.totcol || 0, sharpEdges: sharp, ...legacyNormalMode(meshData),
+    }
+}
+
+// ── CustomData layers (4.0 - 4.5) ───────────────────────────────────
+// CustomDataLayer.type values (DNA_customdata_types.h)
+const CD_PROP_INT32 = 11, CD_PROP_FLOAT3 = 48, CD_PROP_FLOAT2 = 49, CD_PROP_BOOL = 50, CD_PROP_INT32_2D = 52
+
+function layersOf(cd: any): any[] {
+    if (!cd || !cd.layers || !cd.totlayer) return []
+    const ls = asArray(cd.layers)
+    return ls.slice(0, cd.totlayer).filter(Boolean)
+}
+// A named (or, failing that, the first matching-type) layer's raw values, if it holds at least `need` numbers.
+function layerArray(layers: any[], name: string | null, type: number, arrayType: any, need: number, fallback?: (l: any) => boolean): any {
+    const pick = (pred: (l: any) => boolean) => {
+        for (const l of layers) {
+            if (!pred(l)) continue
+            const a = rawBlock(l.data, arrayType)
+            if (a && a.length >= need) return a.length === need ? a : a.subarray(0, need)
+        }
+        return null
+    }
+    return (name !== null ? pick(l => l.name === name && (l.type === type || l.type === undefined)) : null)
+        ?? (fallback ? pick(fallback) : null)
+}
+
+function sourceFromLayers(meshData: any, opts: GeometryOptions): MeshSource | null {
+    const vertCount = meshData.totvert | 0, loopCount = meshData.totloop | 0, faceCount = meshData.totpoly | 0
+    const edgeCount = meshData.totedge | 0
+    if (!(vertCount > 0 && loopCount > 0 && faceCount > 0)) return null
+    const vl = layersOf(meshData.vdata), ll = layersOf(meshData.ldata), pl = layersOf(meshData.pdata), el = layersOf(meshData.edata)
+
+    const pos = layerArray(vl, 'position', CD_PROP_FLOAT3, Float32Array, vertCount * 3, l => l.type === CD_PROP_FLOAT3)
+    const cornerVerts = layerArray(ll, '.corner_vert', CD_PROP_INT32, Int32Array, loopCount)
+    const poi = meshData.poly_offset_indices
+    const faceOffsets = poi && poi.__blender_file__ ? poi.__blender_file__.readTypedArray(Int32Array, poi.__data_address__, faceCount + 1) : null
+    if (!pos || !cornerVerts || !faceOffsets) return null
+
+    // UV map: a Float2 corner layer, user-named (not dot-prefixed like `.corner_vert`/`.pn`/`.vs.*`).
+    const cornerUVs = layerArray(ll, null, CD_PROP_FLOAT2, Float32Array, loopCount * 2,
+        l => l.type === CD_PROP_FLOAT2 && typeof l.name === 'string' && l.name[0] !== '.')
+    const faceMat = (meshData.totcol || 0) > 1 ? layerArray(pl, 'material_index', CD_PROP_INT32, Int32Array, faceCount) : null
+    let faceFlat = layerArray(pl, 'sharp_face', CD_PROP_BOOL, Uint8Array, faceCount)
+
+    let sharpEdges: Int32Array | null = null
+    const sharp = layerArray(el, 'sharp_edge', CD_PROP_BOOL, Uint8Array, edgeCount)
+    const edgeVerts = sharp ? layerArray(el, '.edge_verts', CD_PROP_INT32_2D, Int32Array, edgeCount * 2) : null
+    if (sharp && edgeVerts && !opts.ignoreSharpness) {
+        const out: number[] = []
+        for (let e = 0; e < edgeCount; e++) if (sharp[e]) out.push(edgeVerts[e * 2], edgeVerts[e * 2 + 1])
+        sharpEdges = new Int32Array(out)
+    }
+    if (opts.ignoreSharpness) faceFlat = null
+
+    return {
+        positions: sanitize(Float32Array.from(pos)), vertCount, faceOffsets, faceCount, cornerVerts, cornerUVs, faceMat, faceFlat,
+        materialSlots: meshData.totcol || 0, sharpEdges, ...normalModeFor(meshData, opts),
+    }
+}
+
+// ── attribute_storage (5.0+) ────────────────────────────────────────
+// struct AttributeStorage { Attribute *dna_attributes; int dna_attributes_num; ... }
+// struct Attribute { char *name; int16 data_type; int8 domain; int8 storage_type; void *data; }
+// storage_type Array (0): data -> AttributeArray { void *data; ...; int64 size; }
+// storage_type Single (1): data -> AttributeSingle { void *data; } holding one value for every element.
+// See DNA_attribute_types.h and BKE_attribute_enums.hh.
+const ATTR_BOOL = 0, ATTR_INT32 = 3, ATTR_INT32_2D = 4, ATTR_FLOAT2 = 6, ATTR_FLOAT3 = 7 // bke::AttrType
+const DOMAIN_EDGE = 1, DOMAIN_FACE = 2, DOMAIN_CORNER = 3 // bke::AttrDomain (Point = 0)
+const STORAGE_SINGLE = 1
 
 // Read a NUL-terminated C string from a resolved pointer block (e.g. an Attribute.name char*).
 function readCString(block: any): string | null {
@@ -20,536 +228,125 @@ function readCString(block: any): string | null {
     while (o < u8.length && u8[o] !== 0 && s.length < 256) s += String.fromCharCode(u8[o++])
     return s
 }
-
-// Blender 5.0 (.blend file_format_version 1) stores mesh attributes in `attribute_storage`
-// (struct AttributeStorage { Attribute *dna_attributes; int dna_attributes_num; ... }) instead of
-// the CustomData vdata/ldata layers used by 2.8-4.x. See
-// .repos/blender/source/blender/makesdna/DNA_attribute_types.h and BKE_attribute_enums.hh.
-// Each Attribute { char *name; int16 data_type; int8 domain; int8 storage_type; void *data; } where
-// data -> AttributeArray { void *data; ...; int64 size; } and the void* points to the packed values.
-const ATTR_TYPE_INT32 = 3, ATTR_TYPE_FLOAT2 = 6, ATTR_TYPE_FLOAT3 = 7 // bke::AttrType
-const ATTR_DOMAIN_CORNER = 3 // bke::AttrDomain (Point=0, Edge=1, Face=2, Corner=3)
-function getAttributes(meshData: any): any[] {
-    const as = meshData.attribute_storage
-    if (!as) return []
-    let attrs = as.dna_attributes
-    if (!attrs) return []
-    attrs = (Array.isArray(attrs) || attrs.length !== undefined) ? Array.from(attrs) : [attrs]
-    return attrs as any[]
+function getAttributes(meshData: any): {name: string, attr: any}[] {
+    const attrs = asArray(meshData.attribute_storage?.dna_attributes)
+    return attrs.map(a => ({name: readCString(a.name) || '', attr: a}))
 }
-function findAttribute(attrs: any[], name: string, type?: number): any {
-    for (const a of attrs) {
-        if (readCString(a.name) === name && (type === undefined || a.data_type === type)) return a
-    }
-    return null
-}
-// Element count actually stored for an attribute (AttributeArray.size). In Blender 5.0 the Mesh
-// tot* fields are runtime (post-geometry-nodes) counts and DON'T match the stored array sizes — a
-// geometry-nodes "Circle" can report totvert=15 while only 4 base vertices are stored. So the
-// attribute's own size is authoritative; reading tot* elements overruns into adjacent blocks (garbage).
+// Number of stored elements (AttributeArray.size). In 5.0 the Mesh tot* fields are runtime
+// (post-geometry-nodes) counts and don't match the stored arrays, so this is authoritative.
 function attrSize(attr: any): number {
-    const arr = attr && attr.data
-    const n = arr && arr.size !== undefined ? Number(arr.size) : 0
+    const n = attr?.data?.size !== undefined ? Number(attr.data.size) : 0
     return Number.isFinite(n) && n >= 0 ? n : 0
 }
-// Read the packed array for an Attribute as a TypedArray of `count` elements (alignment-safe).
-function readAttrArray(attr: any, Ctor: any, count: number): any {
-    const arr = attr && attr.data // AttributeArray
-    const block = arr && arr.data // void* -> packed values block
+// An attribute's values for `count` elements of `comps` numbers each, or null.
+function readAttr(attrs: {name: string, attr: any}[], pred: (name: string, a: any) => boolean, arrayType: any, comps: number, count: number): any {
+    const e = attrs.find(x => pred(x.name, x.attr))
+    if (!e) return null
+    const a = e.attr, block = a.data?.data
     if (!block || block.__data_address__ === undefined || !block.__blender_file__) return null
-    return block.__blender_file__.readTypedArray(Ctor, block.__data_address__, count)
-}
-
-// ── Per-face material slots -> BufferGeometry groups ─────────────────
-type GroupRun = {start: number, count: number, mat: number}
-// Append a triangle run [start, start+count) (index-buffer offsets) tagged with material slot `mat`,
-// merging into the previous run when contiguous and same-slot so the group count stays minimal.
-function mergeGroupRun(runs: GroupRun[], start: number, count: number, mat: number) {
-    if (count <= 0) return
-    const last = runs[runs.length - 1]
-    if (last && last.mat === mat && last.start + last.count === start) last.count += count
-    else runs.push({start, count, mat})
-}
-// Mid path (corner_vert): per-face material slot is the `pdata` CustomData layer "material_index"
-// (CD_PROP_INT32, type 11), one int per face. `pdata.layers` is a single object when totlayer===1.
-function readFaceMaterialIndex(meshData: any, faceCount: number): number[] | null {
-    const pd = meshData.pdata
-    if (!pd || !pd.layers || !pd.totlayer) return null
-    for (let i = 0; i < pd.totlayer; i++) {
-        const l = getLayer(pd.layers, i)
-        if (l && l.name === 'material_index' && l.data) {
-            const data = Array.isArray(l.data) ? l.data : (l.data.length !== undefined ? Array.from(l.data) : null)
-            if (!data) return null
-            const out: number[] = new Array(faceCount)
-            for (let f = 0; f < faceCount; f++) {
-                const e: any = data[f]
-                out[f] = (e && typeof e === 'object') ? (e.i ?? e.value ?? 0) : (e || 0)
-            }
-            return out
-        }
+    const bf = block.__blender_file__
+    if (a.storage_type === STORAGE_SINGLE) {
+        const one = bf.readTypedArray(arrayType, block.__data_address__, comps)
+        const out = new arrayType(count * comps)
+        for (let i = 0; i < count; i++) out.set(one, i * comps)
+        return out
     }
-    return null
+    if (attrSize(a) < count) return null
+    return bf.readTypedArray(arrayType, block.__data_address__, count * comps)
 }
 
-// Build geometry from Blender 5.0 attribute_storage. Returns null if positions aren't available
-// (so the caller can fall back to the vdata/ldata path).
-function createBufferGeometryFromAttributes(meshData: any, ctx: Ctx): any {
+function sourceFromAttributes(meshData: any, opts: GeometryOptions): MeshSource | null {
     const attrs = getAttributes(meshData)
     if (!attrs.length) return null
+    const posE = attrs.find(x => x.name === 'position' && x.attr.data_type === ATTR_FLOAT3)
+    const vertCount = posE ? attrSize(posE.attr) : 0
+    const pos = vertCount > 0 && readAttr(attrs, (n, a) => n === 'position' && a.data_type === ATTR_FLOAT3, Float32Array, 3, vertCount)
+    if (!pos) return null
 
-    const posAttr = findAttribute(attrs, 'position', ATTR_TYPE_FLOAT3)
-    const vertCount = attrSize(posAttr)
-    const posRaw = vertCount > 0 && readAttrArray(posAttr, Float32Array, vertCount * 3)
-    if (!posRaw) return null
-
-    const geometry = new ctx.BufferGeometry()
-    geometry.name = meshData.aname || ''
-
-    // Blender Z-up (x,y,z) -> three.js Y-up (x, z, -y). Sanitize non-finite components to 0 —
-    // real .blend files can contain NaN/Inf verts (e.g. from degenerate geometry-nodes ops), which
-    // Blender tolerates but three.js does not (computeBoundingBox/Sphere return NaN and break culling).
-    const positions = new Float32Array(vertCount * 3)
-    for (let j = 0; j < vertCount; j++) {
-        const x = posRaw[j * 3], y = posRaw[j * 3 + 1], z = posRaw[j * 3 + 2]
-        positions[j * 3] = Number.isFinite(x) ? x : 0
-        positions[j * 3 + 1] = Number.isFinite(z) ? z : 0
-        positions[j * 3 + 2] = Number.isFinite(y) ? -y : 0
-    }
-    geometry.setAttribute('position', new ctx.BufferAttribute(positions, 3))
-
-    // Faces: .corner_vert (vertex index per loop) + poly_offset_indices (loop range per face).
-    // Use the corner_vert array size for the loop count, and the poly_offset_indices DATA block's
-    // byte length for the face count (both are stored counts; Mesh.totloop/totpoly are runtime).
-    const cvAttr = findAttribute(attrs, '.corner_vert', ATTR_TYPE_INT32)
-    const loopCount = attrSize(cvAttr)
-    const cornerVerts = loopCount > 0 && readAttrArray(cvAttr, Int32Array, loopCount)
+    // Faces: .corner_vert + poly_offset_indices. Counts come from the stored arrays (corner_vert size and
+    // the poly_offset_indices block length), not Mesh.totloop/totpoly, which are runtime counts.
+    const cvE = attrs.find(x => x.name === '.corner_vert' && x.attr.data_type === ATTR_INT32)
+    const loopCount = cvE ? attrSize(cvE.attr) : 0
+    const cornerVerts = loopCount > 0 && readAttr(attrs, n => n === '.corner_vert', Int32Array, 1, loopCount)
     const poi = meshData.poly_offset_indices
-    const faceOffsetCount = poi && poi.__byte_length__ ? (poi.__byte_length__ >> 2) : 0
-    if (cornerVerts && faceOffsetCount > 1 && poi) {
-        const faceIndices = poi.__blender_file__.readTypedArray(Int32Array, poi.__data_address__, faceOffsetCount)
-        const faceCount = faceIndices.length - 1
-        let totalTriangles = 0
-        for (let i = 0; i < faceCount; i++) totalTriangles += Math.max(0, (faceIndices[i + 1] - faceIndices[i]) - 2)
-        const indexes = new Uint32Array(totalTriangles * 3)
-        const inRange = (v: number) => v >= 0 && v < vertCount
-        // Per-face material slot -> groups (only when >1 slot). material_index is a Face-domain Int32 attribute.
-        const matAttr = (meshData.totcol || 0) > 1 ? findAttribute(attrs, 'material_index', ATTR_TYPE_INT32) : null
-        const faceMat = matAttr && attrSize(matAttr) >= faceCount ? readAttrArray(matAttr, Int32Array, faceCount) : null
-        const groupRuns: GroupRun[] = []
-        let t = 0
-        for (let i = 0; i < faceCount; i++) {
-            const faceStart = faceIndices[i], faceVertCount = faceIndices[i + 1] - faceStart
-            const triStart = t
-            if (faceVertCount >= 3 && faceStart >= 0 && faceStart + faceVertCount <= loopCount) {
-                const firstVert = cornerVerts[faceStart] // todo: proper (ear-clip) triangulation for concave n-gons
-                for (let k = 1; k < faceVertCount - 1; k++) {
-                    const b = cornerVerts[faceStart + k], c = cornerVerts[faceStart + k + 1]
-                    // Skip triangles referencing out-of-range vertices (corrupt/partial geometry-nodes data).
-                    if (inRange(firstVert) && inRange(b) && inRange(c)) {
-                        indexes[t++] = firstVert
-                        indexes[t++] = b
-                        indexes[t++] = c
-                    }
-                }
-            }
-            if (faceMat) mergeGroupRun(groupRuns, triStart, t - triStart, faceMat[i] || 0)
-        }
-        geometry.setIndex(new ctx.BufferAttribute(t === indexes.length ? indexes : indexes.slice(0, t), 1))
-        if (faceMat) for (const g of groupRuns) geometry.addGroup(g.start, g.count, g.mat)
+    const offsetsCount = poi && poi.__byte_length__ ? poi.__byte_length__ >> 2 : 0
+    if (!cornerVerts || offsetsCount < 2) {
+        return {positions: sanitize(Float32Array.from(pos)), vertCount, faceOffsets: [0], faceCount: 0, cornerVerts: [], materialSlots: 0, normalMode: 'split'}
+    }
+    const faceOffsets = poi.__blender_file__.readTypedArray(Int32Array, poi.__data_address__, offsetsCount)
+    const faceCount = offsetsCount - 1
 
-        // UVs: the first user UV map is a Float2 attribute on the Corner domain (named, not dot-prefixed;
-        // `.uv_select_*` are bools). UVs are per-corner but our geometry is per-vertex indexed, so we
-        // assign each vertex the UV of a corner referencing it (last write wins). This is exact away
-        // from UV seams; seam-correct UVs would need per-corner vertex expansion (todo).
-        // Blender and three.js share the same UV origin (bottom-left), so no V flip.
-        const uvAttr = attrs.find((a: any) => a.data_type === ATTR_TYPE_FLOAT2 && a.domain === ATTR_DOMAIN_CORNER && !(readCString(a.name) || '.').startsWith('.'))
-        const uvRaw = uvAttr && attrSize(uvAttr) >= loopCount && readAttrArray(uvAttr, Float32Array, loopCount * 2)
-        if (uvRaw) {
-            const uvs = new Float32Array(vertCount * 2)
-            for (let i = 0; i < loopCount; i++) {
-                const v = cornerVerts[i]
-                if (v >= 0 && v < vertCount) {
-                    const u = uvRaw[i * 2], vv = uvRaw[i * 2 + 1]
-                    uvs[v * 2] = Number.isFinite(u) ? u : 0
-                    uvs[v * 2 + 1] = Number.isFinite(vv) ? vv : 0
-                }
-            }
-            geometry.setAttribute('uv', new ctx.BufferAttribute(uvs, 2))
+    const edgeE = attrs.find(x => x.name === '.edge_verts' && x.attr.data_type === ATTR_INT32_2D)
+    const edgeCount = edgeE ? attrSize(edgeE.attr) : 0
+
+    // The first user UV map: a Float2 corner attribute that isn't dot-prefixed (`.uv_select_*` etc).
+    const cornerUVs = readAttr(attrs, (n, a) => a.data_type === ATTR_FLOAT2 && a.domain === DOMAIN_CORNER && !!n && !n.startsWith('.'), Float32Array, 2, loopCount)
+    const faceMat = (meshData.totcol || 0) > 1 ? readAttr(attrs, (n, a) => n === 'material_index' && a.data_type === ATTR_INT32 && a.domain === DOMAIN_FACE, Int32Array, 1, faceCount) : null
+    const faceFlat = opts.ignoreSharpness ? null : readAttr(attrs, (n, a) => n === 'sharp_face' && a.data_type === ATTR_BOOL && a.domain === DOMAIN_FACE, Uint8Array, 1, faceCount)
+    let sharpEdges: Int32Array | null = null
+    if (edgeCount > 0 && !opts.ignoreSharpness) {
+        const sharp = readAttr(attrs, (n, a) => n === 'sharp_edge' && a.data_type === ATTR_BOOL && a.domain === DOMAIN_EDGE, Uint8Array, 1, edgeCount)
+        const ev = sharp && readAttr(attrs, n => n === '.edge_verts', Int32Array, 2, edgeCount)
+        if (sharp && ev) {
+            const out: number[] = []
+            for (let e = 0; e < edgeCount; e++) if (sharp[e]) out.push(ev[e * 2], ev[e * 2 + 1])
+            sharpEdges = new Int32Array(out)
         }
     }
+    return {
+        positions: sanitize(Float32Array.from(pos)), vertCount, faceOffsets, faceCount, cornerVerts, cornerUVs, faceMat, faceFlat,
+        materialSlots: meshData.totcol || 0, sharpEdges, normalMode: 'split', autoSmoothAngle: opts.smoothByAngle ?? null,
+    }
+}
 
-    if (geometry.attributes.position && !geometry.attributes.normal)
-        geometry.computeVertexNormals()
+/**
+ * The polygon cage the Subsurf modifier subdivides (`catmull.ts`): shared positions in three.js space,
+ * the faces as vertex lists, per-corner UVs and per-face material slots. Same faces as the triangulated
+ * geometry, so Catmull-Clark smooths across them instead of across disconnected triangles.
+ */
+function attachCage(geometry: any, src: MeshSource) {
+    const {positions: p, cornerVerts: cv, faceOffsets: fo, faceCount, vertCount} = src
+    const positions: number[][] = new Array(vertCount)
+    for (let i = 0; i < vertCount; i++) positions[i] = [p[i * 3], p[i * 3 + 2], -p[i * 3 + 1]] // Z-up -> Y-up
+    const uv = src.cornerUVs && src.cornerUVs.length >= cv.length * 2 ? src.cornerUVs : null
+    const useMats = src.materialSlots > 1 && !!src.faceMat
+    const faces: number[][] = [], uvs: number[][][] | null = uv ? [] : null, mats: number[] | null = useMats ? [] : null
+    for (let f = 0; f < faceCount; f++) {
+        const face: number[] = [], fuv: number[][] = []
+        for (let c = fo[f]; c < fo[f + 1]; c++) {
+            const v = cv[c]
+            if (!(v >= 0 && v < vertCount)) continue
+            face.push(v)
+            if (uv) fuv.push([uv[c * 2], uv[c * 2 + 1]])
+        }
+        if (face.length < 3) continue
+        faces.push(face)
+        if (uvs) uvs.push(fuv)
+        if (mats) mats.push(src.faceMat![f] || 0)
+    }
+    if (!faces.length) return
+    geometry.userData = geometry.userData || {}
+    geometry.userData.__cage = {positions, faces, uvs, materialIndices: mats}
+}
+
+function build(src: MeshSource | null, name: string, ctx: Ctx) {
+    if (!src) return withEmptyPosition(new ctx.BufferGeometry(), ctx)
+    const geometry = buildGeometry(src, name, ctx)
+    attachCage(geometry, src)
     return geometry
 }
 
-// https://github.com/blender/blender/blob/55e2fd2929b7577e0785c128c8f8069efd990c07/source/blender/blenkernel/intern/mesh.cc#L413
-export function createBufferGeometry(meshData: any, ctx: Ctx) {
-
-    if (meshData.mpoly) return createBufferGeometryOld(meshData, ctx)
-
-    // Blender 5.0+ mesh attribute storage (file_format_version 1). Falls through to the
-    // vdata/ldata path below if positions aren't found there.
-    if (meshData.attribute_storage) {
-        const g = createBufferGeometryFromAttributes(meshData, ctx)
-        if (g) return g
-    }
-    const geometry = new ctx.BufferGeometry()
-    geometry.name = meshData.aname || ''
-
-    // console.log(bakeGetters(meshData))
-
-    // https://github.com/blender/blender/blob/05dcc0377b62d8e026e1901dfbecbd4b06fda0b5/scripts/addons_core/io_scene_gltf2/blender/exp/primitive_extract.py#L19
-
-    let vertices
-    let verticesData
-    let indices
-    let indicesData: any
-    let uvLayerData: any = null
-
-    // Extract vertex positions from vdata layers
-    if (meshData.vdata && meshData.vdata.layers && meshData.vdata.totlayer > 0) {
-        for (let i = 0; i < meshData.vdata.totlayer; i++) {
-            const layer = getLayer(meshData.vdata.layers, i)
-            // if (layer.type === 0) {
-            // https://github.com/blender/blender/blob/05dcc0377b62d8e026e1901dfbecbd4b06fda0b5/scripts/addons_core/io_scene_gltf2/blender/exp/primitive_extract.py#L1575
-            const data = layer.data || []
-            // if (layer.name === 'position') { // type = 48 (custom vec3)
-            if (data.length === meshData.totvert) {
-                if (vertices && (layer.name !== 'position' || vertices.name === 'position')) {
-                    // console.warn('BlendLoader - multiple vertices, ignoring', layer)
-                    continue
-                }
-                vertices = layer
-                verticesData = data
-            } else {
-                // console.log('unknown vdata', layer)
-            }
-        }
-    }
-
-    // Blender loops are indexes in three.js/blender. Called dots in gltf exporter
-
-    // // Extract indexes from loop data layers
-    if (meshData.ldata && meshData.ldata.layers) {
-        for (let i = 0; i < meshData.ldata.totlayer; i++) {
-            const layer = getLayer(meshData.ldata.layers, i)
-            // if (layer.type === 0) {
-            const data = layer.data || []
-            // if (layer.name === '.corner_vert') { // type = 11
-            if (data.length === meshData.totloop) { // type = 11
-                const lname = layer.name || ''
-                // UV map: a Float2 corner layer (CD_PROP_FLOAT2, type 49), user-named (not dot-prefixed
-                // like `.corner_vert`/`.corner_edge`). Without this, textured meshes on the mid (3.6-4.x
-                // corner_vert) path render with no UVs and the base-colour texture cannot map.
-                if (!uvLayerData && (layer.type === 49 || (lname[0] !== '.' && /uv/i.test(lname)))) {
-                    uvLayerData = data
-                    continue
-                }
-                if (indices && (lname !== '.corner_vert' || indices.name === '.corner_vert')) {
-                    // console.warn('BlendLoader - multiple indices, ignoring', layer)
-                    continue
-                }
-                indices = layer
-                indicesData = data
-            } else {
-                // console.log('unknown ldata', layer)
-            }
-        }
-    }
-    // if (meshData.pdata && meshData.pdata.layers) {
-    //     for (let i = 0; i < meshData.pdata.totlayer; i++) {
-    //         const layer = getLayer(meshData.pdata.layers, i)
-    //         // if (layer.type === 0) {
-    //         // if (layer.name === '.corner_vert') { // type = 11
-    //         // } else {
-    //         console.log('unknown pdata', layer)
-    //         // }
-    //     }
-    // }
-    // if (meshData.fdata && meshData.fdata.layers) {
-    //     for (let i = 0; i < meshData.fdata.totlayer; i++) {
-    //         const layer = getLayer(meshData.fdata.layers, i)
-    //         // if (layer.type === 0) {
-    //         // if (layer.name === '.corner_vert') { // type = 11
-    //         // } else {
-    //         console.log('unknown fdata', layer)
-    //         // }
-    //     }
-    // }
-    // if (meshData.edata && meshData.edata.layers) {
-    //     for (let i = 0; i < meshData.edata.totlayer; i++) {
-    //         const layer = getLayer(meshData.edata.layers, i)
-    //         // if (layer.type === 0) {
-    //         // if (layer.name === '.corner_vert') { // type = 11
-    //         // } else {
-    //         console.log('unknown edata', layer)
-    //         // }
-    //     }
-    // }
-
-    let faceIndices: number[] = []
-    if (meshData.poly_offset_indices && meshData.totpoly > 0) {
-        // Use the parser's alignment-safe reader — Blender packs blocks unpadded, so on v1
-        // (Blender 5.0) and some v0 files this offset isn't 4-aligned and a raw Int32Array view throws.
-        faceIndices = [...meshData.poly_offset_indices.__blender_file__.readTypedArray(Int32Array, meshData.poly_offset_indices.__data_address__, meshData.totpoly + 1)]
-    }
-    // if (faceSize !== 3 && faceSize !== 4 && !faceIndices.length) {
-    //     console.error('not supported polygons with ', faceSize, 'vertices')
-    //     return geometry
-    // }
-
-    // Per-corner vertex expansion for SEAM-CORRECT UVs (mid path). Blender stores UVs per corner (loop);
-    // three.js needs one UV per vertex. A Blender vertex shared by corners with DIFFERENT UVs is a UV seam —
-    // assigning it a single UV (last-write-wins) makes the faces across the seam interpolate the texture over
-    // the whole UV range, smearing/stretching it (classic symptom: the back of a UV-mapped sphere). Expand to
-    // one vertex per unique (blenderVert, uv) so seams split. Coincident split verts stay welded under the
-    // subsurf subdivision (same positions → same repositioning), so no crack. No UV layer ⇒ no expansion.
-    const vco = (vd: any): [number, number, number] => vd?.x !== undefined ? [vd.x, vd.y, vd.z] : (vd?.co ? [vd.co[0], vd.co[1], vd.co[2]] : [0, 0, 0])
-    let cornerToVert: Int32Array | null = null
-    let expandedPos: Float32Array | null = null
-    let expandedUv: Float32Array | null = null
-    if (uvLayerData && indicesData && verticesData && verticesData.length) {
-        cornerToVert = new Int32Array(indicesData.length)
-        const seen = new Map<string, number>()
-        const ps: number[] = [], us: number[] = []
-        const uvN = uvLayerData.length
-        for (let i = 0; i < indicesData.length; i++) {
-            const bv = indicesData[i]?.i
-            if (!(bv >= 0 && bv < verticesData.length)) { cornerToVert[i] = 0; continue }
-            const e = i < uvN ? uvLayerData[i] : null
-            const u = e && Number.isFinite(e.x) ? e.x : 0
-            const w = e && Number.isFinite(e.y) ? e.y : 0
-            const key = bv + '|' + Math.round(u * 4096) + '|' + Math.round(w * 4096)
-            let ev = seen.get(key)
-            if (ev === undefined) {
-                ev = us.length / 2
-                seen.set(key, ev)
-                const [x, y, z] = vco(verticesData[bv])
-                ps.push(x, z, -y) // Blender Z-up → three Y-up (same mapping as the non-expanded path)
-                us.push(u, w)
-            }
-            cornerToVert[i] = ev
-        }
-        expandedPos = new Float32Array(ps)
-        expandedUv = new Float32Array(us)
-    }
-    // Expanded-vertex index for a corner (loop) index; falls back to the raw Blender vertex when not expanding.
-    const vAt = (corner: number) => cornerToVert ? cornerToVert[corner] : indicesData[corner].i
-
-    if (expandedPos) {
-        geometry.setAttribute('position', new ctx.BufferAttribute(expandedPos, 3))
-    } else if (verticesData && verticesData.length > 0) {
-        const positions = new Float32Array(verticesData.length * 3)
-        for (let j = 0; j < verticesData.length; j++) {
-            const {x, y, z, co} = verticesData[j] || {}
-            if (x !== undefined) {
-                positions[j * 3] = x
-                positions[j * 3 + 1] = z
-                positions[j * 3 + 2] = -y
-            } else if (co !== undefined) {
-                positions[j * 3] = co[0]
-                positions[j * 3 + 1] = co[2]
-                positions[j * 3 + 2] = -co[1]
-            } else {
-                // console.log(bakeGetters(meshData))
-                // const t = [...new Int32Array(vertex.__blender_file__.AB, vertex.__data_address__, 8)]
-                // debugger
-                console.error('BlendLoader - unknown vertex', verticesData[j])
-                break
-            }
-        }
-        geometry.setAttribute('position', new ctx.BufferAttribute(positions, 3))
-    }
-
-    if (indicesData && indicesData.length > 0 && verticesData?.length) {
-        const faceSize = meshData.totloop / meshData.totpoly
-        if (faceIndices.length > 0) {
-            // Use face offset indices for variable-sized faces
-            const faceCount = faceIndices.length - 1
-            let totalTriangles = 0
-            for (let i = 0; i < faceCount; i++) {
-                const faceVertCount = faceIndices[i + 1] - faceIndices[i]
-                totalTriangles += Math.max(0, faceVertCount - 2)
-            }
-
-            const indexes = new Uint32Array(totalTriangles * 3)
-            let t = 0
-
-            // Per-face material slot -> groups (only when >1 slot). material_index lives in the `pdata` layer.
-            const faceMat = (meshData.totcol || 0) > 1 ? readFaceMaterialIndex(meshData, faceCount) : null
-            const groupRuns: GroupRun[] = []
-
-            for (let i = 0; i < faceCount; i++) {
-                const faceStart = faceIndices[i]
-                const faceEnd = faceIndices[i + 1]
-                const faceVertCount = faceEnd - faceStart
-                const triStart = t
-
-                if (faceVertCount >= 3) {
-                    // todo better Triangulate the face using fan triangulation
-                    const firstVert = vAt(faceStart)
-                    for (let k = 1; k < faceVertCount - 1; k++) {
-                        indexes[t++] = firstVert
-                        indexes[t++] = vAt(faceStart + k)
-                        indexes[t++] = vAt(faceStart + k + 1)
-                    }
-                } else {
-                    // debugger
-                }
-                if (faceMat) mergeGroupRun(groupRuns, triStart, t - triStart, faceMat[i] || 0)
-            }
-
-            // console.log(indexes)
-            geometry.setIndex(new ctx.BufferAttribute(indexes, 1))
-            if (faceMat) for (const g of groupRuns) geometry.addGroup(g.start, g.count, g.mat)
-        } else if (faceSize === 3 || faceSize === 4) {
-            // Fall back to uniform face size approach
-            const isQuad = faceSize === 4
-            const faceCount = indices.length / faceSize
-            const indexes = new Uint32Array(faceCount * 3 * (isQuad ? 2 : 1))
-
-            if (faceSize !== 3 && faceSize !== 4) return geometry
-            for (let j = 0, t = 0; j < indices.length; j += faceSize) {
-                const a = vAt(j)
-                const b = vAt(j + 1)
-                const c = vAt(j + 2)
-                indexes[t++] = a
-                indexes[t++] = b
-                indexes[t++] = c
-
-                if (isQuad) {
-                    const d = vAt(j + 3)
-                    indexes[t++] = a
-                    indexes[t++] = c
-                    indexes[t++] = d
-                }
-            }
-            geometry.setIndex(new ctx.BufferAttribute(indexes, 1))
-        }
-    } else if (faceIndices) {
-        console.error('BlendLoader - no indices data found, but face indices are present', faceIndices)
-    }
-
-    // console.log(geometry.attributes.position)
-    // console.log(geometry.index)
-
-    // UVs (mid corner_vert path): seam-correct, from the per-corner expansion above (one UV per split vertex).
-    // Blender and three.js share the same UV origin (bottom-left), so no V flip.
-    if (expandedUv && !geometry.attributes.uv) {
-        geometry.setAttribute('uv', new ctx.BufferAttribute(expandedUv, 2))
-    }
-
-    // compute stuff not present
-    if (geometry.attributes.position && !geometry.attributes.normal)
-        geometry.computeVertexNormals()
-
-    // if (meshData.loc) { // maybe this is the bbox center?
-    //     geometry.translate(meshData.loc[0], meshData.loc[2], -meshData.loc[1])
-    // }
-    // if (meshData.size) { // maybe this is the bbox size?
-    //     geometry.scale(meshData.size[0], meshData.size[2], -meshData.size[1])
-    // }
-
-    return geometry
+export function createBufferGeometry(meshData: any, ctx: Ctx, opts: GeometryOptions = {}) {
+    const name = meshData.aname || ''
+    let src: MeshSource | null = null
+    if (meshData.attribute_storage) src = sourceFromAttributes(meshData, opts)
+    if (!src && meshData.mpoly && meshData.totpoly > 0) src = sourceFromMPoly(meshData)
+    if (!src && meshData.poly_offset_indices) src = sourceFromLayers(meshData, opts)
+    if (!src && meshData.mface && meshData.totface > 0) src = sourceFromMFace(meshData)
+    return build(src, name, ctx)
 }
-//     // https://github.com/blender/blender/blob/05dcc0377b62d8e026e1901dfbecbd4b06fda0b5/scripts/addons_core/io_scene_gltf2/blender/exp/primitive_extract.py#L19
-//             // https://github.com/blender/blender/blob/05dcc0377b62d8e026e1901dfbecbd4b06fda0b5/scripts/addons_core/io_scene_gltf2/blender/exp/primitive_extract.py#L1575
-//             // todo __set_morph_locs_attribute
-//             // todo __set_morph_tangent_attribute
-//     // todo pdata(points), edata(edge), fdata(face? legacy?)
-//     // meshData.eData = domain edge - https://github.com/blender/blender/blob/05dcc0377b62d8e026e1901dfbecbd4b06fda0b5/scripts/addons_core/io_scene_gltf2/blender/exp/primitive_extract.py#L189
-//     // todo normals, tangents
 
-export function createBufferGeometryOld(mesh: any, ctx: Ctx) {
-    const
-        faces = Array.isArray(mesh.mpoly) ? mesh.mpoly as any[] : [mesh.mpoly],
-        loops = mesh.mloop,
-        uv = mesh.mloopuv,
-        vertices = mesh.mvert
-
-    const geometry = new ctx.BufferGeometry()
-
-    if (!faces) return geometry
-
-    const size = faces.reduce((acc, face) => acc + Math.floor(face.totloop * 3.0 / 2), 0)
-    const indices = new Uint32Array(size)
-    const uvs = new Float32Array(size * 2)
-    const normals = new Float32Array(size * 3)
-    const positions = new Float32Array(size * 3)
-
-    let currentIndex = 0
-    let computeNormals = false
-
-    // Per-face material slot (mat_nr) -> geometry groups, but only when the mesh has >1 slot. Faces are
-    // emitted in order, so each face's triangles form a contiguous index range; we merge consecutive
-    // same-slot faces into one group. mesh.ts then assigns one material per slot.
-    const useGroups = (mesh.totcol || 0) > 1
-    const groupRuns: GroupRun[] = []
-
-    for (const face of faces) {
-        const len = face.totloop
-        const start = face.loopstart
-        const faceStartIndex = currentIndex
-        let indexi = 1
-
-        while (indexi < len) {
-
-            let index = 0
-
-            for (let l = 0; l < 3; l++) {
-                // Per Vertex
-
-                index = start
-                if (indexi - 1 + l < len)
-                    index += indexi - 1 + l
-
-                const loop = loops[index]
-                const {co, no} = vertices[loop.v] || {}
-                indices[currentIndex] = currentIndex
-
-                if (co) {
-                    positions[currentIndex * 3 + 0] = co[0]
-                    positions[currentIndex * 3 + 1] = co[2]
-                    positions[currentIndex * 3 + 2] = -co[1]
-                }
-
-                if (no) {
-                    normals[currentIndex * 3 + 0] = no[0]
-                    normals[currentIndex * 3 + 1] = no[2]
-                    normals[currentIndex * 3 + 2] = -no[1]
-                } else {
-                    computeNormals = true
-                }
-
-                if (uv) {
-                    const uv1 = uv[index].uv
-                    uvs[currentIndex * 2 + 0] = uv1[0]
-                    uvs[currentIndex * 2 + 1] = uv1[1]
-                }
-
-                currentIndex++
-            }
-
-            indexi += 2
-        }
-
-        if (useGroups) mergeGroupRun(groupRuns, faceStartIndex, currentIndex - faceStartIndex, face.mat_nr || 0)
-    }
-
-    geometry.setAttribute('position', new ctx.BufferAttribute(positions, 3))
-    geometry.setIndex(new ctx.BufferAttribute(indices, 1))
-    geometry.setAttribute('normal', new ctx.BufferAttribute(normals, 3))
-    geometry.setAttribute('uv', new ctx.BufferAttribute(uvs, 2))
-
-    // Emit groups for any multi-slot mesh: even a single run carries the correct slot index, so a mesh
-    // whose faces all use e.g. slot 2 renders with material[2] (not material[0]).
-    if (useGroups && groupRuns.length)
-        for (const g of groupRuns) geometry.addGroup(g.start, g.count, g.mat)
-
-    if (computeNormals) {
-        geometry.computeVertexNormals()
-    }
-
-    return geometry
+/** A pre-4.0 (`MPoly`/`MLoop`) mesh datablock as geometry. Kept for tests that target that layout. */
+export function createBufferGeometryOld(meshData: any, ctx: Ctx) {
+    return build(sourceFromMPoly(meshData), meshData.aname || '', ctx)
 }
