@@ -4,11 +4,19 @@ All notable changes to this plugin will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.3.0-r172.1] - 2026-11-05
+
+Release candidate of the three.js r172 upgrade lane, under the npm dist-tag `three-r172`, for threepipe 0.7.0-r172.1: the changes listed under [Unreleased] below.
+
 ## [Unreleased]
 
-### Added
+### Removed
 
-- NA
+- `TiltLoadPlugin` — three.js r169 removed `TiltLoader` (Tilt Brush `.tilt` files)
+
+### Fixed
+
+- `LDrawLoadPlugin` sets `LDrawConditionalLineMaterial` on the loader: since three.js r171 `LDrawLoader` throws on files with conditional lines unless the material type is set with `setConditionalLineMaterial()`
 
 ## [0.2.7] - 2026-10-23
 

@@ -79,7 +79,7 @@ class GLTFMaterialsDisplacementMapExtensionExport {
 
     }
 
-    writeMaterial(material: MeshStandardMaterial, materialDef: any) {
+    async writeMaterialAsync(material: MeshStandardMaterial, materialDef: any) {
 
         if (!material.isMeshStandardMaterial || material.displacementScale === 0) return
 
@@ -96,7 +96,7 @@ class GLTFMaterialsDisplacementMapExtensionExport {
 
         if (material.displacementMap && writer.checkEmptyMap(material.displacementMap)) {
 
-            const displacementMapDef = {index: writer.processTexture(material.displacementMap)}
+            const displacementMapDef = {index: await writer.processTextureAsync(material.displacementMap)}
             writer.applyTextureTransform(displacementMapDef, material.displacementMap)
             extensionDef.displacementTexture = displacementMapDef
 

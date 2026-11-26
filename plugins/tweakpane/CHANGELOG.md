@@ -4,6 +4,10 @@ All notable changes to this plugin will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.11.0-r172.1] - 2026-11-05
+
+Release candidate of the three.js r172 upgrade lane, under the npm dist-tag `three-r172`, for threepipe 0.7.0-r172.1: the changes listed under [Unreleased] below.
+
 ## [Unreleased]
 
 ### Added
@@ -12,6 +16,7 @@ All notable changes to this plugin will be documented in this file.
 
 ### Changed
 
+- `download image` on render target textures awaits `RenderManager.exportRenderTarget()`, which is async since threepipe 0.7.0 (three.js r169 made `EXRExporter.parse()` async)
 - The dialogs of `viewer.dialog` (alert, confirm, prompt, choose) have the colours of the color mode: the card, the text, the second buttons and the field (the colour of a Tweakpane field), the accent of the clean modes for the main button, and a light or dark scheme. Before, they followed the light or dark mode of the system, also when it was not the mode of the panels. An app that sets its own `--dialog-*` variables sets them on `body` (or with a more specific rule), because the color mode sets them there.
 - Uses uiconfig-tweakpane 2.1.0 (was 1.0.1). The buttons with the tag `context-menu` (`UiTags.ContextMenu`: duplicate, delete, center geometry and the other object actions) are in the header of their folder: as buttons while they fit, and the rest in a ⋮ menu; before, they were full-width buttons in the folder body. `folderMenus = false` on the plugin (before the panels render) shows them in the body. The renderer now runs on the `uiconfig.js` of threepipe (0.4) instead of its own copy (0.2.1), so it has the same timing as the other UIs of threepipe: a value is set and `onChange` runs at once (`UiConfigMethods.DefaultDispatchMode`, `immediate`), not after the next frame; a config with `dispatchMode: 'postFrame'` keeps the old timing. `tweakpane` 3.1.10 and `@tweakpane/core` 1.1.9 are the exact versions that the renderer needs.
 - The context menu of a panel's ⋮ button (download/upload preset, reset defaults; `CustomContextMenu` of threepipe core) and of the image input use the colours and font of the color mode, and the panel menu opens below the button inside the panel. Before, it was always dark with a monospace font, and it opened past the right edge of the panel.
@@ -20,6 +25,7 @@ All notable changes to this plugin will be documented in this file.
 
 ### Fixed
 
+- `download image` on a Float/HalfFloat `DataTexture` always threw `EXRExporter.parse: Unsupported first parameter` (the texture was passed as the second argument)
 - A dropped `File` was ignored when the current value of the image input was a texture whose image has no `src`, like an `.hdr` environment map.
 
 ## [0.10.2] - 2026-11-15

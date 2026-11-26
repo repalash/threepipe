@@ -1,7 +1,10 @@
 {
     "name": "@threepipe/webgi-plugins",
     "description": "WebGi - Realistic Rendering Plugins for ThreePipe.",
-    "version": "0.7.0",
+    "version": "0.8.0-r172.1",
+    "publishConfig": {
+        "tag": "three-r172"
+    },
     "devDependencies": {
         "rand-seed": "^2.1.7"
     },
@@ -9,7 +12,7 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": ">=0.5.1"
+        "threepipe": ">=0.5.1 || >=0.7.0-r172.1"
     },
     "exports": {
         ".": {

@@ -122,7 +122,7 @@ export class RenderTargetPreviewPlugin extends AViewerPluginSync {
             e.preventDefault()
             e.stopPropagation()
             CustomContextMenu.Create({
-                'Download': () => this.downloadTarget(target, textureIndex),
+                'Download': async() => this.downloadTarget(target, textureIndex),
                 'Remove': () => this.removeTarget(target),
             }, e.clientX, e.clientY)
         }
@@ -144,11 +144,11 @@ export class RenderTargetPreviewPlugin extends AViewerPluginSync {
         this.refreshUi()
         return this
     }
-    downloadTarget(target1: RenderTargetBlock['target'], textureIndex?: number): this {
+    async downloadTarget(target1: RenderTargetBlock['target'], textureIndex?: number): Promise<this> {
         if (!this._viewer) return this
         const target = getOrCall(target1)
         if (!target) return this
-        const blob = this._viewer.renderManager.exportRenderTarget(target as WebGLRenderTarget, 'auto', textureIndex ?? 0)
+        const blob = await this._viewer.renderManager.exportRenderTarget(target as WebGLRenderTarget, 'auto', textureIndex ?? 0)
         this._viewer.exportBlob(blob, 'renderTarget.' + (blob.ext || 'png'))
         return this
     }

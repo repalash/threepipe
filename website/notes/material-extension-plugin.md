@@ -248,7 +248,7 @@ class GLTFMaterialsCustomBumpMapImport implements GLTFLoaderPlugin {
 
 // glTF Export
 const glTFMaterialsCustomBumpMapExport = (w: GLTFWriter2) => ({
-    writeMaterial: (material: any, materialDef: any) => {
+    writeMaterialAsync: async(material: any, materialDef: any) => {
         if (!material.isMeshStandardMaterial || !material.userData._hasCustomBump) return
         if ((material.userData._customBumpScale || 0) < 0.001) return
 
@@ -258,7 +258,7 @@ const glTFMaterialsCustomBumpMapExport = (w: GLTFWriter2) => ({
         extensionDef.customBumpScale = material.userData._customBumpScale || 1.0
 
         if (w.checkEmptyMap(material.userData._customBumpMap)) {
-            const customBumpMapDef = {index: w.processTexture(material.userData._customBumpMap)}
+            const customBumpMapDef = {index: await w.processTextureAsync(material.userData._customBumpMap)}
             w.applyTextureTransform(customBumpMapDef, material.userData._customBumpMap)
             extensionDef.customBumpMap = customBumpMapDef
         }

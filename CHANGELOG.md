@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.7.0-r172.1] - 2026-11-05
+
+Release candidate of the three.js r172 upgrade lane, under the npm dist-tag `three-r172`, with `three-modded` and `three-types-modded` 0.172.10001-rc.2: the changes listed under [Unreleased] below, the r172 upgrade among them.
+
+An app that installs the release candidate pins `three` and `@types/three` to the same versions with `overrides`, since other packages' ranges (such as `uiconfig-tweakpane`'s peer `@types/three`) do not match prerelease versions:
+
+```json
+"dependencies": {
+    "threepipe": "0.7.0-r172.1",
+    "three": "npm:three-modded@0.172.10001-rc.2",
+    "@types/three": "npm:three-types-modded@0.172.10001-rc.2"
+},
+"overrides": {
+    "three": "$three",
+    "@types/three": "$@types/three"
+}
+```
+
 ## [Unreleased]
 
 ### Added
@@ -50,6 +68,17 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Upgrade `three` from v0.168.10008 to v0.172.10001 (three.js r172)
+  - **Breaking** `RenderManager.exportRenderTarget()` is async and returns `Promise<BlobExt>` (three.js r169 made `EXRExporter.parse()` async); `RenderTargetPreviewPlugin.downloadTarget()` returns a promise too
+  - **Breaking** glTF export is async (three.js r170): `GLTFWriter2.processObjects/processMaterial/processTexture` are now `processObjectsAsync/processMaterialAsync/processTextureAsync`, and glTF exporter plugins must implement `writeMaterialAsync` instead of `writeMaterial` — the old hook is silently ignored by three, so material extensions would be dropped from exports. All built-in extensions are updated. The `writeMesh`, `writeNode`, `beforeParse` and `afterParse` hooks may return a promise (three-modded awaits them)
+  - `DisplayP3ColorSpace` moved out of three.js core (r170). threepipe registers Display P3 from `three/examples/jsm/math/ColorSpaces.js`, so the `ColorSpace` ui mapping keeps working
+  - `colorSpace` in `CreateRenderTargetOptions`, `getTexelDecoding` and `textureDataToImageData` accepts any registered color space (`string`), like `Texture.colorSpace` in three.js
+  - `LineMaterial2` ui properties are accessor overrides, as three.js types `LineMaterial`'s properties as accessors
+  - `TiltLoadPlugin` removed from `@threepipe/plugins-extra-importers` (three.js r169 removed `TiltLoader`)
+  - glTF export of non-PBR materials (e.g. OBJ/MTL Phong materials) writes `roughnessFactor: 1, metallicFactor: 0` instead of `0.5, 0.5` (three.js r170, #29692); such materials look less glossy after an export/import round trip
+  - glTF export of a compressed texture that cannot be written as is (a KTX2 texture without its source, `KTX2LoadPlugin.SAVE_SOURCE_BLOBS` off) decompresses it as before: three.js r170 does that only with texture utils, which `GLTFExporter2` now sets (`setTextureUtils({decompress})`); without them the export threw
+  - **Breaking** threepipe exports `USDLoader` in place of `USDZLoader`, as `three/addons` does in three-modded 0.172.10001-rc.2 (three.js r179). `three/examples/jsm/loaders/USDZLoader.js` is still there as a deprecated `USDLoader`
+  - `USDZLoadPlugin` loads with three.js `USDLoader` (from r187 in three-modded): also `.usdc` and `.usd` files, and USDZ files with a binary (USDC) layer, which failed with "usdc files are not supported"
 - `TransformControls2` and `PivotControls` do not listen to keys themselves now: their plugins register the keys (`actions`) in `viewer.actions`. An app that makes a gizmo without its plugin registers them: `viewer.actions.register(controls.actions)`
 - Uses ts-browser-helpers 0.23.0 (was 0.20.0). The dialogs of `viewer.dialog` with a UI plugin (`htmlDialogWrapper`: alert, confirm, prompt, choose) are modal `<dialog>` elements: the page behind an open dialog takes no click and no focus, and a close by the browser (Escape, the Android back gesture) resolves the dialog as its Escape does. They have the look of a Figma-like UI, a dark mode and CSS variables (`--dialog-*`) for an app's theme.
 - `ObjectPicker.setSelected` of a list switches the selection mode as its first item does (a list of objects after a material: object mode again), as a single item does
@@ -74,6 +103,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `tweakpane` image input: downloading a Float/HalfFloat `DataTexture` as EXR threw `EXRExporter.parse: Unsupported first parameter`
 - `BloomPlugin` and `DepthOfFieldPlugin` (webgi-plugins): setting a setting of their pass in code renders again: the bloom Threshold, Soft Threshold, Intensity, Background Bloom and Debug, and the depth of field Depth Range, Near and Far Blur Scale. They changed only the shader values, so a viewer at rest showed the change only at its next render; the Tweakpane panel hid it because its own change marks the viewer dirty. They now call `setDirty` like the settings of `SSAOPluginPass`
 - `ChromaticAberrationPlugin`: the Intensity slider goes to 1 (was 0.3), so the panel shows the default of 0.5 (it showed 0.300 while the effect used 0.5)
 - Camera UI: one Controls Mode dropdown. `PerspectiveCamera2` and `OrthographicCamera2` also had a second one, from a `@uiDropdown` on `controlsMode` that listed the modes once, when the camera was made (only `orbit`). Setting a mode that a plugin adds (seen with `deviceOrientation`) while the UI showed the camera could set it back to none, so the overlay of the `device-orientation-controls-plugin` example left the camera with no controls on its first tap. The dropdown of `makeICameraCommonUiConfig` stays: it lists the modes again when a plugin adds one, and no longer lists `orbit` twice

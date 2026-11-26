@@ -1,5 +1,4 @@
 import {
-    ColorSpace,
     DataTexture,
     DataUtils,
     FloatType,
@@ -19,19 +18,20 @@ export function getTextureDataType(renderer?: WebGLRenderer): TextureDataType {
     return halfFloatSupport ? HalfFloatType : floatSupport ? FloatType : UnsignedByteType
 }
 
-export function textureDataToImageData(imgData: TextureImageData | ImageData | {data: Float32Array|Uint16Array|Uint8Array, width: number, height: number}, colorSpace?: ColorSpace, outData?: ImageData) {
+export function textureDataToImageData(imgData: TextureImageData | ImageData | {data: Float32Array|Uint16Array|Uint8Array, width: number, height: number}, colorSpace?: string, outData?: ImageData) {
     const data = outData?.data ?? new Uint8ClampedArray(imgData.height * imgData.width * 4)
+    const src = imgData.data as ArrayLike<number> // TextureImageData.data is an ArrayBufferView since three r172 types
     const isFloat32 = imgData.data instanceof Float32Array
     const isUint16 = imgData.data instanceof Uint16Array
 
     for (let i = 0; i < data.length; i++) {
 
         if (isFloat32) { // Float32
-            data[i] = imgData.data[i] * 255
+            data[i] = src[i] * 255
         } else if (isUint16) { // Uint16 (half float)
-            data[i] = DataUtils.fromHalfFloat(imgData.data[i]) * 255
+            data[i] = DataUtils.fromHalfFloat(src[i]) * 255
         } else { // Uint8
-            data[i] = imgData.data[i]
+            data[i] = src[i]
         }
 
         if (colorSpace === LinearSRGBColorSpace) {

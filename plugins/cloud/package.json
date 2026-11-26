@@ -1,13 +1,16 @@
 {
     "name": "@threepipe/plugin-cloud",
     "description": "threepipe's cloud features for any threepipe app: Report a Problem / Send Feedback (a dialog, a redacted log, the screenshot, the environment, app context, error toasts with Report) and file sharing, against the threepipe-cloud worker (services/cloud)",
-    "version": "0.1.0",
+    "version": "0.1.0-r172.1",
+    "publishConfig": {
+        "tag": "three-r172"
+    },
     "devDependencies": {},
     "dependencies": {
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": ">=0.5.0"
+        "threepipe": ">=0.5.0 || >=0.7.0-r172.1"
     },
     "exports": {
         ".": {
