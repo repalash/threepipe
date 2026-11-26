@@ -152,8 +152,9 @@ export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
             return null
         }
         const {manager, crossOrigin, requestHeader} = this as any
-        let url = /^([a-z][a-z0-9+.-]*:|\/)/i.test(path) ? path : resourcePath + path
-        if (manager.resolveURL) url = manager.resolveURL(url)
+        // Not passed through manager.resolveURL here: the loaders below resolve it with the same manager,
+        // and a URL modifier must see each URL once.
+        const url = /^([a-z][a-z0-9+.-]*:|\/)/i.test(path) ? path : resourcePath + path
 
         let load: Promise<Texture | null>
         if (custom) {
