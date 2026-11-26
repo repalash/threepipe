@@ -8,7 +8,16 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
-- NA
+- **Blender-accurate normals.** Flat-shaded faces, Auto Smooth (`Mesh.flag`/`smoothresh` before 4.1, the "Smooth by Angle" modifier from 4.1), sharp edges and sharp faces are now honoured. Normals are angle-weighted per corner like Blender's, and vertices are split at hard edges and UV seams. Previously every mesh got three.js `computeVertexNormals` (or Blender's smooth vertex normals), so hard-surface models looked blobby, with shading smeared across their edges. Checked against Blender 5.3's evaluated corner normals: 0.00° error on a Blender 3.0 scene and on a 5.x test file (flat cube, smooth sphere, sharp edges, Smooth by Angle modifier, concave n-gons). The error was 29° on average before.
+- **Emission and Background shaders** wired straight into the output now load as an unlit material (Color × Strength, with the texture as `map`), as Blender's glTF exporter does. Before, they rendered as lit 0.8 grey with the emission added on top. **Diffuse BSDF** outputs map to a fully rough, non-specular material.
+- Pre-2.63 meshes (`MFace` only) load instead of coming out empty.
+
+### Fixed
+
+- **Missing triangles on n-gons.** Pre-4.0 files (`MPoly`) were triangulated with a step-2 strip that dropped triangles from every face with 5+ corners, and padded the index with zeros. All mesh layouts now share one triangulation that matches Blender's: quads split like `is_quad_flip_v3_first_third_fast`, and n-gons are ear-clipped in their plane, so concave faces are no longer filled across their gaps.
+- **Blender 5.x files with more than one mesh showed the same geometry everywhere.** Blender 5.x writes per-datablock pointer addresses, so the same address recurs in every mesh. The parser kept one global address map, so each mesh resolved to the last mesh's attribute arrays. Pointers now resolve within the owning ID's DATA blocks first, as Blender's reader does.
+- **Fields after a 3-D array in a struct were read from the wrong offset.** The parser only understood two array dimensions, so in Blender 3.0+ `Image` (`*gputexture[3][2][2]`) `source`, `packedfile` and `packedfiles` were misread, and packed textures fell back to loading a file that isn't there.
+- Multi-material meshes get one geometry group per material slot, not one per run of faces.
 
 ## [0.3.1] - 2026-10-24
 
