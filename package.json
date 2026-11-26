@@ -66,7 +66,7 @@
     "check-bundles": "node scripts/check-bundles.mjs",
     "dev:cloud": "npm run dev --prefix services/cloud",
     "build:cloud": "npm run build:dev -w plugins/cloud",
-    "test:cloud": "npm run test -w plugins/cloud && npm run typecheck --prefix services/cloud && npm run test --prefix services/cloud",
+    "test:cloud": "npm run test -w plugins/cloud && npm run typecheck --prefix services/cloud && npm run test:unit --prefix services/cloud && npm run test --prefix services/cloud",
     "cloud:upload": "node scripts/cloud-upload.mjs",
     "cloud:upload-preview": "node scripts/cloud-upload.mjs --preview",
     "test": "npm run test:unit && npm run test:e2e",
