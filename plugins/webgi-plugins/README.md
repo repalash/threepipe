@@ -13,7 +13,7 @@
 ## Licensing
 
 All plugins in this package are **free forever**, for personal and commercial use, under the
-[webgi Free Forever License](https://unpkg.com/@threepipe/webgi-plugins@1.0.0/LICENSE) (also the LICENSE file in this package).
+[webgi Free Forever License](https://unpkg.com/@threepipe/webgi-plugins@0.8.0-r172.1/LICENSE) (also the LICENSE file in this package).
 
 - Use, bundle and modify them in any application, closed source included, with no limit on
   clients, domains, traffic or revenue.
@@ -32,6 +32,6 @@ separate package, `@ijewel3d/threepipe-plugins`, under the iJewel3D SDK License.
 [ijewel3d.com/license](https://ijewel3d.com/license) and the
 [licensing FAQ](https://developer.ijewel3d.com/introduction/licensing-faq.html).
 
-Releases before 1.0.0 carried a GNU GPL v3 notice (from 0.5.0 with additional terms) and stay
+Releases before 0.8.0 (up to 0.7.0) carried a GNU GPL v3 notice (from 0.5.0 with additional terms) and stay
 available under the license each of them carried. That notice never matched the intent (free use in closed-source
-apps). This license applies from version 1.0.0.
+apps). This license applies from version 0.8.0, including its prereleases.

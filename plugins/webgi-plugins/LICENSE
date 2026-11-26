@@ -1,5 +1,5 @@
 webgi Free Forever License
-Version 1.0, effective 2026-10-DD
+Version 1.0, effective 2026-11-26
 
 Copyright (c) 2023-present Palash Bansal <palash@shaders.app>
 
@@ -16,7 +16,7 @@ SPDX-License-Identifier: LicenseRef-webgi-FFL-1.0
 1. Definitions
 
    "Plugins" means the software published as the npm package "@threepipe/webgi-plugins", version
-   1.0.0 and later, as published by the Licensor, and its source code in the
+   0.8.0 and later, including its prereleases (such as 0.8.0-r172.1), as published by the Licensor, and its source code in the
    "plugins/webgi-plugins" folder of the threepipe repository. The term covers source and compiled
    forms, with or without your modifications.
 
@@ -90,7 +90,7 @@ SPDX-License-Identifier: LicenseRef-webgi-FFL-1.0
 
    Keep this license text, or a link to it, in a notices file or licenses page of your
    Application, such as THIRD_PARTY_LICENSES. The text is in the LICENSE file of the Official
-   Package and at https://unpkg.com/@threepipe/webgi-plugins@1.0.0/LICENSE. Your build tools can
+   Package and at https://unpkg.com/@threepipe/webgi-plugins@0.8.0-r172.1/LICENSE. Your build tools can
    remove comments from compiled code.
 
 5. Trademarks
@@ -135,7 +135,7 @@ SPDX-License-Identifier: LicenseRef-webgi-FFL-1.0
 
    The threepipe core library is licensed separately under the Apache License 2.0. Third-party
    components keep their own licenses and notices. Releases of "@threepipe/webgi-plugins" before
-   1.0.0 stay available under the license that each release carried. This license applies from
-   version 1.0.0.
+   0.8.0 (up to 0.7.0) stay available under the license that each release carried. This license
+   applies from version 0.8.0, including its prereleases.
 
 Contact: palash@shaders.app
