@@ -40,7 +40,36 @@ function inputsOf(node: any): any[] { return node ? listBaseToArray(node.inputs)
 // A socket's constant value (bNodeSocketValueRGBA/Float/Vector expose default_value.value).
 function socketConst(sock: any): any {
     const dv = sock && sock.default_value
-    return dv ? dv.value : undefined
+    if (!dv) return undefined
+    return dv.value !== undefined ? dv.value : rawSocketValue(dv, sock.type)
+}
+
+// Blender 2.80 and older write a socket's default value as raw bytes (`writedata`, no struct type), so the
+// parser can't give it fields, and every unlinked color and factor read as missing: a plain red Principled
+// BSDF came out white. Read it by the socket's type instead, with the bNodeSocketValue* layouts of
+// DNA_node_types.h (the same from 2.6x to 5.x): Float/Int `{int subtype; value; min, max}`, Vector
+// `{int subtype; float value[3]; ...}`, RGBA `{float value[4]}`, Boolean `{char value; ...}`.
+const SOCK_FLOAT = 0, SOCK_VECTOR = 1, SOCK_RGBA = 2, SOCK_BOOLEAN = 4, SOCK_INT = 6 // eNodeSocketDatatype
+function rawSocketValue(dv: any, type: unknown): number | number[] | undefined {
+    const bf = dv.__blender_file__
+    const at = dv.__data_address__
+    const size = dv.__byte_length__
+    if (!bf?.dv || typeof at !== 'number' || typeof size !== 'number') return undefined
+    const le = bf.template?.endianess
+    const floats = (offset: number, n: number) => {
+        if (offset + n * 4 > size) return undefined
+        const out: number[] = []
+        for (let i = 0; i < n; i++) out.push(bf.dv.getFloat32(at + offset + i * 4, le))
+        return out
+    }
+    switch (type) {
+    case SOCK_FLOAT: return floats(4, 1)?.[0]
+    case SOCK_VECTOR: return floats(4, 3)
+    case SOCK_RGBA: return floats(0, 4)
+    case SOCK_INT: return size >= 8 ? bf.dv.getInt32(at + 4, le) : undefined
+    case SOCK_BOOLEAN: return size >= 1 ? bf.dv.getInt8(at) : undefined
+    default: return undefined
+    }
 }
 const num = (v: any): number | undefined => (typeof v === 'number' ? v : undefined)
 const clamp01 = (c: number) => Math.max(0, Math.min(1, c))
