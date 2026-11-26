@@ -389,7 +389,7 @@ With `htmlDialogWrapper`, a click on a toast closes it, and a container shows th
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/viewer/ViewerActions.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/ViewerActions.html)
 
-`viewer.actions` (`ViewerActions`) holds the actions of the viewer and its plugins: the commands that a person runs from a key, a toolbar, a context menu or a command palette. Plugins register their actions and keys once, and any UI lists and runs them. Each viewer has one; it adds no element to the page, so a plain viewer gets the shortcuts too.
+`viewer.actions` (`ViewerActions`) holds the actions of the viewer and its plugins: the commands that a person runs from a key, a toolbar, a context menu or a command palette. Plugins register their actions and keys once, and any UI lists and runs them. Each viewer has one; it adds no element to the page, so a plain viewer gets the shortcuts too. The tweakpane editor has a sheet of all the shortcuts (`ShortcutsSheet` of [`@threepipe/plugin-tweakpane-editor`](../package/plugin-tweakpane-editor), `?` in the editor).
 
 An action (`ViewerAction`) has:
 
