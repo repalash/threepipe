@@ -16,6 +16,7 @@ import {GenericBlendTexturePass} from './GenericBlendTexturePass'
 import {IRenderTarget} from '../rendering'
 import {ICamera, IRenderManager, IScene, IWebGLRenderer} from '../core'
 import {ViewerRenderManager} from '../viewer'
+import {isPixelFormat} from '../three'
 
 export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'render'> {
     readonly isExtendedRenderPass = true
@@ -84,7 +85,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 stencilBuffer: this.renderManager.composerTarget.stencilBuffer,
                 colorSpace: composerTarget.texture.colorSpace,
                 type: this.renderManager.rgbm ? UnsignedByteType : HalfFloatType,
-                format: composerTarget.texture.format,
+                format: isPixelFormat(composerTarget.texture.format) ? composerTarget.texture.format : RGBAFormat,
                 minFilter: composerTarget.texture.minFilter,
                 magFilter: composerTarget.texture.magFilter,
                 depthBuffer: composerTarget.depthBuffer,

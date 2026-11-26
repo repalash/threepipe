@@ -87,7 +87,7 @@ class GLTFMaterialsBumpMapExtensionExport {
 
     }
 
-    writeMaterial(material: MeshStandardMaterial, materialDef: any) {
+    async writeMaterialAsync(material: MeshStandardMaterial, materialDef: any) {
 
         if (!material.isMeshStandardMaterial || material.bumpScale === 0) return
 
@@ -101,7 +101,7 @@ class GLTFMaterialsBumpMapExtensionExport {
 
         if (material.bumpMap && writer.checkEmptyMap(material.bumpMap)) {
 
-            const bumpMapDef = {index: writer.processTexture(material.bumpMap)}
+            const bumpMapDef = {index: await writer.processTextureAsync(material.bumpMap)}
             writer.applyTextureTransform(bumpMapDef, material.bumpMap)
             extensionDef.bumpTexture = bumpMapDef
 

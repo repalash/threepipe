@@ -4,12 +4,12 @@ import {
     BasicDepthPacking,
     Blending,
     ByteType,
+    ColorManagement,
     ColorSpace,
     CubeReflectionMapping,
     CubeUVReflectionMapping,
     CustomBlending,
     DepthPackingStrategies,
-    DisplayP3ColorSpace,
     EquirectangularReflectionMapping,
     FloatType,
     HalfFloatType,
@@ -34,7 +34,19 @@ import {
     UnsignedShortType,
     UVMapping,
 } from 'three'
+import {
+    DisplayP3ColorSpace,
+    DisplayP3ColorSpaceImpl,
+    LinearDisplayP3ColorSpace,
+    LinearDisplayP3ColorSpaceImpl,
+} from 'three/examples/jsm/math/ColorSpaces.js'
 import {UiObjectConfig} from 'uiconfig.js'
+
+// Display P3 moved out of three.js core in r170; register it so the `ColorSpace` mapping below (and files that use it) keep working.
+ColorManagement.define({
+    [DisplayP3ColorSpace]: DisplayP3ColorSpaceImpl,
+    [LinearDisplayP3ColorSpace]: LinearDisplayP3ColorSpaceImpl,
+})
 
 const blending: Record<string, Blending> = {
     None: NoBlending,
@@ -54,7 +66,7 @@ const mapping: Record<string, AnyMapping> = {
     // EquirectangularRefraction: EquirectangularRefractionMapping,
 }
 
-const colorSpace: Record<string, ColorSpace> = {
+const colorSpace: Record<string, ColorSpace | typeof DisplayP3ColorSpace> = {
     None: '',
     SRGB: SRGBColorSpace,
     LinearSRGB: LinearSRGBColorSpace,

@@ -30,7 +30,7 @@ Plugins can add additional formats:
     * ktx2 - Using [KTX2LoadPlugin](../plugin/KTX2LoadPlugin)
 
 Plugins to support more model formats are available in the package [@threepipe/plugins-extra-importers](../package/plugins-extra-importers) including .3ds,
-.3mf, .collada, .amf, .bvh, .vox, .gcode, .mdd, .pcd, .tilt, .wrl, .mpd, .vtk, .xyz. 
+.3mf, .collada, .amf, .bvh, .vox, .gcode, .mdd, .pcd, .wrl, .mpd, .vtk, .xyz. 
 
 ### Loading files
 

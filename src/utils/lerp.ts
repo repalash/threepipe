@@ -1,6 +1,6 @@
-import {Color, Texture} from 'three'
+import {Color, RGBAFormat, Texture} from 'three'
 import {IRenderManager, ITexture} from '../core'
-import {whiteTexture} from '../three'
+import {isPixelFormat, whiteTexture} from '../three'
 
 export interface AnimateTime {t: number, dt: number, rm?: IRenderManager}
 
@@ -83,7 +83,7 @@ export function lerpTexture(time: AnimateTime&{from?: ITexture|null}, val: IText
                 size: size,
                 colorSpace: anyTex.colorSpace,
                 type: anyTex.type,
-                format: anyTex.format,
+                format: isPixelFormat(anyTex.format) ? anyTex.format : RGBAFormat, // compressed textures are blit to an uncompressed target
                 generateMipmaps: anyTex.generateMipmaps,
                 minFilter: anyTex.minFilter,
                 magFilter: anyTex.magFilter,
