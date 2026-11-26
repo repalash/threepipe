@@ -16,6 +16,7 @@ The first version.
 
 ### Security
 
+- The redacted log of a report hides threepipe cloud access links in both forms: `/api/v1/access/agents.md#<code>` (the code in the URL fragment, the form the portal gives now) and the older `/api/v1/access/<code>/…`
 - `cloud.auth` on a page without storage (the sandboxed pages of files.threepipe.org): a key in the URL is taken only after the person confirms it, in a dialog that names the account the key was issued to (the email in the key, which a link cannot change, unlike `tp_cloud_user`). Such a page cannot keep the `state` of its own sign-in, so it took any key, and a link carrying someone else's key signed the visitor in to that account: their saves, shares and reports went there. `auth.confirmUnverified(account)` replaces the dialog (default `confirm()`; no sign-in where it is not available). Pages with storage check the `state` as before and never ask
 
 ### Fixed
