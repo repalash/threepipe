@@ -1,4 +1,4 @@
-import {Object3D} from 'threepipe'
+import type {Object3D} from 'threepipe'
 import {Ctx} from './ctx'
 
 export function createCamera(object: any, ctx: Ctx): Object3D | undefined {

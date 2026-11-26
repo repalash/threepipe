@@ -1,7 +1,7 @@
 import {createCamera} from './camera'
 import {createLight} from './light'
 import {createMesh} from './mesh'
-import {Euler, EulerOrder, IObject3D, Object3D, Quaternion, Vector3} from 'threepipe'
+import type {EulerOrder, IObject3D, Object3D} from 'threepipe'
 import {Ctx} from './ctx'
 
 // https://github.com/blender/blender/blob/99a4c93081cc2310a09a14f20a1493e8974c10d2/source/blender/makesdna/DNA_object_types.h#L445
@@ -43,7 +43,7 @@ export async function createObjects(file: any, ctx: Ctx) {
             console.warn('Unsupported object type', object.type, object, obj)
         }
         if (obj) {
-            setTransform(object, obj as any)
+            setTransform(object, obj as any, ctx)
             const exChildren = childMap.get(object)
             if (exChildren) {
                 for (const exChild of exChildren) {
@@ -89,7 +89,7 @@ const eulerModes: Record<number, EulerOrder> = {
     [6]: 'ZYX',
 }
 
-function setTransform(object: any, obj: IObject3D) {
+function setTransform(object: any, obj: IObject3D, ctx: Ctx) {
     obj.name = object.aname
     obj.scale.set(object.size[0], object.size[2], object.size[1])
     obj.position.set(object.loc[0], object.loc[2], -object.loc[1])
@@ -101,12 +101,12 @@ function setTransform(object: any, obj: IObject3D) {
         // console.log(object.rotmode)
         // const order = eulerModes[4]
         const order = eulerModes[object.rotmode] ?? 'XYZ'
-        const quat = new Quaternion().setFromEuler(new Euler(object.rot[0], object.rot[1], object.rot[2], order.split('').reverse().join('') as any))
+        const quat = new ctx.Quaternion().setFromEuler(new ctx.Euler(object.rot[0], object.rot[1], object.rot[2], order.split('').reverse().join('') as any))
         obj.quaternion.set(quat.x, quat.z, -quat.y, quat.w) // wxyz
     }
     // because camera is rotated 90d in blender
     if (object.type === blenderObjectTypes.camera)
-        obj.quaternion.multiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2))
+        obj.quaternion.multiply(new ctx.Quaternion().setFromAxisAngle(new ctx.Vector3(1, 0, 0), -Math.PI / 2))
 
     obj.updateMatrix()
     if (obj.setDirty) obj.setDirty()

@@ -1,4 +1,4 @@
-import {Light} from 'threepipe'
+import type {Light} from 'threepipe'
 import {Ctx} from './ctx'
 
 const blenderLightTypes = {

@@ -1,4 +1,4 @@
-import {ShapeUtils, Vector2} from 'threepipe'
+import type {Vector2} from 'threepipe'
 import {Ctx} from './ctx'
 
 /**
@@ -74,7 +74,7 @@ function cornerAngle(pos: ArrayLike<number>, cv: ArrayLike<number>, start: numbe
  * quad (`is_quad_flip_v3_first_third_fast`), n-gons are ear-clipped in the plane of the face (so
  * concave faces don't get triangles across their gaps).
  */
-function triangulateFace(pos: ArrayLike<number>, cv: ArrayLike<number>, start: number, n: number, fn: Float64Array, fo: number): number[] {
+function triangulateFace(pos: ArrayLike<number>, cv: ArrayLike<number>, start: number, n: number, fn: Float64Array, fo: number, ctx: Ctx): number[] {
     if (n === 3) return [0, 1, 2]
     if (n === 4) {
         const v1 = cv[start] * 3, v2 = cv[start + 1] * 3, v3 = cv[start + 2] * 3, v4 = cv[start + 3] * 3
@@ -97,11 +97,11 @@ function triangulateFace(pos: ArrayLike<number>, cv: ArrayLike<number>, start: n
     const contour: Vector2[] = []
     for (let k = 0; k < n; k++) {
         const p = cv[start + k] * 3
-        contour.push(new Vector2(pos[p] * ux + pos[p + 1] * uy + pos[p + 2] * uz, pos[p] * wx + pos[p + 1] * wy + pos[p + 2] * wz))
+        contour.push(new ctx.Vector2(pos[p] * ux + pos[p + 1] * uy + pos[p + 2] * uz, pos[p] * wx + pos[p + 1] * wy + pos[p + 2] * wz))
     }
     let tris: number[] = []
     try {
-        for (const t of ShapeUtils.triangulateShape(contour, [])) tris.push(t[0], t[1], t[2])
+        for (const t of ctx.ShapeUtils.triangulateShape(contour, [])) tris.push(t[0], t[1], t[2])
     } catch (e) {
         tris = []
     }
@@ -301,7 +301,7 @@ export function buildGeometry(src: MeshSource, name: string, ctx: Ctx) {
         const mat = useGroups ? src.faceMat![f] || 0 : 0
         let b = buckets.get(mat)
         if (!b) buckets.set(mat, b = [])
-        const tris = triangulateFace(pos, cv, s, n, fn, f * 3)
+        const tris = triangulateFace(pos, cv, s, n, fn, f * 3, ctx)
         for (const t of tris) b.push(cornerOut[s + t])
     }
     const mats = [...buckets.keys()].sort((a, b) => a - b)
