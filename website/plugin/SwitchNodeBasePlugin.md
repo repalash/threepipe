@@ -109,7 +109,7 @@ switcher.snapIcons()
 switcher.autoSnapIcons = true
 ```
 
-The preview uses the variation's `camView` and `camDistance` to position the camera, rendering via `snapObject()`.
+The preview uses the variation's `camView` and `camDistance` to position the camera. It renders the child alone (layer 7) in the viewer's scene, with its environment map, into a small offscreen target of `previewSize` pixels (256, `Preview size (px)` in the plugin UI), with the viewer's tone mapping (`snapObject()` with a `size`, see [Material Previews](../notes/material-previews)). The canvas is not changed, so no `viewer.setDirty()` is needed; the background is transparent. Call it from `preFrame` or `postFrame`, not during a render.
 
 ## Serialization
 

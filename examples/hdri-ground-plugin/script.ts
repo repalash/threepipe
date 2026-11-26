@@ -4,6 +4,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         dropzone: {
@@ -40,8 +41,8 @@ async function init() {
 
     console.log(hdriGround)
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
-    ui.setupPluginUi(HDRiGroundPlugin)
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
+    ui.setupPluginUi(HDRiGroundPlugin, {expanded: true})
 
     await viewer.fitToView(undefined, 2.5)
 

@@ -1,7 +1,10 @@
 {
     "extends": "../tsconfig",
     "compilerOptions": {
+        "rootDir": ".",
         "outDir": "../lib",
         "declarationDir": "../lib",
-    }
+    },
+    "include": ["./**/*"],
+    "exclude": ["**/*.spec.ts"]
 }

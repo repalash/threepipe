@@ -1,0 +1,34 @@
+<!-- The drive page of threepipe cloud (src/page.ts): your folders and items, from /api/v1/drive (src/drive.ts). Look: /ui.css. -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Drive · threepipe cloud</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js" defer></script>
+<script src="/drive/page.js" type="module"></script>
+</head>
+<body>
+<div id="login" class="center" hidden></div>
+<div id="app" class="frame" hidden>
+  <nav id="side"></nav>
+  <main>
+    <div class="toolbar">
+      <div class="crumbs" id="crumbs"></div>
+      <span class="grow"></span>
+      <span id="status" class="status"></span>
+      <button data-new-folder title="New folder"></button>
+      <button data-upload-folder title="A folder of files that belong together (a .gltf with its .bin and textures) becomes one item"></button>
+      <button data-upload-files class="primary"></button>
+    </div>
+    <div class="scroll" id="list"></div>
+  </main>
+  <aside id="panel"></aside>
+</div>
+<input id="files" type="file" multiple hidden>
+<input id="folder" type="file" webkitdirectory hidden>
+</body>
+</html>

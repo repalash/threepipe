@@ -6,6 +6,7 @@ import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiSlider, 
 import {onChange3} from 'ts-browser-helpers'
 import {bindToValue} from '../../three'
 import {objectActionsUiConfig} from '../object/IObjectUi'
+import {UiTags} from '../../ui/uiconfig'
 
 /**
  * Extension of three.js SpotLight with additional properties for serialization and UI
@@ -29,23 +30,23 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     }
     readonly isSpotLight2 = true
 
-    @uiToggle('Enabled')
+    @uiToggle('Enabled', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare visible: boolean
 
-    @uiInput('Name')
+    @uiInput('Name', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare name: string
 
-    @uiColor('Color', (that: SpotLight2)=>({onChange: ()=>that.setDirty()}))
+    @uiColor('Color', (that: SpotLight2)=>({onChange: ()=>that.setDirty(), tags: [UiTags.Basic]}))
     declare color: Color
-    @uiNumber('Intensity')
+    @uiNumber('Intensity', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare intensity: number
-    @uiSlider('Angle', [0, 2], 0.01)
+    @uiSlider('Angle', [0, 2], 0.01, {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare angle: number
-    @uiSlider('Penumbra', [0, 0.9999], 0.01)
+    @uiSlider('Penumbra', [0, 0.9999], 0.01, {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare penumbra: number
     @uiInput('Distance')
@@ -58,7 +59,7 @@ export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     declare readonly position: Vector3
     @uiVector('Rotation', undefined, undefined, (that: SpotLight2)=>({onChange: ()=>that.setDirty()}))
     declare readonly rotation: Euler
-    @uiToggle('Cast Shadow')
+    @uiToggle('Cast Shadow', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare castShadow: boolean
 

@@ -16,6 +16,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         dropzone: {
@@ -46,7 +47,7 @@ async function init() {
 
     const light = viewer.scene.addObject(new HemisphereLight2(0x0000ff, 0xff0000, 20))
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.appendChild(light.uiConfig, {expanded: true})
 }
 

@@ -20,6 +20,7 @@ import {
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         rgbm: true,
@@ -42,7 +43,7 @@ async function init() {
     const outline = viewer.addPluginSync(OutlinePlugin)
     outline.enableHighlight = true
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
         setBackground: true,

@@ -13,6 +13,7 @@ import {SwitchNodePlugin} from '@threepipe/plugin-configurator'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [LoadingScreenPlugin, PickingPlugin, FrameFadePlugin, SSAAPlugin],
@@ -23,7 +24,7 @@ async function init() {
         },
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     const configurator = viewer.addPluginSync(new SwitchNodePlugin())
     configurator.enableEditContextMenus = true
 

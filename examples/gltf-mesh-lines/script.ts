@@ -19,6 +19,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [LoadingScreenPlugin],
@@ -44,7 +45,7 @@ async function init() {
         useMeshLines: false,
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     const mats: IMaterial[] = []
     const o1: IObject3D[] = []

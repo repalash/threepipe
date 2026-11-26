@@ -170,7 +170,7 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
                         zippa[`texture_${i}.${expBlob.ext}`] = new Uint8Array(expBlob.__buffer || await expBlob.arrayBuffer())
                     }
                     const zipped = zipSync(zippa)
-                    blob = new Blob([zipped], {type: 'application/zip'}) as any as BlobExt
+                    blob = new Blob([zipped as Uint8Array<ArrayBuffer>], {type: 'application/zip'}) as any as BlobExt
                     blob.ext = 'zip'
                     blob.__buffer = zipped.buffer
                 } else {

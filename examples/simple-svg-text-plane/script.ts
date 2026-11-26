@@ -14,6 +14,7 @@ import {BloomPlugin} from '@threepipe/webgi-plugins'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [LoadingScreenPlugin, GeometryGeneratorPlugin, BloomPlugin, PickingPlugin],
@@ -71,7 +72,7 @@ async function init() {
         })
     }
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.appendChild(options.uiConfig, {expanded: true})
     // ui.appendChild(obj.uiConfig)
     ui.setupPluginUi(PickingPlugin)

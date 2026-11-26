@@ -5,6 +5,7 @@ import {IObject3D} from '../IObject'
 import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {onChange3} from 'ts-browser-helpers'
 import {objectActionsUiConfig} from '../object/IObjectUi'
+import {UiTags} from '../../ui/uiconfig'
 
 /**
  * Extension of three.js RectAreaLight with additional properties for serialization and UI
@@ -28,23 +29,23 @@ export class RectAreaLight2 extends RectAreaLight implements ILight<undefined> {
     }
     readonly isRectAreaLight2 = true
 
-    @uiToggle('Enabled')
+    @uiToggle('Enabled', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare visible: boolean
 
-    @uiInput('Name')
+    @uiInput('Name', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare name: string
 
-    @uiColor('Color', (that: RectAreaLight2)=>({onChange: ()=>that.setDirty()}))
+    @uiColor('Color', (that: RectAreaLight2)=>({onChange: ()=>that.setDirty(), tags: [UiTags.Basic]}))
     declare color: Color
-    @uiNumber('Intensity')
+    @uiNumber('Intensity', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare intensity: number
-    @uiNumber('Width')
+    @uiNumber('Width', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare width: number
-    @uiNumber('Height')
+    @uiNumber('Height', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare height: number
     @uiNumber('Power')

@@ -1,6 +1,7 @@
 import {_testFinish, _testStart, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
 const viewer = new ThreeViewer({
+    renderScale: 'auto',
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: false,
     rgbm: true,

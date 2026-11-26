@@ -3,7 +3,7 @@
 // Each src is loaded once per session, so moving between the two pages does not load a second copy.
 
 const THREEPIPE_URL = 'https://cdn.jsdelivr.net/npm/threepipe@0.6.0/dist/index.js?o=threepipe.org'
-const WEBGI_PLUGINS_URL = 'https://cdn.jsdelivr.net/npm/@threepipe/webgi-plugins@0.6.4/dist/index.js?o=threepipe.org'
+const WEBGI_PLUGINS_URL = 'https://cdn.jsdelivr.net/npm/@threepipe/webgi-plugins@0.7.0/dist/index.js?o=threepipe.org'
 
 const loaded = {}
 

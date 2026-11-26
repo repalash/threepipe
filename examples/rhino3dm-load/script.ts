@@ -3,6 +3,7 @@ import {_testFinish, _testStart, IObject3D, LoadingScreenPlugin, Rhino3dmLoadPlu
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         dropzone: {

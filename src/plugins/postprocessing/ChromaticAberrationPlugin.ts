@@ -24,7 +24,7 @@ export class ChromaticAberrationPlugin extends AScreenPassExtensionPlugin {
     @uiToggle('Enable')
     @serialize() enabled: boolean
 
-    @uiSlider('Intensity', [0., 0.3], 0.001)
+    @uiSlider('Intensity', [0, 1], 0.001)
     @uniform({propKey: 'aberrationIntensity'})
     @serialize('aberrationIntensity') intensity = 0.5
 

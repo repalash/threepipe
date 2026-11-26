@@ -15,6 +15,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [PopmotionPlugin, DepthBufferPlugin, GBufferPlugin, LoadingScreenPlugin, PickingPlugin], // depth and gbuffer plugins are optional
@@ -49,7 +50,7 @@ async function init() {
         },
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(PickingPlugin)
 
     const gbufferPlugin = viewer.getPlugin(GBufferPlugin)!
