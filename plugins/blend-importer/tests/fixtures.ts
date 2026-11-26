@@ -10,6 +10,7 @@
 import {existsSync, readFileSync, readdirSync, statSync} from 'node:fs'
 import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
+import {gunzipSync} from 'fflate'
 import {decompressBlend} from '../src/decompress'
 import {parseBlend} from '../src/js-blend/main.js'
 
@@ -66,7 +67,7 @@ export async function loadBlend(path: string): Promise<any> {
     const buf = bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
         ? bytes.buffer as ArrayBuffer
         : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
-    return parseBlend(decompressBlend(buf))
+    return parseBlend(decompressBlend(buf, gunzipSync))
 }
 
 /** Datablock names carry a two-character type prefix in the DNA ("MECube"). */

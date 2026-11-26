@@ -1,4 +1,5 @@
-import {ClampToEdgeWrapping, DoubleSide, FrontSide, MirroredRepeatWrapping, RepeatWrapping, SRGBColorSpace, Texture} from 'threepipe'
+import type {Texture} from 'threepipe'
+import {decodeTGA} from './tga.js'
 import {Ctx} from './ctx'
 
 // Material.blend_flag bit for the "Backface Culling" toggle (DNA_material_types.h: MA_BL_CULL_BACKFACE).
@@ -65,14 +66,37 @@ function imageMime(b: Uint8Array): string | null {
     if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45) return 'image/webp'
     return null
 }
+const imageName = (img: any): string => (typeof img?.aname === 'string' ? img.aname : '') || (typeof img?.name === 'string' ? img.name : '') || 'blendTexture'
+
+// A packed TGA (Blender packs whatever file the image came from): decoded here, since browsers can't.
+function tgaTexture(bytes: Uint8Array, img: any, srgb: boolean, ctx: Ctx): Texture | null {
+    let tga
+    try {
+        tga = decodeTGA(bytes.buffer as ArrayBuffer)
+    } catch (e) {
+        return null
+    }
+    const texture = new ctx.DataTexture(tga.data, tga.width, tga.height)
+    // Rows are top-down like an image, so upload flipped like one; DataTexture defaults to Nearest, no mips.
+    texture.flipY = true
+    texture.generateMipmaps = true
+    texture.minFilter = ctx.LinearMipmapLinearFilter
+    texture.magFilter = ctx.LinearFilter
+    if (srgb) ctx.setSRGB(texture)
+    texture.name = imageName(img)
+    texture.needsUpdate = true
+    return texture
+}
+
 // Load the packed image of an Image Texture node. `srgb` for color maps (base/emissive); false for data maps.
-function packedTexture(imageNode: any, srgb: boolean): Texture | null {
+// Returns undefined when the image isn't packed, null when it is but can't be decoded here.
+function packedTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null | undefined {
     const img = imageNode && imageNode.id
-    if (!img) return null
+    if (!img) return undefined
     const pf = img.packedfile || (img.packedfiles && img.packedfiles.first && img.packedfiles.first.packedfile)
     const block = pf && pf.data
     const size = pf && typeof pf.size === 'number' ? pf.size : 0
-    if (!block || block.__data_address__ === undefined || size <= 0) return null
+    if (!block || block.__data_address__ === undefined || size <= 0) return undefined
     // Bounds-check before constructing the view: a stale/corrupt PackedFile.size or address would otherwise
     // make `new Uint8Array(buffer, offset, size)` throw a RangeError that bubbles up and fails the whole
     // import. Skip the one bad texture instead.
@@ -80,14 +104,26 @@ function packedTexture(imageNode: any, srgb: boolean): Texture | null {
     if (block.__data_address__ + size > buf.byteLength) return null
     const bytes = new Uint8Array(buf, block.__data_address__, size).slice()
     const mime = imageMime(bytes)
-    if (!mime || typeof Blob === 'undefined' || typeof URL === 'undefined' || typeof Image === 'undefined') return null
+    if (!mime) {
+        const tga = /\.tga$/i.test(String(img.name ?? '')) || /\.tga$/i.test(imageName(img)) ? tgaTexture(bytes, img, srgb, ctx) : null
+        if (!tga && ctx.onTextureIssue) ctx.onTextureIssue('packed-unsupported', imageName(img))
+        return tga
+    }
+    if (typeof Blob === 'undefined' || typeof URL === 'undefined' || typeof Image === 'undefined') return null
     const url = URL.createObjectURL(new Blob([bytes], {type: mime}))
     const el = new Image()
-    const texture = new Texture(el)
-    if (srgb) texture.colorSpace = SRGBColorSpace
-    texture.name = (typeof img.aname === 'string' ? img.aname : '') || 'blendTexture'
-    el.onload = () => { texture.needsUpdate = true; URL.revokeObjectURL(url) }
-    el.onerror = () => { URL.revokeObjectURL(url) }
+    const texture = new ctx.Texture(el)
+    if (srgb) ctx.setSRGB(texture)
+    texture.name = imageName(img)
+    const decoded = new Promise<void>((resolve) => {
+        el.onload = () => { texture.needsUpdate = true; URL.revokeObjectURL(url); resolve() }
+        el.onerror = () => {
+            URL.revokeObjectURL(url)
+            if (ctx.onTextureIssue) ctx.onTextureIssue('packed-unsupported', imageName(img))
+            resolve()
+        }
+    })
+    if (ctx.onPending) ctx.onPending(decoded)
     el.src = url
     return texture
 }
@@ -103,11 +139,12 @@ const IMA_SRC_GENERATED = 4, IMA_SRC_VIEWER = 5
 // [0,1] (very common: tiled materials, the Poly Haven preview sphere whose unwrap spans U[-0.5,1.5]) clamps
 // to the edge texel and smears it into stripes instead of tiling. SHD_IMAGE_EXTENSION_*: 0 Repeat, 1 Extend,
 // 2 Clip, 3 Mirror.
-function applyWrap(tex: Texture | null, imageNode: any): Texture | null {
+function applyWrap(tex: Texture | null, imageNode: any, ctx: Ctx): Texture | null {
     if (!tex) return tex
     const ext = imageNode?.storage?.extension
-    tex.wrapS = tex.wrapT = ext === 1 || ext === 2 ? ClampToEdgeWrapping : ext === 3 ? MirroredRepeatWrapping : RepeatWrapping
-    tex.needsUpdate = true
+    tex.wrapS = tex.wrapT = ext === 1 || ext === 2 ? ctx.ClampToEdgeWrapping : ext === 3 ? ctx.MirroredRepeatWrapping : ctx.RepeatWrapping
+    // No needsUpdate: the texture hasn't been uploaded yet (an image still decoding, or a placeholder),
+    // and flagging one without image data makes three warn on every frame.
     return tex
 }
 // Apply a Mapping node feeding the Image Texture's "Vector" input to the texture's UV transform. Blender's
@@ -123,16 +160,18 @@ function applyMapping(tex: Texture | null, imageNode: any, links: any[]): Textur
     if (scl && scl.length >= 2) tex.repeat.set(num(scl[0]) ?? 1, num(scl[1]) ?? 1)
     if (loc && loc.length >= 2) tex.offset.set(num(loc[0]) ?? 0, num(loc[1]) ?? 0)
     if (rot && rot.length >= 3) tex.rotation = num(rot[2]) ?? 0
-    tex.needsUpdate = true
+    // The UV transform is a uniform; no re-upload needed.
     return tex
 }
 function imageNodeTexture(imageNode: any, srgb: boolean, ctx: Ctx, links: any[] = []): Texture | null {
-    const packed = packedTexture(imageNode, srgb)
-    if (packed) return applyMapping(applyWrap(packed, imageNode), imageNode, links)
+    const packed = packedTexture(imageNode, srgb, ctx)
+    if (packed) return applyMapping(applyWrap(packed, imageNode, ctx), imageNode, links)
+    // Packed but undecodable (reported above): don't also try the path, which usually isn't there.
+    if (packed === null) return null
     const img = imageNode && imageNode.id
     if (img && img.source !== IMA_SRC_GENERATED && img.source !== IMA_SRC_VIEWER
         && typeof img.name === 'string' && img.name && ctx.loadExternalTexture) {
-        return applyMapping(applyWrap(ctx.loadExternalTexture(img.name, srgb), imageNode), imageNode, links)
+        return applyMapping(applyWrap(ctx.loadExternalTexture(img.name, srgb), imageNode, ctx), imageNode, links)
     }
     return null
 }
@@ -199,7 +238,7 @@ const SELF_MAPPED = /^ShaderNode(Emission|Background|BsdfDiffuse)$/
  */
 function createUnlitMaterial(mat: any, surface: any, links: any[], ctx: Ctx) {
     const material = new ctx.MeshBasicMaterial()
-    material.side = typeof mat.blend_flag === 'number' && mat.blend_flag & MA_BL_CULL_BACKFACE ? FrontSide : DoubleSide
+    material.side = typeof mat.blend_flag === 'number' && mat.blend_flag & MA_BL_CULL_BACKFACE ? ctx.FrontSide : ctx.DoubleSide
     const inp = inputsOf(surface)
     const colSock = socketByName(inp, 'Color')
     const tex = textureFromSocket(links, colSock, true, ctx)
@@ -220,7 +259,7 @@ export function createMaterial(mat: any, ctx: Ctx) {
     // maps this directly: doubleSided = not use_backface_culling (materials.py:289). three.js defaults to
     // FrontSide, so without this most thin/open geometry (planes, leaves, interiors) is invisible from
     // behind. Only the explicit "Backface Culling" toggle (MA_BL_CULL_BACKFACE) forces single-sided.
-    material.side = (typeof mat.blend_flag === 'number' && (mat.blend_flag & MA_BL_CULL_BACKFACE)) ? FrontSide : DoubleSide
+    material.side = (typeof mat.blend_flag === 'number' && (mat.blend_flag & MA_BL_CULL_BACKFACE)) ? ctx.FrontSide : ctx.DoubleSide
 
     const nodes = mat.nodetree ? listBaseToArray(mat.nodetree.nodes) : []
     const links = mat.nodetree ? listBaseToArray(mat.nodetree.links) : []
@@ -317,7 +356,7 @@ export function createMaterial(mat: any, ctx: Ctx) {
 
         // Sheen (extensions/sheen.py — "Sheen Weight"/"Sheen" gates; color + roughness).
         const sheen = num(socketConst(socketByName(inp, 'Sheen Weight', 'Sheen')))
-        if (sheen !== undefined && sheen > 0 && (material as any).sheen !== undefined) {
+        if (sheen !== undefined && sheen > 0 && typeof (material as any).sheen === 'number') {
             (material as any).sheen = sheen
             const stint = socketConst(socketByName(inp, 'Sheen Tint'))
             if (stint && stint.length >= 3 && (material as any).sheenColor) (material as any).sheenColor.setRGB(stint[0], stint[1], stint[2])

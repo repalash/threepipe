@@ -28,12 +28,9 @@ import {createBufferGeometryOld} from '../src/loader/geometry'
 import {subdivideGeometry} from '../src/loader/subdivide'
 import {createMesh} from '../src/loader/mesh'
 import {subdivideCage} from '../src/loader/catmull'
+import {createCtx} from '../src/loader/ctx'
 
-const ctx: any = {
-    Object3D: THREE.Object3D, Mesh: THREE.Mesh, BufferGeometry: THREE.BufferGeometry,
-    BufferAttribute: THREE.BufferAttribute, MeshPhysicalMaterial: THREE.MeshPhysicalMaterial,
-    MeshBasicMaterial: THREE.MeshBasicMaterial,
-}
+const ctx: any = createCtx(THREE)
 
 const PUDDING = fixturePath('jiggly_pudding.blend')
 const CUBE = fixturePath('default-cube.blend')

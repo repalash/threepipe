@@ -13,16 +13,13 @@ import {describe, expect, it} from 'vitest'
 import * as THREE from 'threepipe'
 import {fixturePath, loadBlend} from './fixtures'
 import {createMesh} from '../src/loader/mesh'
+import {createCtx} from '../src/loader/ctx'
 import type {BlendEvaluationMode} from '../src/loader/ctx'
 
 const PREVIEW = fixturePath('blender-5.0.0-preview.blend')
 const B282 = fixturePath('Blender-282.blend')
 
-const ctxFor = (evaluationMode?: BlendEvaluationMode): any => ({
-    Object3D: THREE.Object3D, Mesh: THREE.Mesh, BufferGeometry: THREE.BufferGeometry,
-    BufferAttribute: THREE.BufferAttribute, MeshPhysicalMaterial: THREE.MeshPhysicalMaterial,
-    MeshBasicMaterial: THREE.MeshBasicMaterial, evaluationMode,
-})
+const ctxFor = (evaluationMode?: BlendEvaluationMode): any => createCtx(THREE, {evaluationMode})
 
 // DNA_modifier_types.h
 const eModifierMode_Realtime = 1 << 0, eModifierMode_Render = 1 << 1
