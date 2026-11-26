@@ -92,6 +92,55 @@ describe('ArchWallGeometryGenerator', () => {
         expect(soffit).toBeGreaterThan(40 * 24)
     })
 
+    test('the arch meets its jambs smoothly at the springing line, and a floor-level arch keeps the sharp bottom corners', () => {
+        // a semicircle over 1 m jambs (spring 1): the first and last segments of each arch end on the springing line,
+        // where the curve normal is horizontal, the same as the jamb below
+        for (const archSegments of [4, 9]) {
+            const params = {...new tp.ArchWallGeometryGenerator().defaultParams, width: 4, height: 3, archCount: 1, archWidth: 2, archHeight: 2, archSegments}
+            const g = generate(params)
+            const {spring} = tp.ArchWallGeometryGenerator.Layout(params)
+            expect(spring).toBe(1)
+            const pos = g.getAttribute('position'), nor = g.getAttribute('normal')
+            let atSpring = 0
+            for (let i = 0; i < pos.count; i++) {
+                if (Math.abs(nor.getZ(i)) > 0.5 || Math.abs(pos.getY(i) - spring) > 1e-6 || Math.abs(Math.abs(pos.getX(i)) - 1) > 1e-6) continue
+                expect(Math.abs(nor.getY(i))).toBeLessThan(1e-6) // horizontal, pointing into the opening
+                expect(nor.getX(i)).toBeCloseTo(pos.getX(i) < 0 ? 1 : -1, 6)
+                atSpring++
+            }
+            expect(atSpring).toBeGreaterThanOrEqual(4) // the jamb's and the arch's vertices, on both sides
+        }
+
+        // an arch from the floor (spring 0): the bottom face of the piers ends at the springing point; it stays flat
+        const low = {...new tp.ArchWallGeometryGenerator().defaultParams, width: 4, height: 3, archCount: 1, archWidth: 2, archHeight: 1, archSegments: 8}
+        expect(tp.ArchWallGeometryGenerator.Layout(low).spring).toBe(0)
+        const g = generate(low)
+        const pos = g.getAttribute('position'), nor = g.getAttribute('normal')
+        let bottom = 0
+        for (let i = 0; i < pos.count; i++) {
+            if (Math.abs(pos.getY(i)) > 1e-6 || Math.abs(nor.getZ(i)) > 0.5) continue
+            if (Math.abs(Math.abs(pos.getX(i)) - 1) > 1e-6) continue // the springing points (-1, 0) and (1, 0)
+            if (nor.getY(i) < -0.5) {
+                expect(nor.getY(i)).toBeCloseTo(-1, 6) // the bottom face
+                bottom++
+            } else {
+                expect(Math.abs(nor.getY(i))).toBeLessThan(1e-6) // the arch's end: horizontal
+            }
+        }
+        expect(bottom).toBeGreaterThanOrEqual(2) // every bottom-face vertex there (two triangles per pier, front and back)
+    })
+
+    test('replaces the index of an indexed geometry it generates into', () => {
+        const plugin = new tp.GeometryGeneratorPlugin()
+        const geometry = plugin.generateObject('box').geometry
+        expect(geometry.index).not.toBe(null)
+        plugin.generateGeometry('archWall', {}, geometry)
+        const count = geometry.getAttribute('position').count
+        expect(geometry.index!.count).toBe(count)
+        for (let i = 0; i < count; i++) expect(geometry.index!.getX(i)).toBe(i)
+        expect(geometry.userData.generationParams.type).toBe('archWall')
+    })
+
     test('clamps an opening wider than its share of the wall and an arch higher than the wall', () => {
         const g = generate({width: 3, height: 2, archCount: 3, archWidth: 5, archHeight: 9})
         const box = g.boundingBox!

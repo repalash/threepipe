@@ -108,8 +108,12 @@ export class ArchWallGeometryGenerator extends AGeometryGenerator<ArchWallGeomet
         geometry.translate(0, 0, -thickness / 2)
         ArchWallGeometryGenerator._SetSoffitNormals(geometry.getAttribute('position') as BufferAttribute, geometry.getAttribute('normal') as BufferAttribute, params)
 
+        const vertices = geometry.getAttribute('position') as BufferAttribute
         const result = {
-            vertices: geometry.getAttribute('position') as BufferAttribute,
+            // ExtrudeGeometry is not indexed: sequential indices, so a geometry this generates into (an indexed one, like a
+            // generated box) gets its index replaced and does not draw the new vertices through the old index
+            indices: Array.from({length: vertices.count}, (_, i) => i),
+            vertices,
             normals: geometry.getAttribute('normal') as BufferAttribute,
             uvs: geometry.getAttribute('uv') as BufferAttribute,
             groups: geometry.groups.map(g => ({...g})),
@@ -128,11 +132,14 @@ export class ArchWallGeometryGenerator extends AGeometryGenerator<ArchWallGeomet
         for (let i = 0; i < position.count; i++) {
             if (Math.abs(normal.getZ(i)) > 0.5) continue // the front and back faces
             const x = position.getX(i), y = position.getY(i)
-            if (y <= spring + 1e-9) continue // the jambs and the springing points have the flat normal already
             for (const l of left) {
                 const dx = (x - (l + rx)) / rx, dy = (y - spring) / ry
                 // the positions are float32: a vertex far from the origin is off the curve by about 1e-7 of its distance
-                if (Math.abs(dx) > 1 + 1e-4 || Math.abs(dx * dx + dy * dy - 1) > 1e-4) continue
+                if (dy < -1e-4 || Math.abs(dx) > 1 + 1e-4 || Math.abs(dx * dx + dy * dy - 1) > 1e-4) continue
+                // on the springing line the curve is vertical: the end of the first and last segment gets the horizontal
+                // normal of the jamb below, so they meet smoothly. A face there that is flat already keeps its normal: the
+                // jamb (the same normal) and, for an arch that starts at the floor, the bottom face of the pier (a sharp corner)
+                if (dy < 1e-4 && (Math.abs(normal.getX(i)) > 0.999 || Math.abs(normal.getY(i)) > 0.999)) break
                 // the gradient of the ellipse points out of the opening; the soffit faces into it
                 const nx = -dx / rx, ny = -dy / ry
                 const len = Math.hypot(nx, ny)
