@@ -1,4 +1,5 @@
-import {createStyles} from 'threepipe'
+import {createStyles, UiConfigRendererBase, type UiTooltipHook} from 'threepipe'
+import tippy from 'tippy.js'
 import tippyStyles from 'tippy.js/dist/tippy.css?inline'
 import styles from './tooltips.css?inline'
 
@@ -26,4 +27,52 @@ export function addTooltipStyles() {
     added = true
     createStyles(tippyStyles)
     createStyles(styles)
+}
+
+/**
+ * The tooltip hook of the editor for every uiconfig renderer (`UiConfigRendererBase.Tooltip`, set while the
+ * TweakpaneEditorPlugin is added): the icon-only buttons of a folder header or a form bar, the ⋮ buttons, a key at the
+ * end of a label. A tippy.js tooltip with the `editor` theme, shown only while it adds something (`needed`).
+ */
+export const editorTooltip: UiTooltipHook = (element, text, {label, shortcut, needed}) => {
+    addTooltipStyles()
+    const content = document.createElement('span')
+    content.textContent = label || text
+    if (shortcut) {
+        const k = document.createElement('kbd')
+        k.className = 'ucf-kbd'
+        k.textContent = shortcut
+        content.appendChild(k)
+    }
+    const t = tippy(element, {
+        ...EDITOR_TOOLTIP_PROPS,
+        appendTo: tooltipParent,
+        placement: 'top',
+        content,
+        onShow: () => needed() ? undefined : false,
+    })
+    return () => t.destroy()
+}
+
+let editorTooltipUsers = 0
+let tooltipBefore: UiTooltipHook | undefined
+/**
+ * Sets {@link editorTooltip} as the tooltip hook of every renderer (`UiConfigRendererBase.Tooltip`, one for the page)
+ * while an editor uses it. With more than one editor, the last one to release it puts back the hook from before.
+ * @returns the function that releases it (once)
+ */
+export function useEditorTooltip(): () => void {
+    if (editorTooltipUsers++ === 0) {
+        tooltipBefore = UiConfigRendererBase.Tooltip
+        UiConfigRendererBase.Tooltip = editorTooltip
+    }
+    let released = false
+    return () => {
+        if (released) return
+        released = true
+        if (--editorTooltipUsers > 0) return
+        // an app that set its own hook meanwhile keeps it
+        if (UiConfigRendererBase.Tooltip === editorTooltip && tooltipBefore) UiConfigRendererBase.Tooltip = tooltipBefore
+        tooltipBefore = undefined
+    }
 }
