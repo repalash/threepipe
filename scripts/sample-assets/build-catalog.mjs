@@ -291,7 +291,7 @@ function* khronos() {
  * metadata.broken. Fixed later or hidden from lists (`!json_contains(tags, 'broken')`).
  */
 const BROKEN = {
-    'demos/classic-watch.glb': 'a dead texture in its data throws on load (issues/open/import-meta-missing-texture-throws-2026-11-06.md)',
+    // demos/classic-watch.glb was here (a dead texture threw on load); it renders right since 2026-11-26
 }
 
 /**
