@@ -429,6 +429,26 @@ export const iMaterialUI = {
             })),
         },
         {
+            // the faces drawn into the shadow maps. Auto (null) is the three.js default: the side opposite to Side,
+            // so a front-sided material casts from its back faces. See the Shadows note on the website.
+            type: 'dropdown',
+            label: 'Shadow Side',
+            children: ([
+                ['Auto', -1],
+                ['Front', FrontSide],
+                ['Back', BackSide],
+                ['Double', DoubleSide],
+            ] as [string, number][]).map(value => ({
+                label: value[0],
+                value: value[1],
+            })),
+            getValue: ()=>material.shadowSide ?? -1,
+            setValue: (v: number)=>{
+                material.shadowSide = v < 0 ? null : v as Side
+            },
+            onChange: (ev)=>material.setDirty({uiChangeEvent: ev, change: 'shadowSide', needsUpdate: false}),
+        },
+        {
             type: 'input',
             label: 'Mesh count',
             getValue: ()=>material.appliedMeshes.size || 0,

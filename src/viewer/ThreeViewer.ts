@@ -560,8 +560,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this._scene.setBackgroundColor(options.backgroundColor ?? '#ffffff')
         this._scene.addEventListener('setView', this._setActiveCameraView)
         this._scene.addEventListener('activateMain', this._setActiveCameraView)
-        this._scene.addEventListener('materialUpdate', (e) => this.setDirty(this._scene, e))
-        this._scene.addEventListener('materialChanged', (e) => this.setDirty(this._scene, e)) // why? todo if needed use geometryChanged also
+        this._scene.addEventListener('materialUpdate', (e) => this._onMaterialUpdate(e))
+        this._scene.addEventListener('materialChanged', (e) => this._onMaterialChanged(e))
         this._scene.addEventListener('objectUpdate', (e) => this.setDirty(this._scene, e))
         this._scene.addEventListener('textureUpdate', (e) => this.setDirty(this._scene, e))
         this._scene.addEventListener('sceneUpdate', (e) => {
@@ -1600,6 +1600,30 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             return
         }
         await tr.exportFile(blob, name)
+    }
+
+    /**
+     * The material properties that three.js reads when it draws the shadow maps (`WebGLShadowMap.getDepthMaterial`).
+     * The maps are drawn again only after `renderManager.resetShadows()`, so a `materialUpdate` with one of these as
+     * its `change`, or with no `change`, resets them. Add a key for a material property or extension that changes
+     * the shadow casters.
+     */
+    static ShadowMaterialChanges = new Set<string>([
+        'side', 'shadowSide', 'visible', 'wireframe',
+        'alphaTest', 'map', 'alphaMap',
+        'displacementMap', 'displacementScale', 'displacementBias',
+        'clipShadows', 'clippingPlanes', 'clipIntersection',
+    ])
+
+    protected _onMaterialUpdate(e: Parameters<EventListener2<'materialUpdate', ISceneEventMap, RootScene>>[0]) {
+        this.setDirty(this._scene, e)
+        if (!e.change || ThreeViewer.ShadowMaterialChanges.has(e.change)) this.renderManager.resetShadows()
+    }
+
+    // an object got another material, which can cast another shadow (side, alpha, displacement)
+    protected _onMaterialChanged(e: Parameters<EventListener2<'materialChanged', ISceneEventMap, RootScene>>[0]) {
+        this.setDirty(this._scene, e)
+        this.renderManager.resetShadows()
     }
 
     private _setActiveCameraView: EventListener2<'setView'|'activateMain', ISceneEventMap, RootScene> = (event) => {
