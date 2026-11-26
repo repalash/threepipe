@@ -3,6 +3,8 @@ import {
     BaseEvent,
     Camera,
     EventDispatcher,
+    FloatType,
+    HalfFloatType,
     Light,
     LinearFilter,
     LinearMipmapLinearFilter,
@@ -50,7 +52,7 @@ import {
     VideoTextureLoader,
     ZipLoader,
 } from './import'
-import {RGBELoader} from 'three/examples/jsm/loaders/RGBELoader.js'
+import {HDRLoader} from 'three/examples/jsm/loaders/HDRLoader.js'
 import {EXRLoader} from 'three/examples/jsm/loaders/EXRLoader.js'
 import {Class, getOrCall, ValOrArr} from 'ts-browser-helpers'
 import {ILoader} from './IImporter'
@@ -341,7 +343,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
                     return loader
                 }),
 
-            new Importer(class extends RGBELoader {
+            new Importer(class extends HDRLoader {
                 constructor(manager: LoadingManager) {
                     super(manager)
                     this.setDataType(getTextureDataType(viewer.renderManager.renderer))
@@ -351,7 +353,8 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
             new Importer(class extends EXRLoader {
                 constructor(manager: LoadingManager) {
                     super(manager)
-                    this.setDataType(getTextureDataType(viewer.renderManager.renderer))
+                    // EXRLoader decodes to half or full float only (getTextureDataType gives UnsignedByteType without float support)
+                    this.setDataType(getTextureDataType(viewer.renderManager.renderer) === FloatType ? FloatType : HalfFloatType)
                 }
             }, ['exr'], ['image/x-exr'], false),
 

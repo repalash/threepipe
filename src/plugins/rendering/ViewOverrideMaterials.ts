@@ -378,9 +378,10 @@ export class LinearDepthOverrideMaterial extends MeshDepthMaterialOverride {
         shader.vertexShader = shaderReplaceString(shader.vertexShader, '#include <project_vertex>', '\nvViewOverrideZ = -mvPosition.z;', {append: true})
         shader.fragmentShader = shaderReplaceString(shader.fragmentShader, 'varying vec2 vHighPrecisionZW;',
             '\nvarying float vViewOverrideZ;\nuniform float depthNear;\nuniform float depthFar;', {append: true})
+        // every declaration: three.js r179 (#31500) has one for the reversed depth buffer and one for the normal one
         shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
-            'float fragCoordZ = 0.5 * vHighPrecisionZW[0] / vHighPrecisionZW[1] + 0.5;',
-            'float fragCoordZ = clamp((vViewOverrideZ - depthNear) / max(depthFar - depthNear, 1e-6), 0., 1.);')
+            /float fragCoordZ = [^;]*;/g,
+            'float fragCoordZ = clamp((vViewOverrideZ - depthNear) / max(depthFar - depthNear, 1e-6), 0., 1.);', {replaceAll: true})
         encodeOutput(shader)
     }
 }

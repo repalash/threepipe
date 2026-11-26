@@ -68,7 +68,7 @@ An app that installs the release candidate pins `three` and `@types/three` to th
 
 ### Changed
 
-- Upgrade `three` from v0.168.10008 to v0.177.10001 (three.js r177, through r172)
+- Upgrade `three` from v0.168.10008 to v0.180.10001 (three.js r180, through r172 and r177)
   - **Breaking** `RenderManager.exportRenderTarget()` is async and returns `Promise<BlobExt>` (three.js r169 made `EXRExporter.parse()` async); `RenderTargetPreviewPlugin.downloadTarget()` returns a promise too
   - **Breaking** glTF export is async (three.js r170): `GLTFWriter2.processObjects/processMaterial/processTexture` are now `processObjectsAsync/processMaterialAsync/processTextureAsync`, and glTF exporter plugins must implement `writeMaterialAsync` instead of `writeMaterial` — the old hook is silently ignored by three, so material extensions would be dropped from exports. All built-in extensions are updated. The `writeMesh`, `writeNode`, `beforeParse` and `afterParse` hooks may return a promise (three-modded awaits them)
   - `DisplayP3ColorSpace` moved out of three.js core (r170). threepipe registers Display P3 from `three/examples/jsm/math/ColorSpaces.js`, so the `ColorSpace` ui mapping keeps working
@@ -86,6 +86,9 @@ An app that installs the release candidate pins `three` and `@types/three` to th
   - **Breaking** `CreateRenderTargetOptions.format` is a `PixelFormat` instead of a `number` (three.js r177 types `RenderTargetOptions.format` as `PixelFormat`), callers passing a plain `number` have to pass a `PixelFormat` constant. Added the `isPixelFormat()` type guard to check a `Texture.format`
   - `LineMaterial2` places the `beforeAccumulation` shader marker before `#include <logdepthbuf_fragment>`, as three.js r177 (#31144) moved `vec4 diffuseColor = ` to the start of `main()`. The marker stays after the discards and the final alpha, like before
   - `ExtendedShaderPass.dispose()` disposes the full-screen quad through `super.dispose()`: three.js r175 renamed `ShaderPass.fsQuad` to `_fsQuad`, so the quad was no longer disposed
+  - `.hdr` files load with three.js `HDRLoader` (r180 renamed `RGBELoader`, which now warns when constructed). threepipe exports `HDRLoader`; its `RGBELoader` export stays for now and is deprecated
+  - `MultiplyBlending` and `SubtractiveBlending` need `material.premultipliedAlpha = true` from three.js r178; without it three.js logs an error and draws the material with no blending
+  - The types (three-types-modded 0.180.10001) type `Material.uuid` as writable, add back `Material.id` and `Material.defines`, and type `AnimationClip.userData` as `Record<string, any>` (upstream r178–r180 changed them)
 - `TransformControls2` and `PivotControls` do not listen to keys themselves now: their plugins register the keys (`actions`) in `viewer.actions`. An app that makes a gizmo without its plugin registers them: `viewer.actions.register(controls.actions)`
 - Uses ts-browser-helpers 0.23.0 (was 0.20.0). The dialogs of `viewer.dialog` with a UI plugin (`htmlDialogWrapper`: alert, confirm, prompt, choose) are modal `<dialog>` elements: the page behind an open dialog takes no click and no focus, and a close by the browser (Escape, the Android back gesture) resolves the dialog as its Escape does. They have the look of a Figma-like UI, a dark mode and CSS variables (`--dialog-*`) for an app's theme.
 - `ObjectPicker.setSelected` of a list switches the selection mode as its first item does (a list of objects after a material: object mode again), as a single item does
@@ -110,6 +113,8 @@ An app that installs the release candidate pins `three` and `@types/three` to th
 
 ### Fixed
 
+- EXR files load as half float on devices without float render targets: `getTextureDataType()` gives `UnsignedByteType` there, which `EXRLoader` does not decode (it only outputs half or full float)
+- `ViewOverridesPlugin` linear depth view with three.js r179 and later: the patch now replaces every `fragCoordZ` declaration of the depth shader (r179 has one for the reversed depth buffer and one for the normal one, and changed the spacing the old patch matched)
 - `tweakpane` image input: downloading a Float/HalfFloat `DataTexture` as EXR threw `EXRExporter.parse: Unsupported first parameter`
 - `BloomPlugin` and `DepthOfFieldPlugin` (webgi-plugins): setting a setting of their pass in code renders again: the bloom Threshold, Soft Threshold, Intensity, Background Bloom and Debug, and the depth of field Depth Range, Near and Far Blur Scale. They changed only the shader values, so a viewer at rest showed the change only at its next render; the Tweakpane panel hid it because its own change marks the viewer dirty. They now call `setDirty` like the settings of `SSAOPluginPass`
 - `ChromaticAberrationPlugin`: the Intensity slider goes to 1 (was 0.3), so the panel shows the default of 0.5 (it showed 0.300 while the effect used 0.5)

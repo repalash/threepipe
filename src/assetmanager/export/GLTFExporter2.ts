@@ -286,9 +286,6 @@ declare module 'three'{
          * @default true
          */
         __gltfExport?: boolean;
-        userData: {
-            clipActions?: Record<string, any[]>
-            [key: string]: any
-        }
+        // userData (Record<string, any> in three.js r180) holds clipActions?: Record<string, any[]> and rootRefs?: string[]
     }
 }
