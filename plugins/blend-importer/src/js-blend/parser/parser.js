@@ -43,7 +43,6 @@ function worker_code () {
         offset = 0,
         working_blend_file = null,
         current_SDNA_template = null,
-        templates = {},
         finished_objects = [],
         FILE = null,
         ERROR = null,
@@ -798,14 +797,11 @@ function worker_code () {
         const readSdna = (o) => data.getInt32(o + SDNA_OFF, BIG_ENDIAN)
         const readNr = (o) => NR_I64 ? Number(data.getBigInt64(o + NR_OFF, true)) : data.getInt32(o + NR_OFF, BIG_ENDIAN)
 
-        // create new master template if none exist for current blender version;
-        // Key on format + version so a v0 "050" and a v1 "0500" can never share a template.
-        const templateKey = (large_bhead ? 'v1:' : 'v0:') + version
-        if (!templates[templateKey]) {
-            templates[templateKey] = new MASTER_SDNA_SCHEMA(version);
-        }
-
-        current_SDNA_template = templates[templateKey];
+        // A new template for every file, built from that file's own DNA1 block. Templates used to be
+        // cached per version string, but files with the same 3-digit version (different subversions or
+        // builds) can have different struct layouts, so the second file parsed in a session read its
+        // structs at the first file's offsets (e.g. two 2.66 files: materials and the scene camera lost).
+        current_SDNA_template = new MASTER_SDNA_SCHEMA(version);
 
         FILE.template = current_SDNA_template;
 
