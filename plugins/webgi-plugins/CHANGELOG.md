@@ -12,7 +12,7 @@ Release candidate of the three.js r177 upgrade lane, under the npm dist-tag `thr
 
 ### Changed
 
-- License: the webgi Free Forever License replaces the modified GNU GPL-3.0-only notice, from 1.0.0; see LICENSE and THIRD_PARTY_NOTICES.md. Releases before 1.0.0 keep the license they carried
+- License: the webgi Free Forever License replaces the modified GNU GPL-3.0-only notice, from 0.8.0 (including its prereleases, such as 0.8.0-r172.1); see LICENSE and THIRD_PARTY_NOTICES.md. Releases up to 0.7.0 keep the license they carried
 
 ### Changed
 
