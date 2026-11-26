@@ -27,7 +27,7 @@ jobs:
       environment: cloud-deploy
       name: threepipe cloud
       working-directory: services/cloud
-      check: npm ci && npm run typecheck && npm test
+      check: npm ci && npm run typecheck && npm run test:unit && npm test
       install: npm ci
       deploy: npm run deploy:ci
       secrets-env: CLOUDFLARE_API_TOKEN ADMIN_SERVICE_TOKEN
