@@ -3,7 +3,10 @@
 //
 //   npm run cloud:upload -- <out>/samples samples/           models, write-once
 //   npm run cloud:upload -- <out>/p/samples p/samples/       thumbnails, videos, screenshots, can be redone
-//   npm run assets:insert -- --out <out> [--api <url>] [--token-file <file>] [--apply]
+//   npm run assets:insert -- --out <out> [--api <url>] [--token-file <file>] [--remote] [--apply]
+//
+// --remote checks that each file answers on its URL (after the upload) instead of in --out, for a catalog.json whose
+// files were made or uploaded on another machine (the previews rendered on the Mac).
 //
 // Rerun after a change: a row with the same set and name is replaced, so its id changes; nothing refers to an asset by id.
 // The admin token: ADMIN_SERVICE_TOKEN from the environment or --token-file (a .prod.vars or .dev.vars). Never printed.
@@ -16,6 +19,7 @@ const {values: args} = parseArgs({options: {
     api: {type: 'string', default: 'https://cloud.threepipe.org'},
     'token-file': {type: 'string'},
     apply: {type: 'boolean', default: false},
+    remote: {type: 'boolean', default: false},
 }})
 
 // the columns of services/cloud/teenybase.ts that the catalog sets
@@ -33,6 +37,7 @@ const localOf = url => {
 
 const catalog = JSON.parse(fs.readFileSync(path.join(args.out, 'catalog.json'), 'utf8'))
 const problems = []
+const remoteChecks = [] // [asset, url] for --remote
 const seen = new Set()
 for (const row of catalog.rows) {
     const asset = `${row.set_name}/${row.name}`
@@ -51,12 +56,30 @@ for (const row of catalog.rows) {
     const inBucket = row.linked || (row.kind === 'texture' && !catalog.rows.some(r => r.kind === 'model' && !r.linked && r.url === row.url))
     const urls = [inBucket ? undefined : row.url, row.thumb_url, row.video_url, ...['screenshots', 'videos', 'thumbnails'].flatMap(k => JSON.parse(row.metadata ?? '{}')[k] ?? []).map(s => s.url)].filter(Boolean)
     for (const url of urls) {
+        if (args.remote) {
+            if (localOf(url)) remoteChecks.push([asset, url])
+            continue
+        }
         const file = localOf(url)
         if (file && !fs.existsSync(file)) problems.push(`${asset}: no file for ${url}`)
     }
 }
 for (const link of catalog.links) {
     for (const asset of [link.from_asset, link.to_asset]) if (!seen.has(asset)) problems.push(`link to an unknown asset: ${asset}`)
+}
+// --remote: each of our files answers on its URL (a HEAD; the CDN gives the size without the body)
+if (remoteChecks.length) {
+    const queue = [...new Set(remoteChecks.map(([, u]) => u))]
+    const missing = new Set()
+    await Promise.all(Array.from({length: 16}, async() => {
+        while (queue.length) {
+            const url = queue.shift()
+            const response = await fetch(url, {method: 'HEAD'}).catch(() => undefined)
+            if (!response?.ok) missing.add(url)
+        }
+    }))
+    for (const [asset, url] of remoteChecks) if (missing.has(url)) problems.push(`${asset}: ${url} does not answer`)
+    console.log(`checked ${new Set(remoteChecks.map(([, u]) => u)).size} URLs on the CDN, ${missing.size} missing`)
 }
 const models = catalog.rows.filter(r => r.kind === 'model')
 console.log(`${catalog.rows.length} assets (${models.length} models, ${catalog.rows.length - models.length} others), ${catalog.links.length} links`)
