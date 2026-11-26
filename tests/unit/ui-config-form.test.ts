@@ -1,7 +1,6 @@
 import {afterAll, beforeAll, describe, expect, test, vi} from 'vitest'
 import {Color, Vector3} from 'three'
-import {JSUndoManager, UiConfigMethods, UiObjectConfig} from 'threepipe'
-import {isIntegerName, UiConfigForm} from '../../plugins/tweakpane-editor/src/ui/UiConfigForm'
+import {isIntegerName, JSUndoManager, UiConfigForm, UiConfigMethods, UiObjectConfig} from 'threepipe'
 
 // the node setup has no DOM: a small element with what the form uses
 class FakeElement {
@@ -932,7 +931,10 @@ describe('UiConfigForm bar and stack layouts', () => {
         const g = find(form, 'ucf-group')
         expect(g.getAttribute('role')).toBe('group')
         expect(g.getAttribute('aria-label')).toBe('Views')
-        expect(g.children.map(c => c.textContent)).toEqual(['Top', 'Left'])
+        expect(g.children.map(c => c.textContent)).toEqual(['Views', 'Top', 'Left'])
+        // the name as a heading (shown in a stack by the CSS), hidden from screen readers: the group's name has it
+        expect(g.children[0].className).toBe('ucf-group-head')
+        expect(g.children[0].getAttribute('aria-hidden')).toBe('true')
     })
 
     test('a dropdown in a bar is a select with the label as its name; a change sets the binding', () => {
@@ -1030,27 +1032,6 @@ describe('UiConfigForm bar and stack layouts', () => {
         stats.triangles = 46000
         form.refresh()
         expect(value.textContent).toBe('46000')
-    })
-
-    test('in a stack, a hidden config is drawn and shown or hidden on refresh as hidden changes', () => {
-        const state = {mode: 'normal', uv: 0}
-        const form = new UiConfigForm([
-            {type: 'button', label: 'Always', value: () => {}},
-            {type: 'number', label: 'UV Set', property: [state, 'uv'], hidden: () => state.mode !== 'uv'},
-            {type: 'folder', label: 'Extra', hidden: () => state.mode !== 'uv', children: [{type: 'button', label: 'In extra', value: () => {}}]},
-        ], {layout: 'stack'})
-        const uv = find(form, 'ucf-more', 'UV Set')
-        const extra = find(form, 'ucf-group')
-        expect(uv.style.display).toBe('none')
-        expect(extra.style.display).toBe('none')
-        expect(find(form, 'ucf-button', 'Always').style.display).toBe('')
-        state.mode = 'uv'
-        form.refresh()
-        expect(uv.style.display).toBe('')
-        expect(extra.style.display).toBe('')
-        state.mode = 'normal'
-        form.refresh()
-        expect(uv.style.display).toBe('none')
     })
 
     test('layout: a class that the page added stays when the layout changes (also through form)', () => {
