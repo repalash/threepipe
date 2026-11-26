@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lane Lab</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style id="example-style">
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+            color: #1c1d21;
+            background: #f6f6f7;
+        }
+        #canvas-container, #mcanvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        html[data-mode="lab"] body, html[data-mode="compare"] body {
+            overflow: hidden;
+        }
+        html:not([data-mode="lab"]) #canvas-container, html:not([data-mode="overview"]) #lane-overview {
+            display: none;
+        }
+        #lab-bar {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 10;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+            max-width: calc(100% - 340px);
+            padding: 4px 8px;
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 6px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+        }
+        #lab-bar select {
+            font: inherit;
+            max-width: 220px;
+        }
+        #lane-overview {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 24px 16px 48px;
+        }
+        #lane-overview h1 {
+            font-size: 20px;
+            margin: 0 0 4px;
+        }
+        #lane-overview table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            margin: 12px 0 20px;
+        }
+        #lane-overview th, #lane-overview td {
+            text-align: left;
+            vertical-align: top;
+            padding: 6px 8px;
+            border-bottom: 1px solid #e3e3e6;
+        }
+        #lane-overview th {
+            font-weight: 600;
+            background: #efeff1;
+        }
+        #lane-overview code {
+            font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        #lane-overview pre {
+            font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+            background: #f0f0f2;
+            padding: 8px;
+            overflow-x: auto;
+        }
+        .muted {
+            color: #6b6d76;
+        }
+        .pr-state {
+            display: inline-block;
+            padding: 0 6px;
+            border-radius: 10px;
+            font-size: 11px;
+            background: #e6e6ea;
+        }
+        .pr-state.open {
+            background: #dcefe0;
+        }
+        .pr-state.merged {
+            background: #e6dcf3;
+        }
+        #compare-frames {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+        #compare-frames iframe {
+            flex: 1;
+            border: 0;
+            height: 100%;
+        }
+        #compare-frames iframe + iframe {
+            border-left: 2px solid #c8c8cc;
+        }
+    </style>
+    <script>
+        // The query picks the mode: no lane or version is the overview of all lanes, `compare` shows two labs side by
+        // side, otherwise the lab of one threepipe build from the CDN. The lab's import map is written here, before any
+        // module loads, since the threepipe version comes from the query.
+        (function() {
+            var q = new URLSearchParams(location.search)
+            var lane = q.get('lane')
+            var threepipe = q.get('threepipe')
+            var mode = q.get('compare') ? 'compare' : lane || threepipe ? 'lab' : 'overview'
+            document.documentElement.dataset.mode = mode
+            if (mode === 'lab') {
+                // a version, or the lane's npm dist-tag (the CDN caches dist-tags for a while; the overview links exact versions)
+                var spec = threepipe || ('three-' + lane)
+                var cdn = 'https://cdn.jsdelivr.net/npm/'
+                var map = {
+                    imports: {
+                        'threepipe': cdn + 'threepipe@' + spec + '/dist/index.mjs',
+                        '@threepipe/plugin-tweakpane': cdn + '@threepipe/plugin-tweakpane@' + (q.get('tweakpane') || spec) + '/dist/index.mjs',
+                    },
+                }
+                var im = document.createElement('script')
+                im.type = 'importmap'
+                im.textContent = JSON.stringify(map)
+                document.currentScript.after(im)
+            }
+            var s = document.createElement('script')
+            s.type = 'module'
+            s.src = mode === 'lab' ? './script.js' : './lanes.js'
+            document.head.appendChild(s)
+        })()
+    </script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+</div>
+<div id="lane-overview"></div>
+</body>
+</html>

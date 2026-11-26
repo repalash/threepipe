@@ -31,6 +31,8 @@ const excludedExamples = new Set([
     'video-load', 'shadertoy-player',
     // No _testFinish signal or not testable
     'flickity-carousel', 'html-js-sample', 'monkey-type-3d',
+    // Loads threepipe from the CDN and reads npm and GitHub (three.js upgrade lanes), so not deterministic
+    'lane-lab',
 ])
 
 function checkTestCoverage(testDir, testFile, ignoredFolders, testingFile) {
