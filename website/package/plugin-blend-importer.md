@@ -19,9 +19,11 @@ It uses [`js.blend`](https://github.com/acweathersby/js.blend) for parsing blend
 This is still a WIP.
 :::
 
-Currently working: meshes (Blender's triangulation, flat/smooth shading, Auto Smooth, sharp edges, UVs, material slots), Principled BSDF materials mapped like Blender's glTF exporter (with packed and external textures), Emission as unlit, basic lights and cameras. Modifiers other than Smooth by Angle are not evaluated yet.
+Currently working: meshes (Blender's triangulation, flat/smooth shading, Auto Smooth, sharp edges, UVs, material slots), Principled BSDF materials mapped like Blender's glTF exporter (with packed and external textures), Emission as unlit, basic lights and cameras framed like Blender's. The Subdivision Surface, Mirror, Array, Solidify and Smooth by Angle modifiers are evaluated, with the viewport or the render settings (`evaluationMode`); other modifiers are listed in a warning and skipped.
 
 [Example](https://threepipe.org/examples/#blend-load/) &mdash;
+[File Inspector](https://threepipe.org/examples/#blend-file-info/) &mdash;
+[Plain three.js Example](https://threepipe.org/examples/#blend-load-three/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/plugins/blend-importer/src/index.ts) &mdash;
 [API Reference](https://threepipe.org/plugins/blend-importer/docs)
 
@@ -60,3 +62,5 @@ threeScene.add(scene) // a THREE.Group
 ```
 
 `BlendLoader` follows three's loader API (`load`, `loadAsync`, `parse`, `parseAsync`, `setPath`, `setResourcePath`, `setCrossOrigin`, `LoadingManager`). External textures load with `TextureLoader` relative to the `.blend`; use `loader.setTextureLoader(fn)` for EXR, HDR or other formats. See the [package README](https://github.com/repalash/threepipe/tree/dev/plugins/blend-importer#using-it-without-threepipe-plain-threejs) for details.
+
+The [plain three.js example](https://threepipe.org/examples/#blend-load-three/) is a single page with three from a CDN and an import map, no build step.

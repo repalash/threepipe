@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Blend Load (three.js)</title>
+    <link rel="help" type="text/plain" href="../llms.txt" title="For agents: about threepipe, the source of this example and how to use it">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <!-- Plain three.js from a CDN, no threepipe: the loader's three.js entry works with the project's own three -->
+    <script type="importmap">
+    {
+        "imports": {
+          "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/",
+          "@threepipe/plugin-blend-importer/three": "./../../plugins/blend-importer/dist/threejs.mjs"
+        }
+    }
+    </script>
+    <style id="example-style">
+        html, body, #canvas-container, #mcanvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        #canvas-container { position: relative; background: #dde1e6; }
+        #mcanvas { display: block; touch-action: none; }
+
+        /* the card, like the other examples' (examples-utils/example-card.ts), without threepipe */
+        .card {
+            --bg: #ffffff; --fg: #1e1e1e; --dim: #757575; --line: #e6e6e6; --hover: rgba(127, 127, 127, .14); --accent: #0d99ff;
+            position: absolute; z-index: 300; top: 16px; left: 16px; width: 280px; max-height: calc(100% - 32px);
+            display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden;
+            background: var(--bg); color: var(--fg); border-radius: 10px;
+            box-shadow: 0 0 0 1px var(--line), 0 6px 20px rgba(0, 0, 0, .08);
+            font: 400 12px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+        }
+        @media (prefers-color-scheme: dark) {
+            .card { --bg: #2c2c2c; --fg: #fff; --dim: #b3b3b3; --line: #444; --hover: rgba(255, 255, 255, .1); }
+        }
+        .card-head { display: flex; align-items: center; gap: 6px; padding: 10px 12px 4px; }
+        .card h1 { flex: 1; margin: 0; font-size: 13px; font-weight: 600; line-height: 1.3; }
+        .badge { font-size: 10px; font-weight: 500; line-height: 16px; padding: 0 6px; border-radius: 8px; color: #0b6bcb; background: rgba(13, 153, 255, .12); }
+        .card-body { overflow-y: auto; padding: 0 12px 12px; }
+        .toggle { all: unset; display: inline-flex; width: 26px; height: 26px; align-items: center; justify-content: center; border-radius: 5px; color: var(--dim); cursor: pointer; margin: -4px -6px -4px 0; }
+        .toggle:hover { background: var(--hover); color: var(--fg); }
+        .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+        .toggle svg { width: 16px; height: 16px; transform: rotate(180deg); transition: transform .15s; }
+        .collapsed .toggle svg { transform: none; }
+        .collapsed .card-body { display: none; }
+        .collapsed .card-head { padding-bottom: 10px; }
+        .card p { margin: 0 0 8px; color: var(--dim); }
+        .row { display: flex; align-items: center; gap: 8px; min-height: 28px; }
+        .row label, .row .label { color: var(--fg); flex-shrink: 0; min-width: 52px; }
+        .row .value { margin-left: auto; color: var(--dim); font-variant-numeric: tabular-nums; }
+        select, .btn { font: inherit; color: var(--fg); background: var(--hover); border: 0; border-radius: 5px; padding: 4px 8px; cursor: pointer; }
+        select { flex: 1; min-width: 0; }
+        .btn:hover, select:hover { background: rgba(127, 127, 127, .22); }
+        .btn:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+        .buttons { display: flex; gap: 6px; margin: 4px 0 6px; }
+        .buttons .btn { flex: 1; }
+        .check { display: flex; align-items: center; gap: 6px; min-height: 26px; cursor: pointer; }
+        .progress { height: 3px; border-radius: 2px; background: var(--hover); overflow: hidden; margin: 2px 0 6px; }
+        .progress div { height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+        .progress.done { visibility: hidden; }
+        hr { border: 0; border-top: 1px solid var(--line); margin: 8px 0; }
+        pre { margin: 0 0 8px; padding: 8px 10px; border-radius: 6px; background: var(--hover); overflow-x: auto;
+            font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--fg); }
+        pre .k { color: #a626a4; } pre .s { color: #50a14f; }
+        @media (prefers-color-scheme: dark) { pre .k { color: #c678dd; } pre .s { color: #98c379; } }
+        .credit { margin: 0 !important; }
+        .credit a, .card a { color: inherit; }
+        .drop { position: absolute; inset: 12px; z-index: 299; border: 2px dashed var(--accent, #0d99ff); border-radius: 12px;
+            background: rgba(13, 153, 255, .06); display: none; align-items: center; justify-content: center;
+            font: 500 14px system-ui, sans-serif; color: #0b6bcb; pointer-events: none; }
+        .dragging .drop { display: flex; }
+        @media (max-width: 640px) {
+            .card { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 45%; }
+            .card pre, .card .desc { display: none; }
+        }
+    </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+</head>
+<body>
+<noscript>This example needs JavaScript. Its source and instructions for agents: <a href="../llms.txt">llms.txt</a></noscript>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+    <div class="drop">Drop a .blend to open it</div>
+    <section class="card" aria-label="Blend Load (three.js)">
+        <div class="card-head"><h1>Blend Load</h1><span class="badge" title="No threepipe on this page">plain three.js</span>
+            <button class="toggle" id="toggle" type="button" aria-controls="card-body" aria-expanded="true" aria-label="Hide the card" title="Hide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></div>
+        <div class="card-body" id="card-body">
+            <p class="desc">The same .blend loader in a plain three.js page, without threepipe: <code>BlendLoader</code> from <code>@threepipe/plugin-blend-importer/three</code>, with three r170 from a CDN. Pick a scene, orbit around, or drop your own .blend.</p>
+            <pre><span class="k">import</span> {BlendLoader} <span class="k">from</span> <span class="s">'@threepipe/plugin-blend-importer/three'</span>
+
+<span class="k">const</span> {scene: model} = <span class="k">await new</span> BlendLoader().loadAsync(url)
+scene.add(model)</pre>
+            <div class="row"><label for="scene">Scene</label><select id="scene"></select></div>
+            <div class="progress done" id="progress" role="progressbar" aria-label="Loading"><div></div></div>
+            <div class="buttons">
+                <button class="btn" id="camera" type="button">Blender camera</button>
+                <button class="btn" id="open" type="button">Open .blend…</button>
+                <input id="file" type="file" accept=".blend" hidden>
+            </div>
+            <label class="check"><input type="checkbox" id="lights"> Blender lights</label>
+            <div class="row"><span class="label">Meshes</span><span class="value" id="meshes">-</span></div>
+            <div class="row"><span class="label">Triangles</span><span class="value" id="triangles">-</span></div>
+            <div class="row"><span class="label">Load time</span><span class="value" id="time">-</span></div>
+            <hr>
+            <div id="credit"></div>
+        </div>
+    </section>
+</div>
+
+<script id="example-script" type="module">
+    import * as THREE from 'three'
+    import {OrbitControls} from 'three/addons/controls/OrbitControls.js'
+    import {RGBELoader} from 'three/addons/loaders/RGBELoader.js'
+    import {BlendLoader} from '@threepipe/plugin-blend-importer/three'
+    import {blenderCameraView, blenderDemoFiles, creditLine, demoFileFromQuery, fitFov, sceneCameraName} from '../examples-utils/blender-demo-files.js'
+
+    window.dispatchEvent(new Event('threepipe-test-started'))
+    document.body.classList.add('_testStarted')
+
+    const container = document.getElementById('canvas-container')
+    const canvas = document.getElementById('mcanvas')
+    const renderer = new THREE.WebGLRenderer({canvas, antialias: true})
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+    renderer.toneMapping = THREE.ACESFilmicToneMapping // as threepipe's TonemapPlugin, so both examples look alike
+    const scene = new THREE.Scene()
+    scene.background = new THREE.Color(0xdde1e6)
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 2000)
+    camera.position.set(4, 3, 6)
+    const controls = new OrbitControls(camera, canvas)
+    controls.enableDamping = true
+
+    // Image-based lighting, like the threepipe example; Blender's own lights are off by default
+    new RGBELoader().load('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', (hdr) => {
+        const pmrem = new THREE.PMREMGenerator(renderer)
+        scene.environment = pmrem.fromEquirectangular(hdr).texture
+        hdr.dispose()
+        pmrem.dispose()
+    })
+
+    const ui = {
+        select: document.getElementById('scene'),
+        progress: document.getElementById('progress'),
+        lights: document.getElementById('lights'),
+        file: document.getElementById('file'),
+    }
+    const loader = new BlendLoader()
+    let model, view, loading = false
+
+    function resize() {
+        const w = container.clientWidth, h = container.clientHeight
+        renderer.setSize(w, h, false)
+        camera.aspect = w / h
+        if (view) camera.fov = fitFov(view, camera.aspect)
+        camera.updateProjectionMatrix()
+    }
+    new ResizeObserver(resize).observe(container)
+
+    function setLights(on) {
+        model?.traverse(o => {
+            if (o.isLight) o.visible = on
+        })
+    }
+
+    // Look through the camera Blender renders the scene with, or frame the model when it has none
+    function showBlenderView() {
+        if (view) {
+            camera.position.copy(view.position)
+            controls.target.copy(view.target)
+        } else if (model) {
+            const box = new THREE.Box3().setFromObject(model)
+            const center = box.getCenter(new THREE.Vector3())
+            controls.target.copy(center)
+            camera.position.copy(center).add(new THREE.Vector3(0.6, 0.4, 1).normalize().multiplyScalar(box.getSize(new THREE.Vector3()).length() * 0.8))
+            camera.fov = 40
+        }
+        resize()
+        controls.update()
+    }
+
+    function show(result, file, ms) {
+        if (model) {
+            scene.remove(model)
+            model.traverse(o => {
+                o.geometry?.dispose()
+                for (const m of [o.material].flat()) m?.dispose()
+            })
+        }
+        model = result.scene
+        scene.add(model)
+        setLights(ui.lights.checked)
+        const center = new THREE.Box3().setFromObject(model).getCenter(new THREE.Vector3())
+        view = blenderCameraView(model, sceneCameraName(result.blend), center)
+        showBlenderView()
+        let meshes = 0, triangles = 0
+        model.traverse(o => {
+            if (!o.isMesh) return
+            meshes++
+            triangles += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3
+        })
+        document.getElementById('meshes').textContent = meshes.toLocaleString()
+        document.getElementById('triangles').textContent = Math.round(triangles).toLocaleString()
+        document.getElementById('time').textContent = (ms / 1000).toFixed(1) + ' s'
+        document.getElementById('credit').replaceChildren(file ? creditLine(file) : document.createTextNode('Your file'))
+        ui.select.value = file?.id ?? ''
+    }
+
+    function setProgress(fraction) {
+        ui.progress.classList.toggle('done', fraction === undefined)
+        ui.progress.firstElementChild.style.width = `${Math.round((fraction ?? 0) * 100)}%`
+    }
+
+    async function load(file) {
+        if (loading) return
+        loading = true
+        ui.select.disabled = true
+        const start = performance.now()
+        setProgress(0)
+        try {
+            const result = await loader.loadAsync(file.url, (e) => e.total && setProgress(0.9 * e.loaded / e.total))
+            show(result, file, performance.now() - start)
+        } catch (e) {
+            console.error(e)
+            alert(`Could not load ${file.label}: ${e?.message ?? e}`)
+        } finally {
+            setProgress(undefined)
+            ui.select.disabled = false
+            loading = false
+        }
+    }
+
+    // a file from the disk: parse its bytes (external textures can't be found next to it)
+    async function openFile(f) {
+        if (!f || loading) return
+        loading = true
+        const start = performance.now()
+        try {
+            show(await loader.parseAsync(await f.arrayBuffer(), ''), undefined, performance.now() - start)
+        } catch (e) {
+            console.error(e)
+            alert(`Could not read ${f.name}: ${e?.message ?? e}`)
+        } finally {
+            loading = false
+        }
+    }
+
+    for (const f of blenderDemoFiles) ui.select.append(new Option(f.label, f.id))
+    ui.select.append(new Option('Your file', ''))
+    ui.select.addEventListener('change', () => {
+        const file = blenderDemoFiles.find(f => f.id === ui.select.value)
+        if (file) load(file)
+    })
+    // the card collapses from its header; on a phone it starts collapsed, so the model is in view
+    const card = document.querySelector('.card'), toggle = document.getElementById('toggle')
+    const setCollapsed = (collapsed) => {
+        card.classList.toggle('collapsed', collapsed)
+        toggle.setAttribute('aria-expanded', String(!collapsed))
+        toggle.setAttribute('aria-label', collapsed ? 'Show the card' : 'Hide the card')
+        toggle.title = collapsed ? 'Show' : 'Hide'
+    }
+    setCollapsed(matchMedia('(max-width: 640px)').matches)
+    toggle.addEventListener('click', () => setCollapsed(!card.classList.contains('collapsed')))
+    document.getElementById('camera').addEventListener('click', showBlenderView)
+    document.getElementById('open').addEventListener('click', () => ui.file.click())
+    ui.file.addEventListener('change', () => openFile(ui.file.files[0]))
+    ui.lights.addEventListener('change', () => setLights(ui.lights.checked))
+    container.addEventListener('dragover', (e) => {
+        e.preventDefault()
+        container.classList.add('dragging')
+    })
+    container.addEventListener('dragleave', () => container.classList.remove('dragging'))
+    container.addEventListener('drop', (e) => {
+        e.preventDefault()
+        container.classList.remove('dragging')
+        openFile([...e.dataTransfer.files].find(f => /\.blend$/i.test(f.name)))
+    })
+
+    renderer.setAnimationLoop(() => {
+        controls.update()
+        renderer.render(scene, camera)
+    })
+
+    load(demoFileFromQuery()).finally(() => {
+        window.dispatchEvent(new Event('threepipe-test-finished'))
+        document.body.classList.add('_testFinish')
+    })
+</script>
+</body>
