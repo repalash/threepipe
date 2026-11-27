@@ -314,7 +314,8 @@ export default {
         // The catalog of sample assets (models, HDRIs, textures): public to read through teenybase's table API (select,
         // list, view), written only with the admin token (scripts/sample-assets). Only for finding them, one query per
         // request: the files are read from their URLs with no database. A URL is on our samples bucket
-        // (assets/<set_name>/<name>/) or anywhere else.
+        // (samples.threepipe.org/<set_name>/<file name of the source>, previews on files.threepipe.org/p/samples/) or anywhere else.
+        // Docs: website/guide/asset-catalog.md
         name: 'threepipe_assets',
         autoSetUid: true,
         fields: [
@@ -342,7 +343,7 @@ export default {
             {name: 'triangles', type: 'integer', sqlType: 'integer'},
             {name: 'poly', type: 'text', sqlType: 'text'}, // low | mid | high, from `triangles`
             // JSON object, everything else: links [{label, url}], changes, screenshots [{label, url}], views, animations, play,
-            // vertices, meshes, materials, textures, extensions, width, height, thumbnails, videos, broken. A list leaves it out of its `select`.
+            // vertices, meshes, materials, textures, extensions, width, height, thumbnails, videos, broken.
             // files: every file of the asset, the default one first ({default: true, ...}): [{format (glb, gltf, draco, ktx2, ...),
             // url, size, triangles, lod, resolution, version, label}], so one entry is one combination (version 1, LOD 1, Draco).
             // version, versions [{version, url, date}]: assets we author keep each version's files (<collection>/v1/...), the row
