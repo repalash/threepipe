@@ -6,7 +6,7 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": ">=0.7.0"
+        "threepipe": ">=0.7.0-next.1"
     },
     "exports": {
         ".": {

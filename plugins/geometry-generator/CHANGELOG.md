@@ -4,6 +4,12 @@ All notable changes to this plugin will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [Unreleased]
+
+### Fixed
+
+- A text geometry made before any font has loaded threw (`FontLibrary.GetFont` returned a font without data). It is empty now (`FontLibrary.EmptyFont`), until the font loads
+
 ## [0.8.1] - 2026-10-23
 
 ### Fixed

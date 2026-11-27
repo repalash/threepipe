@@ -14,6 +14,14 @@ export {uiPanelContainer, uiFolderContainer} from 'uiconfig.js'
 export {generateUiConfig, generateUiFolder, generateValueConfig, UiConfigTypeMap} from 'uiconfig.js'
 export type {TParams} from 'uiconfig.js'
 
+// tooltips of every renderer: set UiConfigRendererBase.Tooltip to draw them with another library
+export {titleTooltip, setElementTooltip} from 'uiconfig.js'
+export type {UiTooltipHook, UiTooltipInfo, UiRefreshListener} from 'uiconfig.js'
+
+// TODO: move uiconfig.js/dom out of the core; revisit when changing the module bundling/packaging of @threepipe/core
+export {UiConfigForm, isIntegerName, lucideIcons, lucideIcon, addIcons, iconMarkup, uiConfigFormStyles} from 'uiconfig.js/dom'
+export type {UiConfigFormLayout, UiConfigFormOptions, UiConfigFormTooltip, UiConfigFormTooltipInfo} from 'uiconfig.js/dom'
+
 /**
  * Tags that threepipe sets in the `tags` of uiConfigs. Renderers and editors read them to filter what they show;
  * a renderer that does not read them shows the full UI.
