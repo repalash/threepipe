@@ -23,7 +23,7 @@ import {Collada, ColladaLoader} from 'three/examples/jsm/loaders/ColladaLoader.j
 import {AMFLoader} from 'three/examples/jsm/loaders/AMFLoader.js'
 import {GCodeLoader} from 'three/examples/jsm/loaders/GCodeLoader.js'
 import {BVH, BVHLoader} from 'three/examples/jsm/loaders/BVHLoader.js'
-import {Chunk, VOXLoader, VOXMesh} from 'three/examples/jsm/loaders/VOXLoader.js'
+import {buildMesh, VOXLoader, VOXLoaderResult} from 'three/examples/jsm/loaders/VOXLoader.js'
 import {MDD, MDDLoader} from 'three/examples/jsm/loaders/MDDLoader.js'
 import {PCDLoader} from 'three/examples/jsm/loaders/PCDLoader.js'
 import {VRMLLoader} from 'three/examples/jsm/loaders/VRMLLoader.js'
@@ -111,13 +111,19 @@ export class BVHLoadPlugin extends BaseImporterPlugin {
 export class VOXLoadPlugin extends BaseImporterPlugin {
     public static readonly PluginType = 'VOXLoadPlugin'
     protected _importer = new Importer(class extends VOXLoader implements ILoader {
-        transform(chunks: Chunk[], _: AnyOptions): Object3D {
+        // three r182: the result has the chunks and a scene of their meshes, placed by the scene graph of the file (null
+        // for a file without one). VOXMesh and the result as an array of chunks are deprecated.
+        transform(result: VOXLoaderResult, _: AnyOptions): Object3D {
             const obj = new Object3D()
-            for (const chunk of chunks) {
-                // displayPalette( chunk.palette );
-                const mesh = new VOXMesh(chunk)
-                mesh.scale.setScalar(0.0015)
-                obj.add(mesh)
+            if (result.scene) {
+                result.scene.scale.multiplyScalar(0.0015)
+                obj.add(result.scene)
+            } else {
+                for (const chunk of result.chunks) {
+                    const mesh = buildMesh(chunk)
+                    mesh.scale.setScalar(0.0015)
+                    obj.add(mesh)
+                }
             }
             return obj
         }
