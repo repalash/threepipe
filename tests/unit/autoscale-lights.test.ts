@@ -46,4 +46,18 @@ describe('autoScale keeps the lighting of the model', () => {
         expect(point.distance).toBeCloseTo(50, 6)
         expect(area.width).toBeCloseTo(4, 6)
     })
+
+    it('scaling back to the original radius (Scale to Radius again) restores the lights', () => {
+        const {root, point, spot, area} = makeModel()
+        root.autoScale!(1)
+        root.autoScale!(10) // the model's original radius, typed in the Scale to Radius prompt
+        // back to within the float32 precision of the measured bounds (the model's scale comes back as 0.99999998)
+        expect(root.scale.x).toBeCloseTo(1, 6)
+        expect(point.intensity / 1000).toBeCloseTo(1, 6)
+        expect(point.distance / 50).toBeCloseTo(1, 6)
+        expect(spot.intensity / 400).toBeCloseTo(1, 6)
+        expect(area.width / 4).toBeCloseTo(1, 6)
+        expect(area.height / 2).toBeCloseTo(1, 6)
+        expect(point.shadow.camera.near / 0.5).toBeCloseTo(1, 6)
+    })
 })
