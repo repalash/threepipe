@@ -8,6 +8,7 @@ import {
     FloatType,
     HalfFloatType,
     IUniform,
+    Light,
     NoBlending,
     NoColorSpace,
     NormalBlending,
@@ -93,6 +94,92 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     private _shadowMapTypeChanged() {
         this.resetShadows()
         this.reset()
+    }
+
+    /**
+     * How many shadow maps a lit material may sample. Every shadow-casting point, spot or directional light adds a shadow
+     * map to the shader of every lit material (a spot light with a `map` adds two), and a GPU allows only
+     * `renderer.capabilities.maxTextures` textures per shader: 16 on Apple GPUs, 32 on most others. Past that, no
+     * shader compiles and nothing is drawn (an imported Blender scene with 16 shadow-casting lights, for example).
+     *
+     * Lights over the budget don't cast shadows while rendering: directional lights first, then point and spot lights by
+     * intensity, keep their shadows. Their `castShadow` is left as it is in the scene, the UI and exports; it's only
+     * turned off during {@link render}. A warning names the lights that lose their shadows.
+     *
+     * `'auto'` (default): `maxTextures` minus {@link SHADOW_TEXTURE_RESERVE}, which leaves room for the maps of a material
+     * and the textures of the pipeline. A number sets it; `Infinity` turns the budget off.
+     */
+    maxShadowMaps: number | 'auto' = 'auto'
+
+    /**
+     * Textures per shader kept free for the maps of a material, the environment map and the pipeline's textures when
+     * {@link maxShadowMaps} is `'auto'`.
+     */
+    static SHADOW_TEXTURE_RESERVE = 10
+
+    private _shadowBudgetDirty = true
+    private _shadowBudgetLimit = -1
+    private _shadowBudgetOff: Light[] = []
+    private _renderDepth = 0 // render() can be called from a preRender/postRender listener; only the outer call toggles shadows
+
+    /**
+     * Recompute which lights cast shadows within {@link maxShadowMaps} before the next render. The viewer calls it when
+     * the scene changes.
+     */
+    shadowBudgetNeedsUpdate() {
+        this._shadowBudgetDirty = true
+    }
+
+    protected _refreshShadowBudget(scene: IScene) {
+        this._shadowBudgetDirty = false
+        const max = this.maxShadowMaps === 'auto' ?
+            Math.max(0, this._renderer.capabilities.maxTextures - RenderManager.SHADOW_TEXTURE_RESERVE) :
+            this.maxShadowMaps
+        const casting: Light[] = []
+        scene.traverse((o: any) => {
+            if (o.isLight && o.castShadow && o.shadow && (o.isDirectionalLight || o.isPointLight || o.isSpotLight)) casting.push(o)
+        })
+        const rank = (l: any) => l.isDirectionalLight ? 1 : 0
+        casting.sort((a, b) => rank(b) - rank(a) || b.intensity - a.intensity)
+        const off: Light[] = []
+        let used = 0
+        for (const l of casting) {
+            const cost = (l as any).isSpotLight && (l as any).map ? 2 : 1
+            if (used + cost <= max) used += cost
+            else off.push(l)
+        }
+        const changed = off.length !== this._shadowBudgetOff.length || off.some((l, i) => l !== this._shadowBudgetOff[i]) || max !== this._shadowBudgetLimit
+        this._shadowBudgetOff = off
+        this._shadowBudgetLimit = max
+        if (changed && off.length) {
+            console.warn(`RenderManager: ${casting.length} lights cast shadows, but a shader here can sample only ${max} shadow maps ` +
+                `(maxShadowMaps, ${this._renderer.capabilities.maxTextures} textures per shader on this GPU). ` +
+                `No shadows from the ${off.length} dimmest: ${off.map(l => l.name || l.type).join(', ')}`)
+        }
+    }
+
+    private _reportedPrograms = new WeakSet<object>()
+    private _programCount = 0
+
+    // after a frame: report programs that failed to compile or link (three.js logs them and leaves the objects undrawn)
+    private _checkShaderErrors() {
+        const programs = this._renderer.info.programs
+        if (!programs || programs.length === this._programCount) return
+        this._programCount = programs.length
+        for (const program of programs) {
+            const diagnostics = (program as any).diagnostics
+            if (!diagnostics || diagnostics.runnable !== false || this._reportedPrograms.has(program)) continue
+            this._reportedPrograms.add(program)
+            const programLog: string = diagnostics.programLog || ''
+            this.dispatchEvent({
+                type: 'shaderError',
+                materialName: (program as any).name || '',
+                programLog,
+                fragmentLog: diagnostics.fragmentShader?.log || '',
+                vertexLog: diagnostics.vertexShader?.log || '',
+                tooManyTextures: /texture image units|exceeds MAX_TEXTURE_IMAGE_UNITS/i.test(programLog + (diagnostics.fragmentShader?.log || '')),
+            } as any)
+        }
     }
 
     @uiConfig(undefined, {label: 'Passes', tags: [UiTags.Advanced], order: 1000})
@@ -285,10 +372,20 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
             if (pass.enabled && pass.beforeRender) pass.beforeRender(scene, scene.renderCamera, this)
         }
         this._composer.renderToScreen = renderToScreen ?? this.defaultRenderToScreen
-        this.dispatchEvent({type: 'preRender', scene, renderToScreen: this._composer.renderToScreen})
-        this._composer.render()
-        this.dispatchEvent({type: 'postRender', scene, renderToScreen: this._composer.renderToScreen})
+        if (this._shadowBudgetDirty && this._renderDepth === 0) this._refreshShadowBudget(scene)
+        const shadowOff = this._renderDepth === 0 ? this._shadowBudgetOff : []
+        for (const l of shadowOff) l.castShadow = false // only while rendering, see maxShadowMaps
+        this._renderDepth++
+        try {
+            this.dispatchEvent({type: 'preRender', scene, renderToScreen: this._composer.renderToScreen})
+            this._composer.render()
+            this.dispatchEvent({type: 'postRender', scene, renderToScreen: this._composer.renderToScreen})
+        } finally {
+            this._renderDepth--
+            for (const l of shadowOff) l.castShadow = true
+        }
         this._composer.renderToScreen = true
+        this._checkShaderErrors()
         if (renderToScreen) {
             this.incRenderToScreen()
         }
