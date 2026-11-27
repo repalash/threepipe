@@ -134,8 +134,10 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
     /**
      * Checks for shader material and does the same thing...
      * @param material
+     * @param geometry - the geometry the material is used with. three.js r185 bakes the sign of `normalScale` into the
+     * exported normal map, inverting the green channel when the geometry has no tangents (#33837).
      */
-    async processMaterialAsync(material: Material): Promise<number|null> {
+    async processMaterialAsync(material: Material, geometry?: BufferGeometry): Promise<number|null> {
         if (this.cache.materials.has(material)) return this.cache.materials.get(material)!
 
         let mat = material as any
@@ -143,7 +145,8 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         // set default material when material is null. shader material is processed further below for custom extensions like diamonds.
         if (!mat || mat.isShaderMaterial) mat = this._defaultMaterial
 
-        const defIndex = await super.processMaterialAsync(mat)
+        // @ts-expect-error three-types-modded 0.187.10001-rc.2 declares processMaterialAsync(material) without the geometry
+        const defIndex = await super.processMaterialAsync(mat, geometry)
 
         if (defIndex === null) {
             console.error('GLTFWriter2: Unexpected error: Failed to process material', material)

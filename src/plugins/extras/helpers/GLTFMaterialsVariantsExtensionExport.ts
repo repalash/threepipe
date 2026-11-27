@@ -72,7 +72,7 @@ export class GLTFExporterMaterialsVariantsExtensionExport {
                 continue
             }
             const variantIndex = this.variantNames.indexOf(variantName) // Shouldn't be -1
-            const materialIndex = (await this.writer.processMaterialAsync(variantMaterialInstance))!
+            const materialIndex = (await this.writer.processMaterialAsync(variantMaterialInstance, mesh.geometry))!
             if (!mappingTable[materialIndex]) {
                 mappingTable[materialIndex] = {
                     material: materialIndex,
@@ -91,7 +91,7 @@ export class GLTFExporterMaterialsVariantsExtensionExport {
         }
 
         const originalMaterialIndex = compatibleMaterial(userData._originalMaterial)
-            ? await this.writer.processMaterialAsync(userData._originalMaterial) ?? -1 : -1
+            ? await this.writer.processMaterialAsync(userData._originalMaterial, mesh.geometry) ?? -1 : -1
 
         for (const primitiveDef of meshDef.primitives) {
             // Override primitiveDef.material with original material.
