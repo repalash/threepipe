@@ -57,7 +57,9 @@ describe('RenderManager.maxShadowMaps', () => {
         const rm = standIn(16)
         rm._shadowBudgetDirty = false
         rm._maxShadowMaps = 'auto'
-        const desc = Object.getOwnPropertyDescriptor(tp.RenderManager.prototype, 'maxShadowMaps')!
+        let proto: any = tp.RenderManager.prototype, desc: PropertyDescriptor | undefined
+        while (proto && !(desc = Object.getOwnPropertyDescriptor(proto, 'maxShadowMaps'))) proto = Object.getPrototypeOf(proto) // the class decorator wraps the class
+        if (!desc) throw new Error('maxShadowMaps accessor not found')
         desc.set!.call(rm, 2)
         expect(rm._shadowBudgetDirty).toBe(true)
         expect(desc.get!.call(rm)).toBe(2)
