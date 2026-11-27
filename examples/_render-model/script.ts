@@ -50,6 +50,11 @@ const loadAs = query.get('format') ?? undefined
 const kind = query.get('kind') ?? 'model'
 // where the camera looks from before it fits the view: a three-quarter view of a model, eye level for an HDRI
 const DIRECTIONS: Record<string, number[]> = {model: [1, 0.45, 1.5], hdri: [0, 0.12, 1], material: [0, 0.35, 1]}
+// material mode: a model to show the material on (a shader ball) and the name of its material to replace; else a sphere.
+// Parts named in ballHide (material names, comma separated) are hidden (a floor)
+const ball = query.get('ball') ?? undefined
+const ballSurface = query.get('ballSurface') ?? undefined
+const ballHide = (query.get('ballHide') ?? '').split(',').filter(Boolean)
 const ENVIRONMENT = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/brown_photostudio_02_1k.hdr' // CC0, Poly Haven
 const INSIDE_ARC = 8 // degrees
 const FIT = 1.5 // distance to the model, as in render3d-cli
@@ -102,6 +107,29 @@ function measure(root: any) {
     })
     return {triangles, vertices, points, meshes, materials: materials.size, textures: textures.size,
         animations: [...clips].map((clip: any) => ({name: clip.name, seconds: Math.round(clip.duration * 100) / 100}))}
+}
+
+/** A shader ball with the material on its surface (material mode with `ball`). */
+async function shaderBall(viewer: ThreeViewer, material: any) {
+    if (!material?.isMaterial) throw new Error('no material loaded')
+    const model = await viewer.load<any>(ball!)
+    if (!model) throw new Error('the shader ball did not load')
+    let replaced = 0
+    const hidden: any[] = []
+    model.traverse((o: any) => {
+        if (!o.material) return
+        if (ballHide.includes(o.material.name)) hidden.push(o)
+        else if (o.material.name === ballSurface) {
+            o.material = material
+            replaced++
+        }
+    })
+    if (!replaced) throw new Error(`no material ${ballSurface} in the shader ball`)
+    // removed before it is centred and scaled, so the ball fills the view and not the floor
+    for (const o of hidden) o.removeFromParent()
+    model.autoCenter?.()
+    model.autoScale?.(1)
+    return model
 }
 
 /** What an HDRI or a material is shown on: two balls (chrome, matte) or one sphere with the material. */
@@ -162,7 +190,8 @@ async function render() {
     const view = query.get('view') ? JSON.parse(query.get('view')!) as View : undefined
     // a saved file loads as it was saved; anything else is centered and scaled, or fitted below
     const loaded = kind === 'model' ? await viewer.load<any>(url, {...view?.saved ? {} : {autoCenter: true, autoScale: true, autoScaleRadius: 1}, fileExtension: loadAs}) :
-        previewObjects(viewer, kind === 'material' ? await viewer.load<any>(url, {fileExtension: loadAs}) : undefined)
+        kind === 'material' && ball ? await shaderBall(viewer, await viewer.load<any>(url, {fileExtension: loadAs})) :
+            previewObjects(viewer, kind === 'material' ? await viewer.load<any>(url, {fileExtension: loadAs}) : undefined)
     // a zip gives what was in it, a list
     const model = Array.isArray(loaded) ? loaded.length === 1 ? loaded[0] : viewer.scene.modelRoot : loaded
     if (!model || Array.isArray(loaded) && !loaded.length) throw new Error('nothing loaded')
