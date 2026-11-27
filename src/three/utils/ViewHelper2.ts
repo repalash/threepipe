@@ -2,7 +2,6 @@ import {
     BackSide,
     Camera,
     CanvasTexture,
-    Clock,
     Color,
     Euler,
     LinearFilter,
@@ -19,6 +18,7 @@ import {
     Sprite,
     SpriteMaterial,
     SRGBColorSpace,
+    Timer,
     Vector2,
     Vector3,
     Vector4,
@@ -39,7 +39,7 @@ const axesColors = [
     new Color(0x2c8fff),
 ]
 
-const clock = new Clock()
+const timer = new Timer() // Clock is deprecated since three.js r183
 const targetPosition = new Vector3()
 const targetQuaternion = new Quaternion()
 // const euler = new Euler()
@@ -198,7 +198,7 @@ export class ViewHelper2 extends Object3D<ViewHelper2EventMap> {
     }
 
     render() {
-        const delta = clock.getDelta()
+        const delta = timer.update().getDelta()
         if (this.animating) this.animate(Math.min(delta, 1 / 30.0))
 
         // const x = this.domRect.left

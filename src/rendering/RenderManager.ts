@@ -19,6 +19,7 @@ import {
     ShaderChunk,
     ShaderLib,
     ShadowMapType,
+    Timer,
     Vector2,
     Vector4,
     VSMShadowMap,
@@ -456,8 +457,19 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         return this._renderer
     }
 
-    get clock() {
-        return this._composer.clock
+    /**
+     * The timer of the effect composer (three.js r183 replaced its Clock with a Timer, which `render()` updates).
+     */
+    get timer(): Timer {
+        return this._composer.timer
+    }
+
+    /**
+     * @deprecated use {@link timer}. Since three.js r183 the effect composer has a Timer, not a Clock: this returns the
+     * timer, which has `getDelta()` and `getElapsed()` (not `getElapsedTime()`).
+     */
+    get clock(): Timer {
+        return this._composer.timer
     }
 
     // endregion

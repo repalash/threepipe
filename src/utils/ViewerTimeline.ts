@@ -1,4 +1,4 @@
-import {Clock, EventDispatcher} from 'three'
+import {EventDispatcher, Timer} from 'three'
 import {ThreeViewer} from '../viewer'
 import {ProgressivePlugin} from '../plugins'
 import {uiButton, uiFolderContainer, uiInput, UiObjectConfig, uiToggle} from 'uiconfig.js'
@@ -90,7 +90,12 @@ export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
         return this.running || this._step
     }
 
-    protected _clock = new Clock(false)
+    /**
+     * The wall time between frames while running (three.js Timer; Clock is deprecated since r183). The timeline keeps
+     * its own time ({@link time}).
+     */
+    protected _timer = new Timer()
+    private _running = false
 
     private _start = false
     private _stop = false
@@ -130,8 +135,7 @@ export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
     update(viewer: ThreeViewer) {
         this._refreshParams()
         if (!this.running) {
-            this.delta = this._clock.getDelta() // this will return 0 always
-            this._time = this._clock.elapsedTime
+            this.delta = 0
             return
         }
         const d = viewer.getPlugin<ProgressivePlugin>('ProgressivePlugin')?.postFrameConvergedRecordingDelta()
@@ -139,20 +143,18 @@ export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
             // recorded frame, d is in seconds (1 / videoFrameRate). The clock keeps the wall time (ms), so the first
             // frame after the recording does not add the time the recording took.
             this.delta = d
-            this._clock.oldTime = performance.now()
-            this._clock.elapsedTime += this.delta
-            this._time = this._clock.elapsedTime
+            this._timer.reset()
+            this._time += this.delta
             // viewer.setDirty(this) // for next frame
             this.dispatchEvent({type: 'update'})
         } else if (d !== undefined && d === 0) {
             // recording, not converged yet.
             this.delta = 0
-            this._clock.oldTime = performance.now()
-            this._time = this._clock.elapsedTime
+            this._timer.reset()
         } else if (d === undefined || d < 0) {
             // not recording
-            this.delta = this._clock.getDelta() // this updates oldTime and elapsedTime
-            this._time = this._clock.elapsedTime
+            this.delta = this._timer.update().getDelta()
+            this._time += this.delta
             // viewer.setDirty(this) // for next frame
             this.dispatchEvent({type: 'update'})
         }
@@ -164,30 +166,26 @@ export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
         const isReset = this.resetOnEnd && isEnd
         const isStop = this.stopOnEnd && isEnd
         if (this._stop || isStop) {
-            // Clock.stop() adds the time since the last frame, which would move a time set after stop() (a seek) on
-            const time = this._clock.elapsedTime
-            this._clock.stop()
-            this._clock.elapsedTime = time
+            this._running = false
             this._start = false
             this._stop = false
-            this.running = this._clock.running
+            this.running = this._running
             this.dispatchEvent({type: 'stop'})
         }
         if (this._start) {
-            this._clock.start()
-            this._clock.elapsedTime = this.time
+            this._timer.reset() // the first delta is from now
+            this._running = true
             this._start = false
-            this.running = this._clock.running
+            this.running = this._running
             this.dispatchEvent({type: 'start'})
         }
         if (this._reset || isReset) {
-            this._clock.elapsedTime = 0
             this.time = 0
             this.delta = 0
             this._reset = false
             this.dispatchEvent({type: 'reset'})
         }
-        this.running = this._clock.running
+        this.running = this._running
     }
 
     // todo better name
@@ -197,7 +195,6 @@ export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
 
     setTime(t: number, stepFrame = true) {
         if (t < 0) t = 0
-        this._clock.elapsedTime = t
         this._time = t
         this.delta = 0 // reset delta
         // this._start = false
