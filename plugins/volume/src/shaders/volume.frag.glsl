@@ -111,8 +111,12 @@ void main() {
     // texture space ray
     vec3 dirTex = vDirection / uBoxSize;
     float voxelsPerUnit = length(dirTex * uVolumeSize); // voxels crossed per unit of t'
-    float dt = 1.0 / (max(uSamplingRate, 1e-3) * voxelsPerUnit);
+    float dtRate = 1.0 / (max(uSamplingRate, 1e-3) * voxelsPerUnit);
+    // a ray longer than VOLUME_MAX_STEPS samples takes longer steps, so it still reaches the end
+    float dt = max(dtRate, (bounds.y - bounds.x) / float(VOLUME_MAX_STEPS));
     int steps = int(min(ceil((bounds.y - bounds.x) / dt), float(VOLUME_MAX_STEPS)));
+    // opacity correction for the step actually taken (uOpacityExponent is for the sampling rate)
+    float opacityExp = uOpacityExponent * dt / dtRate;
     vec3 startTex = (vOrigin + vDirection * bounds.x) / uBoxSize + 0.5;
     vec3 stepTex = dirTex * dt;
     float offset = uJitter > 0.5 ? volNoise(gl_FragCoord.xy) : 0.5;
@@ -127,7 +131,7 @@ void main() {
         float v = volValue(uvw);
         vec4 s = volClassify(v, uvw);
         if (s.a > 0.0) {
-            s.a = 1.0 - pow(max(1.0 - s.a, 0.0), uOpacityExponent);
+            s.a = 1.0 - pow(max(1.0 - s.a, 0.0), opacityExp);
             s.rgb = volShade(s.rgb, uvw, dirN) * s.a;
             volBlend(acc, s);
             if (acc.a > 0.99) break;
@@ -200,7 +204,7 @@ void main() {
         tau += volClassify(volValue(uvw), uvw).a;
         uvw += stepTex;
     }
-    float a = 1.0 - exp(-tau * uOpacityExponent);
+    float a = 1.0 - exp(-tau * opacityExp);
     vec4 s = volClassify(1.0, uvw);
     acc = vec4(s.rgb * a, a);
     #endif

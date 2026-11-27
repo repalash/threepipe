@@ -98,7 +98,14 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this.transferFunction.dispose()
         return iMaterialCommons.dispose(super.dispose).call(this)
     }
-    clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
+    /**
+     * A copy with the same settings and field ({@link setValues} copies the volume settings).
+     */
+    clone(track = false): this {
+        const m = iMaterialCommons.clone(super.clone).call(this, track) as this
+        m.field = this._field
+        return m
+    }
 
     materialExtensions: MaterialExtension[] = []
     extraUniformsToUpload: Record<string, IUniform> = {}
@@ -120,11 +127,13 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     }
 
     /**
-     * Sets three.js material properties (side, blending, ...) from a material or a parameters object.
-     * The volume settings are set with {@link fromJSON} or {@link copy}.
+     * Sets three.js material properties (side, blending, ...) from a material or a parameters object. From another
+     * volume material it also copies the volume settings (not the field), as {@link copy}; `clone` goes through here.
      */
-    setValues(parameters: Material | (ShaderMaterialParameters & IMaterialParameters)): this {
-        return iMaterialCommons.setValues(super.setValues).call(this, parameters)
+    setValues(parameters: Material | (ShaderMaterialParameters & IMaterialParameters), ...args: any[]): this {
+        const res = (iMaterialCommons.setValues(super.setValues) as any).call(this, parameters, ...args)
+        if ((parameters as any)?.isVolumeMaterial && parameters !== this) this._copySettings(parameters as unknown as VolumeMaterial)
+        return res
     }
 
     /**
@@ -258,7 +267,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this.transferFunction.addEventListener('update', this._tfUpdate)
         if (parameters?.mode) this.mode = parameters.mode
         if (parameters?.field) this.field = parameters.field
-        this.setPreset(parameters?.preset ?? defaultVolumePresetName, false)
+        // an explicit preset also sets its range (the CT presets are in HU); the default one stretches over the field
+        this.setPreset(parameters?.preset ?? defaultVolumePresetName, !!parameters?.preset)
         this._constructed = true
     }
 
@@ -401,13 +411,17 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      * Copies the settings (not the field) from another volume material.
      */
     copy(source: Material | any): this {
-        if (!source?.isVolumeMaterial) return this.setValues(source)
-        // three.js material properties only; uniforms and shaders stay this material's own
-        iMaterialCommons.setValues(super.setValues).call(this, source)
+        return this.setValues(source)
+    }
+
+    private _copySettings(source: VolumeMaterial) {
         this.mode = source.mode
         this.range.copy(source.range)
         this.transferFunction.copy(source.transferFunction)
+        // keep the copied transfer function and range: set the name without applying the preset
+        this._skipPresetChange = true
         this.preset = source.preset
+        this._skipPresetChange = false
         this.density = source.density
         this.samplingRate = source.samplingRate
         this.interactiveSamplingRate = source.interactiveSamplingRate
@@ -417,7 +431,7 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this.cropMax.copy(source.cropMax)
         this.interpolate = source.interpolate
         this._rangeSet = true
-        return this
+        this.setDirty({change: 'copy'})
     }
 
     // endregion
