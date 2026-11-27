@@ -72,7 +72,6 @@ export function autoGPUInstanceMeshes(matOrGeom: IMaterial|IGeometry) {
 
         // todo set position to center of all instances
 
-        // @ts-expect-error todo not in ts
         inst.sourceTrs = {
             TRANSLATION: new BufferAttribute(translationAttr, 3),
             ROTATION: new BufferAttribute(rotationAttr, 4),

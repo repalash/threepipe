@@ -223,7 +223,6 @@ export class MeshDepthMaterialOverride extends MeshDepthMaterial {
         if (material.wireframeLinewidth !== undefined) this.wireframeLinewidth = material.wireframeLinewidth
 
         this.needsUpdate = true
-        // @ts-expect-error todo add to type
         renderer.resetCurrentMaterial && renderer.resetCurrentMaterial()
     }
 
