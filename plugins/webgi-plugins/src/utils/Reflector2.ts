@@ -33,7 +33,7 @@ export class Reflector2<TG extends BufferGeometry2 = BufferGeometry2> extends Me
     private _getRenderTarget(){
         const target = getOrCall(this._renderTarget)
         if(target) {
-            if (target.texture.generateMipmaps && (!MathUtils.isPowerOfTwo(target.texture.image.width) || !MathUtils.isPowerOfTwo(target.texture.image.height)))
+            if (target.texture.generateMipmaps && (!MathUtils.isPowerOfTwo(target.texture.width) || !MathUtils.isPowerOfTwo(target.texture.height)))
                 target.texture.generateMipmaps = false
 
             this.materialExtension.extraUniforms.tRefDiffuse.value = target.texture
