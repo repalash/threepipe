@@ -3,6 +3,7 @@ import {
     AViewerPluginSync,
     createStyles,
     CustomContextMenu,
+    formatShortcut,
     getOrCall,
     IEvent,
     IGeometry,
@@ -18,6 +19,7 @@ import {
     onChange,
     PickingPlugin,
     safeSetProperty,
+    shortcutsOf,
     ThreeViewer,
     uiDropdown,
     uiFolderContainer,
@@ -25,6 +27,7 @@ import {
     UiObjectConfig,
     Vector3,
 } from 'threepipe'
+import type {ViewerAction} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import type {EditorFrameAreaOptions} from './frame/EditorFrame'
 import styles from './InspectorPlugin.css?inline'
@@ -102,6 +105,13 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  *   it (with all their settings); the folders open while it has text. Escape in it, or its × button, clears it.
  * - A right-click on a setting (a long press on a touch screen) offers Reset to default, when its value is not the default
  *   of its class (the value of a new object of the same class), with undo; not on a disabled or read-only setting.
+ * - The head has the name of the selection, the actions of the selected object ({@link InspectorPlugin.BarActions}: Focus,
+ *   Hide or show, Select the parent) as icons with their label and key in the tooltip, and then the actions of the open
+ *   tab: the buttons of its uiConfig with the `context-menu` tag (`UiTags.ContextMenu`: Duplicate Object, Delete Object,
+ *   Auto Center...), as in a folder header: buttons while they fit, the rest in a ⋮ menu (uiconfig-tweakpane
+ *   `mountFolderActions`). One with the `inline` tag (`UiTags.Inline`) stays in the settings. The actions of the icons run
+ *   through `viewer.actions` (their keys as the app set them, the toasts of the results). An icon follows the state of
+ *   its action on each `objectUpdate`: Hide or show shows the crossed eye while the selected object is hidden.
  * - Escape (the PickingPlugin) clears the selection.
  *
  * Where the panel goes: in the `container` given to the constructor, else the app puts {@link element} in the page.
@@ -145,6 +155,13 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     static CardPreviewSize = 64
     /** The entry of the panel in the mode bar of the editor frame, for `TweakpaneEditorPlugin.addPanel` */
     static AreaEntry: EditorFrameAreaOptions = {name: 'Inspector', icon: AREA_ICON, color: '#0ea5e9'}
+    /**
+     * The ids of the actions shown as icons in the head, in order, while an object is selected: actions of the
+     * `viewer.actions` (the PickingPlugin registers `PickingPlugin.actions` there), with an icon. Duplicate and Delete
+     * are not here: the object's uiConfig has them as buttons, which the head shows with the other actions of the tab.
+     * Read at each render.
+     */
+    static BarActions = ['picking.focus', 'picking.toggleVisibility', 'picking.selectParent']
 
     // the settings of the panel are not part of the scene: nothing to save
     toJSON: any = undefined
@@ -170,6 +187,14 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     readonly container?: HTMLElement
 
     private _title: HTMLDivElement
+    /** The icons of the actions ({@link BarActions}), in the head */
+    private _bar: HTMLDivElement
+    /** The buttons of {@link _bar}, their actions, and the icon each one shows ({@link _syncBar}) */
+    private _barButtons: {action: ViewerAction, button: HTMLButtonElement, icon: string}[] = []
+    /** The element in the head for the actions of the open tab (`mountFolderActions`) */
+    private _tabActionsEl: HTMLDivElement
+    /** The actions of the open tab drawn in {@link _tabActionsEl}, and the uiConfig they are for */
+    private _tabActions?: {config: UiObjectConfig, mounted: ReturnType<TweakpaneUiPlugin['mountFolderActions']>}
     private _tabsEl: HTMLDivElement
     private _cardsEl: HTMLDivElement
     /** The previews of the material cards, cancelled when the cards are made again or hide */
@@ -192,8 +217,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private _ui?: InspectorUiRenderer
     /** The uiConfigs in the renderer: the actions of the open tab, then the uiConfig of its part */
     private _shown: UiObjectConfig[] = []
-    /** The actions of the PickingPlugin for the selected object: Focus and Select Parent, and the material actions */
-    private _objectActions: UiObjectConfig[] = []
+    /** The material actions of the PickingPlugin for the selected object (Remove Material(s), New ... Material) */
     private _materialActions: UiObjectConfig[] = []
     private _picking?: PickingPlugin
     /** The value of {@link PickingPlugin.selectionUi} before this plugin turned it off */
@@ -226,7 +250,13 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this.container = container
         if (InspectorPlugin.InjectStyles && !InspectorPlugin._styles?.isConnected) InspectorPlugin._styles = createStyles(styles)
         this.element = el('div', 'isp-root')
-        this._title = this.element.appendChild(el('div', 'isp-title'))
+        // the head: the name, the icons of the actions, the actions of the open tab (buttons and ⋮)
+        const head = this.element.appendChild(el('div', 'isp-head'))
+        this._title = head.appendChild(el('div', 'isp-title'))
+        this._bar = head.appendChild(el('div', 'isp-bar'))
+        this._bar.setAttribute('role', 'toolbar')
+        this._bar.setAttribute('aria-label', 'Actions of the selection')
+        this._tabActionsEl = head.appendChild(el('div', 'isp-tab-actions'))
         this._tabsEl = this.element.appendChild(el('div', 'isp-tabs'))
         this._tabsEl.setAttribute('role', 'tablist')
         this._cardsEl = this.element.appendChild(el('div', 'isp-cards'))
@@ -320,12 +350,14 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         super.onAdded(viewer)
         // a second Tweakpane renderer, for the inspector only (the main one shows the modes), with the theme of the page
         this._ui = new InspectorUiRenderer(true, false, this._body, viewer.getPlugin(TweakpaneUiPlugin)?.colorMode)
+        this._ui.title = '' // no "Configuration" header: the head of the inspector names the selection
         this._ui.onAdded(viewer)
         viewer.scene.addEventListener('materialChanged', this._onPartsChanged)
         viewer.scene.addEventListener('geometryChanged', this._onPartsChanged)
         viewer.scene.addEventListener('objectUpdate', this._onObjectUpdate)
         viewer.scene.addEventListener('geometryUpdate', this._onGeometryUpdate)
         viewer.addEventListener('update', this._onViewerUpdate)
+        viewer.actions.addEventListener('actionsChange', this._refreshBar)
         // the PickingPlugin can be removed and added again
         viewer.addPluginListener('add', this._onPluginAdded, 'PickingPlugin')
         viewer.addPluginListener('remove', this._onPluginRemoved, 'PickingPlugin')
@@ -339,12 +371,14 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         viewer.scene.removeEventListener('objectUpdate', this._onObjectUpdate)
         viewer.scene.removeEventListener('geometryUpdate', this._onGeometryUpdate)
         viewer.removeEventListener('update', this._onViewerUpdate)
+        viewer.actions.removeEventListener('actionsChange', this._refreshBar)
         viewer.removePluginListener('add', this._onPluginAdded)
         viewer.removePluginListener('remove', this._onPluginRemoved)
         this._setPicking(undefined)
         this._show(undefined, true)
         this._unwatch()
         this._cancelCards()
+        this._mountTabActions(undefined)
         // put the undo manager of the viewer back before dispose, which disposes the one it has
         this._ui?.onRemove(viewer)
         this._ui?.dispose()
@@ -450,6 +484,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     /** A rename of the selected object */
     private _onObjectUpdate = (e: IEvent<any> & {object?: IObject3D}) => {
         if (e.object && e.object === this._object) this._renderTitle()
+        // any object: Hide or show follows the first selected object, which can be another one of the selection
+        this._syncBar()
     }
 
     /**
@@ -466,7 +502,6 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this._geometry = object ? object.geometry as IGeometry | undefined : (selected as IGeometry)?.isBufferGeometry ? selected as IGeometry : undefined
         this._texture = (selected as ITexture)?.isTexture ? selected as ITexture : undefined
         // made again for each object: they hold it
-        this._objectActions = object && this._picking ? this._picking.objectSelectionUiConfig(object) : []
         this._materialActions = object && this._picking ? this._picking.objectMaterialManageUiConfig(object) : []
         this._render()
         this._hasSelection = !!selected
@@ -517,9 +552,9 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
             this._materialList.value = String(this._materials.indexOf(this._material!))
         }
 
-        // the actions of the PickingPlugin that its UI shows with the selection (the inspector turns that UI off): Focus
-        // and Select Parent on the Object tab, Remove Material(s) and New ... Material on the Material tab
-        const actions = open?.[0] === 'object' ? this._objectActions : materialTab ? this._materialActions : []
+        // the material actions of the PickingPlugin that its UI shows with the selection (the inspector turns that UI
+        // off): Remove Material(s) and New ... Material on the Material tab. Focus and Select Parent are in the bar.
+        const actions = materialTab ? this._materialActions : []
         const config = open?.[1].uiConfig
         // out of the page, the PickingPlugin shows the settings ({@link _updateInPage})
         const configs = !this._inPage ? [] : config ? [...actions, config] : actions
@@ -533,9 +568,112 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
             }
         }
         this._empty.style.display = tabs.length ? 'none' : ''
+        this._renderBar()
+        this._mountTabActions(this._inPage ? config : undefined)
         this._requestPreview()
         this._renderCards()
         this._applySearch()
+    }
+
+    /** An action by its id: of `viewer.actions`, else of the PickingPlugin (one that is not registered) */
+    private _actionOf(id: string): ViewerAction | undefined {
+        return this._viewer?.actions.get(id) ?? this._picking?.actions.find(a => a.id === id)
+    }
+
+    /** The actions of {@link BarActions} that exist, while an object is selected */
+    private _barActions(): ViewerAction[] {
+        if (!this._object) return []
+        return InspectorPlugin.BarActions.map(id => this._actionOf(id)).filter((a): a is ViewerAction => !!a)
+    }
+
+    /**
+     * A label with the key of the action now: for an action of `viewer.actions`, the key there (the one that the app set,
+     * none after `setShortcut(id, null)`), else its own
+     */
+    private _labelWithKey(a: ViewerAction) {
+        const actions = this._viewer?.actions
+        const key = shortcutsOf(actions?.get(a.id) === a ? actions.shortcutOf(a.id) : a.shortcut)[0]
+        return key ? `${a.label} (${formatShortcut(key)})` : a.label
+    }
+
+    /** Runs an action: through `viewer.actions` when it is registered there (the toasts of the result), else on its own */
+    private _runAction(a: ViewerAction) {
+        if (a.enabled && !a.enabled()) return
+        const actions = this._viewer?.actions
+        if (actions?.get(a.id) === a) actions.run(a.id)
+        else a.run()
+    }
+
+    /**
+     * The icons of the actions of the selected object ({@link BarActions}). A button that had the keyboard focus gives it
+     * to the new button of the same action, so a keyboard user stays in the bar (another selection makes it again).
+     */
+    private _renderBar() {
+        if (!this._bar) return // the first set of enabled, before the constructor makes the elements
+        const active = document.activeElement as HTMLElement | null
+        const focused = active?.parentElement === this._bar ? active.dataset.action : undefined
+        this._bar.replaceChildren()
+        this._barButtons = []
+        for (const a of this._barActions()) {
+            if (!a.icon) continue
+            const b = this._bar.appendChild(el('button', 'isp-action'))
+            b.type = 'button'
+            b.dataset.action = a.id
+            this._barButtons.push({action: a, button: b, icon: ''})
+            // the key now, also when the app changed it after the bar was made
+            const tip = () => {
+                b.title = this._labelWithKey(a)
+            }
+            b.addEventListener('pointerenter', tip)
+            b.addEventListener('focus', tip)
+            b.addEventListener('click', () => {
+                this._runAction(a)
+                this._refreshBar() // the buttons stay (the focus too) while the actions are the same
+            })
+        }
+        this._syncBar()
+        if (focused) this._barButtons.find(i => i.action.id === focused)?.button.focus()
+    }
+
+    /**
+     * After an action runs, and when an action was registered, removed or given another key in `viewer.actions`: the bar
+     * is made again when its actions are not the ones of its buttons (the app replaced one with the same id), else the
+     * buttons are set again (a state, a key) and stay
+     */
+    private _refreshBar = () => {
+        const now = this._barActions().filter(a => a.icon)
+        if (now.length !== this._barButtons.length || now.some((a, i) => a !== this._barButtons[i].action)) this._renderBar()
+        else this._syncBar()
+    }
+
+    /**
+     * Sets the icon, the label and the enabled state of the buttons of the bar from their actions now: an action can
+     * change them with its state (Hide or show: the crossed eye while the selected object is hidden). The buttons stay,
+     * so a hover or a focus on one is kept; an icon is set again only when it changed.
+     */
+    private _syncBar() {
+        for (const item of this._barButtons) {
+            const {action: a, button: b} = item
+            const icon = a.icon ?? ''
+            if (icon !== item.icon) {
+                b.innerHTML = icon
+                item.icon = icon
+            }
+            b.setAttribute('aria-label', a.label)
+            b.title = this._labelWithKey(a)
+            b.disabled = !!a.enabled && !a.enabled()
+        }
+    }
+
+    /**
+     * Draws the actions of a uiConfig (its `context-menu` buttons) in the head, as in its folder header, whose title row
+     * the inspector hides: buttons while they fit, the rest in a ⋮ menu. The bar follows the renders of the uiConfig; it
+     * is made again only for another uiConfig. `undefined` removes it.
+     */
+    private _mountTabActions(config: UiObjectConfig | undefined) {
+        if (this._tabActions?.config === config) return
+        this._tabActions?.mounted.remove()
+        this._tabActions = config && this._ui ? {config, mounted: this._ui.mountFolderActions(config, this._tabActionsEl)} : undefined
     }
 
     /** Shows the settings that match the text of the search field (all of them when it is empty) */
@@ -767,8 +905,20 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         return true
     }
 
-    protected _showMenu(items: Record<string, () => void>, x: number, y: number) {
-        CustomContextMenu.Create(items, x, y)
+    /**
+     * Opens a menu at a point of the window (`clientX`, `clientY`). It is fixed, so a scrolled page (a phone) does not
+     * move it, and it stays inside the window; a menu taller than the window scrolls.
+     */
+    protected _showMenu(items: Record<string, () => void>, x: number, y: number): HTMLElement | undefined {
+        const m = CustomContextMenu.Create(items, 0, 0)
+        m.style.position = 'fixed'
+        // a long menu (many buttons, a landscape phone) scrolls inside the window
+        m.style.maxHeight = (window.innerHeight - 16) + 'px'
+        m.style.overflowY = 'auto'
+        const w = m.offsetWidth, h = m.offsetHeight
+        m.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px'
+        m.style.top = Math.max(8, Math.min(y, window.innerHeight - h - 8)) + 'px'
+        return m
     }
 
     /** The setting (a uiConfig with a property) whose row in the renderer holds `target`; not a disabled or read-only one (like the uuid) */

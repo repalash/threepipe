@@ -8,8 +8,28 @@
     -webkit-font-smoothing: antialiased;
 }
 .isp-root button, .isp-root select { font: inherit; color: inherit; }
-.isp-title { font-weight: 600; padding: 10px 12px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
+/* the head: the name, the icons of the actions of the selection, and the actions of the open tab (its folder header
+   actions: buttons while they fit, the rest in ⋮); the icons have the size and the gap of the buttons of the bar over the
+   canvas (util-button: 28 px, 2 px apart), also on a touch screen */
+.isp-head { display: flex; align-items: center; gap: 2px; padding: 6px 6px 4px 12px; flex: none; --isp-action-size: 28px; }
+.isp-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 48px; padding: 4px 4px 4px 0; }
 .isp-root:not(.isp-has-selection) .isp-title { opacity: .6; font-weight: 500; }
+.isp-bar { display: flex; column-gap: 2px; flex: none; }
+/* the rest of the row; room for the ⋮ button at least */
+.isp-tab-actions { flex: 1 1 0; min-width: var(--isp-action-size); }
+.isp-action {
+    display: inline-flex; align-items: center; justify-content: center; flex: none; width: var(--isp-action-size); height: var(--isp-action-size);
+    padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--tp-label-foreground-color, #8a8f98); cursor: pointer;
+}
+.isp-action:hover:not(:disabled) { color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-button-background-color-hover, rgba(0, 0, 0, .05)); }
+.isp-action:disabled { opacity: .35; cursor: default; }
+.isp-action:focus-visible { outline: 2px solid var(--tp-label-foreground-color, #0d99ff); outline-offset: -2px; }
+/* the icon buttons of the open tab (Duplicate, Delete; uiconfig-tweakpane mountFolderActions) look like the icons of the bar */
+.isp-tab-actions .tpfm-action.tpfm-icon-only {
+    width: var(--isp-action-size); height: var(--isp-action-size); border-radius: 5px; background: transparent; color: var(--tp-label-foreground-color, #8a8f98);
+}
+.isp-tab-actions .tpfm-action.tpfm-icon-only:hover:not(:disabled) { color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-button-background-color-hover, rgba(0, 0, 0, .05)); }
+.isp-tab-actions .tpfm-icon-only .tpfm-icon, .isp-tab-actions .tpfm-icon-only .tpfm-icon > svg { width: 16px; height: 16px; }
 /* the tab bar and the search field are the ones of the Layers panel (.lyp-tabs, .lyp-tab, .lyp-search in
    LayersPanelPlugin.css): the same sizes, with the colours of the Tweakpane theme */
 .isp-tabs { display: flex; margin: 0 8px 6px; padding: 2px; border-radius: 6px; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); flex: none; }
@@ -86,10 +106,9 @@
 .isp-searching .tp-fldv_c { display: block !important; height: auto !important; opacity: 1 !important; overflow: visible !important; }
 .isp-empty { padding: 4px 12px 14px; opacity: .6; }
 
-/* the Tweakpane UI of the inspector: no box and no "Configuration" title (the head of the inspector names the selection),
-   and the folder of the open tab has no title of its own (the tab names it) */
+/* the Tweakpane UI of the inspector: no box (its "Configuration" header is off: the title of the renderer is empty, as the
+   head of the inspector names the selection), and the folder of the open tab has no title of its own (the tab names it) */
 .isp-ui .tp-rotv { box-shadow: none !important; border-radius: 0 !important; background: transparent !important; }
-.isp-ui .tp-rotv_b { display: none !important; }
 .isp-ui .tp-rotv_c { padding-top: 0 !important; }
 .isp-ui .tp-rotv_c > .tp-fldv { margin: 0 !important; border-radius: 0 !important; }
 .isp-ui .tp-rotv_c > .tp-fldv > .tp-fldv_b { display: none !important; }

@@ -96,6 +96,35 @@ describe('PickingPlugin actions', () => {
         expect(clear).not.toHaveBeenCalled()
     })
 
+    it('Select the parent: enabled when the selected object has a parent; the bar actions have icons', () => {
+        const parent = {isObject3D: true}
+        const plugin = setup({isObject3D: true, parent})
+        const select = vi.spyOn(plugin, 'setSelectedObject').mockImplementation(() => {})
+        const action = plugin.actions.find(a => a.id === 'picking.selectParent')!
+        expect(action.shortcut).toEqual([])
+        expect(action.enabled!()).toBe(true)
+        action.run()
+        expect(select).toHaveBeenCalledWith(parent, false)
+        vi.spyOn(plugin, 'getSelectedObject').mockImplementation(() => ({isObject3D: true, parent: null}) as any)
+        expect(action.enabled!()).toBe(false)
+        for (const id of ['focus', 'toggleVisibility', 'duplicate', 'delete', 'selectParent']) expect(plugin.actions.find(a => a.id === 'picking.' + id)!.icon, id).toMatch(/^<svg /)
+    })
+
+    it('Hide or show: the label and the icon follow the first selected object, as the toggle does', () => {
+        const plugin = setup()
+        const action = plugin.actions.find(a => a.id === 'picking.toggleVisibility')!
+        const selected: any[] = []
+        vi.spyOn(plugin, 'getSelectedObjects').mockImplementation(() => selected)
+        expect(action.label).toBe('Hide or show')
+        selected.push({isObject3D: true, visible: true}, {isObject3D: true, visible: false})
+        expect(action.label).toBe('Hide')
+        const eye = action.icon
+        selected[0].visible = false
+        expect(action.label).toBe('Show')
+        expect(action.icon).toMatch(/^<svg /)
+        expect(action.icon).not.toBe(eye)
+    })
+
     it('keyboardShortcuts (deprecated) off: the actions have no keys, and still run from a UI', () => {
         const plugin = setup()
         const hide = vi.spyOn(plugin, 'toggleVisibilitySelected').mockImplementation(() => {})
