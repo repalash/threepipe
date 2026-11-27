@@ -39,14 +39,16 @@ export class Rhino3dmLoader2 extends Rhino3dmLoader {
     materials: Material[] = []
 
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    _createMaterial(material: any): Material {
+    _createMaterial(material?: any, renderEnvironment?: any): Material {
         if (!Rhino3dmLoader2.ImportMaterials) return this.materials[0] || new MeshStandardMaterial({
             color: new Color(1, 1, 1),
             metalness: 0.8,
             name: 'default',
             side: DoubleSide,
         })
-        return super._createMaterial(material)
+        // three.js r186 passes the render environment of the file, which sets the envMap.
+        // @ts-expect-error three-types-modded 0.187.10001-rc.2 declares _createMaterial(material) without it
+        return super._createMaterial(material, renderEnvironment)
     }
     private declare _compareMaterials: (material: Material) => Material
 
