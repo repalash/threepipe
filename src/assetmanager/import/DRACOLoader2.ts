@@ -1,5 +1,5 @@
 import {DRACOLoader} from 'three/examples/jsm/loaders/DRACOLoader.js'
-import {BufferGeometry, Color, LoadingManager, Mesh} from 'three'
+import {BufferGeometry, Color, LoaderUtils, LoadingManager, Mesh} from 'three'
 import {AnyOptions} from 'ts-browser-helpers'
 import {ILoader} from '../IImporter'
 import {PhysicalMaterial} from '../../core'
@@ -27,9 +27,21 @@ export class DRACOLoader2 extends DRACOLoader implements ILoader<BufferGeometry,
     // public static DRACO_LIBRARY_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.4.1/'
     // public static DRACO_LIBRARY_PATH = 'https://threejs.org/examples/jsm/libs/draco/'
 
+    /**
+     * The folder of the decoder and encoder files, set by {@link setDecoderPath} with a string.
+     * Since three.js r185, DRACOLoader keeps the URL of each decoder file (`decoderPaths`) and not the folder; the
+     * encoder files ({@link initEncoder}) are loaded from this folder.
+     */
+    public decoderPath = ''
+
     constructor(manager?: LoadingManager) {
         super(manager)
         this.setDecoderPath(DRACOLoader2.DRACO_LIBRARY_PATH)
+    }
+
+    setDecoderPath(path: string | {js: string, wasm: string}): this {
+        if (typeof path === 'string') this.decoderPath = path
+        return super.setDecoderPath(path)
     }
 
     transform(res: BufferGeometry, _: AnyOptions): Mesh|undefined {
@@ -38,7 +50,7 @@ export class DRACOLoader2 extends DRACOLoader implements ILoader<BufferGeometry,
         return res ? new Mesh(res, new PhysicalMaterial({color: new Color(1, 1, 1)})) : undefined
     }
 
-    preload(decoder = true, encoder = false): DRACOLoader {
+    preload(decoder = true, encoder = false): this {
         if (decoder) super.preload()
         if (encoder) this.initEncoder()
         return this
@@ -51,11 +63,12 @@ export class DRACOLoader2 extends DRACOLoader implements ILoader<BufferGeometry,
         const useJS = typeof WebAssembly !== 'object' || this.encoderConfig.type === 'js'
         const librariesPending = []
 
+        // _loadLibrary takes the URL of the file since three.js r185
         if (useJS) {
-            librariesPending.push(this._loadLibrary('draco_encoder.js', 'text'))
+            librariesPending.push(this._loadLibrary(LoaderUtils.resolveURL('draco_encoder.js', this.decoderPath), 'text'))
         } else {
-            librariesPending.push(this._loadLibrary('draco_wasm_wrapper.js', 'text'))
-            librariesPending.push(this._loadLibrary('draco_encoder.wasm', 'arraybuffer'))
+            librariesPending.push(this._loadLibrary(LoaderUtils.resolveURL('draco_wasm_wrapper.js', this.decoderPath), 'text'))
+            librariesPending.push(this._loadLibrary(LoaderUtils.resolveURL('draco_encoder.wasm', this.decoderPath), 'arraybuffer'))
         }
 
         this.encoderPending = Promise.all(librariesPending)
@@ -97,13 +110,17 @@ export class DRACOLoader2 extends DRACOLoader implements ILoader<BufferGeometry,
 
     /**
      * This is a hack to allow bundling the draco decoder js file with your app source
-     * See {@link DRACOLoader2.SetDecoderJsString} for example
+     * See {@link DRACOLoader2.SetDecoderJsString} for example.
+     * The keys are file names (like `draco_decoder.js`) or URLs; a loaded file is kept under its URL.
      */
     static LibraryValueMap: Record<string, any> = {}
 
     // eslint-disable-next-line @typescript-eslint/naming-convention
     async _loadLibrary(url: string, responseType: string): Promise<any> {
-        if (DRACOLoader2.LibraryValueMap[url]) return DRACOLoader2.LibraryValueMap[url]
+        // three.js r185 passes the URL of the file (decoderPaths), it passed the file name before
+        const fileName = url.split(/[?#]/)[0].split('/').pop() || url
+        const value = DRACOLoader2.LibraryValueMap[url] || DRACOLoader2.LibraryValueMap[fileName]
+        if (value) return value
         return DRACOLoader2.LibraryValueMap[url] = await super._loadLibrary(url, responseType)
     }
 
