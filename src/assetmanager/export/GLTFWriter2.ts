@@ -7,14 +7,13 @@ import {IMaterial} from '../../core'
 
 export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
 
+    /**
+     * @deprecated not written any more: `asset.subversion` is not a glTF property (validators warn about it), and every bump
+     * mapped material has its own `legacyBumpScale` flag in `WEBGI_material_extras`. Files that have it are still read
+     * (GLTFMaterialExtrasExtension.IsLegacyBumpScaleFile).
+     */
     readonly TPAssetVersion = 1
     serializationMeta = getEmptyMeta()
-
-    constructor() {
-        super()
-        // todo: remove asset.subversion after Jun 2026 — normalizedScale in bump extension replaces it
-        this.json.asset.subversion = this.TPAssetVersion
-    }
 
     // Hook for deterministic-injection.js to patch processBufferViewImage/write for testing.
     // Guarded by import.meta.env.DEV — stripped from production builds by Vite.
