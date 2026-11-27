@@ -650,7 +650,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
         const known = this._animations.find(a => a.object === obj)
         // every scene update (an object move too) comes here: nothing to do when the clips did not change
         if (known && known.clips.length === clips.length && known.clips.every((c, i) => c === clips[i])) return false
-        const animation = known || {
+        const animation: IObjectAnimation = known || {
             object: obj,
             mixer: new AnimationMixer(root),
             clips: [],
