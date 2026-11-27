@@ -9,7 +9,6 @@ import {
     PhysicalMaterial,
     PlaneGeometry,
     PointLight2,
-    RenderTargetPreviewPlugin,
     ThreeViewer,
     Vector3,
 } from 'threepipe'
@@ -60,9 +59,6 @@ async function init() {
     light.shadowFar = 10
 
     viewer.renderManager.renderer.shadowMap.type = PCFShadowMap
-
-    const rt = viewer.addPluginSync(RenderTargetPreviewPlugin)
-    rt.addTarget(()=>light.shadow.map || undefined, 'shadow', true, true, true)
 
     const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.appendChild(light.uiConfig, {expanded: true})
