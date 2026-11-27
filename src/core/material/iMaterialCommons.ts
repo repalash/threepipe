@@ -25,6 +25,13 @@ import {checkTexMapReference} from '../../three'
 export const iMaterialCommons = {
     threeMaterialPropList,
     threeMaterialInterpolateProps,
+    /**
+     * Whether the second parameter of a `material.fromJSON()` call is the map of textures by uuid that three.js's
+     * MaterialLoader passes to `Material.fromJSON(json, textures)` (three.js r185), and not threepipe's
+     * `SerializationMetaType` (which has `_context`, and objects, not textures, as values).
+     */
+    isThreeTexturesMap: (meta?: any): meta is Record<string, Texture> =>
+        !!meta && typeof meta === 'object' && !meta._context && Object.values(meta).every((t: any) => !!t?.isTexture),
     setDirty: function(this: IMaterial, options?: IMaterialSetDirtyOptions): void {
         if (options?.needsUpdate !== false) this.needsUpdate = true
         iMaterialCommons.refreshTextureRefs.call(this)

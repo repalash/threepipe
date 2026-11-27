@@ -114,7 +114,7 @@ export class ShaderMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> e
     toJSON(_?: any): any { // todo make abstract?
         throw new Error('Method not supported for this material.')
     }
-    fromJSON(_: any, _2?: any): this | null { // todo make abstract?
+    fromJSON(_: any, _2?: any): this { // todo make abstract?
         throw new Error('Method not supported for this material.')
     }
 

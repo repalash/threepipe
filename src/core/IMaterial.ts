@@ -316,7 +316,11 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
      */
     setValues(parameters: Material|(MaterialParameters&{type?:string}), allowInvalidType?: boolean, clearCurrentUserData?: boolean, time?: AnimateTimeMaterial): void;
     toJSON(meta?: SerializationMetaType, _internal?: boolean): any;
-    fromJSON(json: any, meta?: SerializationMetaType, _internal?: boolean): /* this*/ any | null;
+    /**
+     * Deserializes the material from threepipe's JSON. When called with the textures by uuid in place of `meta`, as
+     * three.js's MaterialLoader calls it (r185), it is three.js's `Material.fromJSON(json, textures)`.
+     */
+    fromJSON(json: any, meta?: SerializationMetaType | Record<string, Texture>, _internal?: boolean): this;
 
     extraUniformsToUpload: Record<string, IUniform>
     materialExtensions: MaterialExtension[]

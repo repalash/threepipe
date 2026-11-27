@@ -10,6 +10,7 @@ import {
     Object3D,
     Scene,
     TangentSpaceNormalMap,
+    Texture,
     Vector2,
     WebGLProgramParametersWithUniforms,
     WebGLRenderer,
@@ -217,11 +218,14 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
      * Deserializes the material from JSON.
      * Note: some properties that are not serialized in Material.toJSON when they are default values (like side, alphaTest, blending, maps), they wont be reverted back if not present in JSON
      * If _internal = true, Textures should be loaded and in meta.textures before calling this method.
+     * When called as three.js's MaterialLoader calls it (r185), with the textures by uuid in place of `meta`, it is
+     * three.js's `Material.fromJSON(json, textures)`.
      * @param data
      * @param meta
      * @param _internal
      */
-    fromJSON(data: any, meta?: SerializationMetaType, _internal = false): this | null {
+    fromJSON(data: any, meta?: SerializationMetaType | Record<string, Texture>, _internal = false): this {
+        if (iMaterialCommons.isThreeTexturesMap(meta)) return super.fromJSON(data, meta)
         if (_internal) {
             ThreeSerialization.Deserialize(data, this, meta, true)
             this.setValues(data)

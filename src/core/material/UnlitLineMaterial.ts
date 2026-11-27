@@ -4,6 +4,7 @@ import {
     LineBasicMaterial,
     LineBasicMaterialParameters,
     Material,
+    Texture,
     WebGLProgramParametersWithUniforms,
     WebGLRenderer,
 } from 'three'
@@ -138,11 +139,14 @@ export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap>
      * Deserializes the material from JSON.
      * Textures should be loaded and in meta.textures before calling this method.
      * todo - needs to be tested
+     * When called as three.js's MaterialLoader calls it (r185), with the textures by uuid in place of `meta`, it is
+     * three.js's `Material.fromJSON(json, textures)`.
      * @param data
      * @param meta
      * @param _internal
      */
-    fromJSON(data: any, meta?: SerializationMetaType, _internal = false): this | null {
+    fromJSON(data: any, meta?: SerializationMetaType | Record<string, Texture>, _internal = false): this {
+        if (iMaterialCommons.isThreeTexturesMap(meta)) return super.fromJSON(data, meta)
         if (_internal) {
             ThreeSerialization.Deserialize(data, this, meta, true)
             return this.setValues(data)
