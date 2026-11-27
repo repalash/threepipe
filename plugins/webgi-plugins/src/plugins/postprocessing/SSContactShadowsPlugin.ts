@@ -97,14 +97,29 @@ export class SSContactShadowsPlugin extends AViewerPluginSync {
     //     return tf
     // }
 
+    /**
+     * shadowmap_pars_fragment with the getShadow functions (not getPointShadow) that take the light direction and
+     * include the contact shadow in the shadow they return
+     */
+    private _shadowParsFragment(signature: (sampler: string) => string, start: (sampler: string) => string) {
+        let chunk = ShaderChunk.shadowmap_pars_fragment
+        for (const sampler of ['sampler2DShadow', 'sampler2D'])
+            chunk = shaderReplaceString(chunk, signature(sampler), `${start(sampler)}\n`, {replaceAll: true})
+        const pointShadow = chunk.indexOf('float getPointShadow(')
+        const end = pointShadow < 0 ? chunk.length : pointShadow
+        return chunk.slice(0, end).replaceAll('return mix( 1.0, shadow, shadowIntensity );', 'return mix( 1.0, min(shadow, state.z), shadowIntensity );') + chunk.slice(end)
+    }
+
     // private _multiplyPass?: MultiplyPass
     readonly materialExtension: MaterialExtension = {
         uuid: SSContactShadowsPlugin.PluginType,
         priority: 5,
         shaderExtender: (shader, _material, _renderer) => {
             if (!(shader as any).defines.SSCS_ENABLED) return
-            const rsS = 'float getShadow( sampler2D shadowMap, vec2 shadowMapSize, float shadowIntensity, float shadowBias, float shadowRadius, vec4 shadowCoord ) {'
-            const lsS = glsl`
+            // three.js r182 has one getShadow for each shadow map type: PCF samples a sampler2DShadow, VSM and Basic a
+            // sampler2D. Each gets the light direction and the contact shadow trace, which the shadow it returns includes.
+            const rsS = (sampler: string) => `float getShadow( ${sampler} shadowMap, vec2 shadowMapSize, float shadowIntensity, float shadowBias, float shadowRadius, vec4 shadowCoord ) {`
+            const lsS = (sampler: string) => glsl`
                 #ifndef D_sceneBoundingRadius
                 #define D_sceneBoundingRadius
                 uniform float sceneBoundingRadius;
@@ -113,7 +128,7 @@ export class SSContactShadowsPlugin extends AViewerPluginSync {
                 #define D_frameCount
                 uniform float frameCount;
                 #endif
-                float getShadow( sampler2D shadowMap, vec2 shadowMapSize, float shadowIntensity, float shadowBias, float shadowRadius, vec4 shadowCoord, vec3 lightDirection ) {
+                float getShadow( ${sampler} shadowMap, vec2 shadowMapSize, float shadowIntensity, float shadowBias, float shadowRadius, vec4 shadowCoord, vec3 lightDirection ) {
                     vec3 ray_origin_view = -vViewPosition;
                     float rnd = interleavedGradientNoise(gl_FragCoord.xy, frameCount+34.);
                     float cameraDist = length(cameraPositionWorld);
@@ -138,7 +153,7 @@ export class SSContactShadowsPlugin extends AViewerPluginSync {
     ${ssrtShader}
   
 #endif
-            ` + shaderReplaceString(ShaderChunk.shadowmap_pars_fragment, rsS, `${lsS}\n`).replace('return mix( 1.0, shadow, shadowIntensity );', 'return mix( 1.0, min(shadow, state.z), shadowIntensity );')
+            ` + this._shadowParsFragment(rsS, lsS)
 
             // todo shaderReplaceString
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#include <shadowmap_pars_fragment>', shadowChunk)
