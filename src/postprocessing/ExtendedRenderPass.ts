@@ -103,7 +103,9 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
     constructor(renderManager: ViewerRenderManager, overrideMaterial?: Material, clearColor = new Color(0, 0, 0), clearAlpha = 0) {
         super(undefined, undefined, overrideMaterial, clearColor, clearAlpha)
         this.renderManager = renderManager
-        this._blendPass = new GenericBlendTexturePass({}, 'c = vec4(a.rgb * (1. - b.a) + b.rgb * b.a, 1.);', '', undefined, renderManager.maxHDRIntensity)
+        // transparentTarget is cleared to 0 and objects are blended into it with their alpha, so its rgb is already
+        // premultiplied (rgb * alpha): it is composited over the opaque layer with `over`, without multiplying by alpha again.
+        this._blendPass = new GenericBlendTexturePass({}, 'c = vec4(a.rgb * (1. - b.a) + b.rgb, 1.);', '', undefined, renderManager.maxHDRIntensity)
         this.setDirty = this.setDirty.bind(this)
     }
 
