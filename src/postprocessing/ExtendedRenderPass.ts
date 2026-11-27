@@ -29,6 +29,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
     blurTransmissionTarget = true
     preserveTransparentTarget = false
     private _transparentTarget?: IRenderTarget
+    private readonly _transparentClearColor = new Color(0, 0, 0)
 
     /**
      * A render target to render transparent, transmissive objects to.
@@ -103,7 +104,9 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
     constructor(renderManager: ViewerRenderManager, overrideMaterial?: Material, clearColor = new Color(0, 0, 0), clearAlpha = 0) {
         super(undefined, undefined, overrideMaterial, clearColor, clearAlpha)
         this.renderManager = renderManager
-        this._blendPass = new GenericBlendTexturePass({}, 'c = vec4(a.rgb * (1. - b.a) + b.rgb * b.a, 1.);', '', undefined, renderManager.maxHDRIntensity)
+        // transparentTarget is cleared to 0 and objects are blended into it with their alpha, so its rgb is already
+        // premultiplied (rgb * alpha): it is composited over the opaque layer with `over`, without multiplying by alpha again.
+        this._blendPass = new GenericBlendTexturePass({}, 'c = vec4(a.rgb * (1. - b.a) + b.rgb, 1.);', '', undefined, renderManager.maxHDRIntensity)
         this.setDirty = this.setDirty.bind(this)
     }
 
@@ -258,8 +261,14 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
             {
                 const curClear = this.clear
                 const curClearDepth = renderer.autoClearDepth
+                const curClearColor = this.clearColor
+                const curClearAlpha = this.clearAlpha
                 renderer.autoClearDepth = false
                 this.clear = true
+                // the layer is composited as premultiplied colour, so pixels without objects must be (0, 0, 0, 0)
+                // whatever the clear colour of the pass or the renderer
+                this.clearColor = this._transparentClearColor
+                this.clearAlpha = 0
 
                 renderer.renderWithModes({
                     shadowMapRender: false,
@@ -270,6 +279,8 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 }, renderFn) // render to transparentTarget
 
                 this.clear = curClear
+                this.clearColor = curClearColor
+                this.clearAlpha = curClearAlpha
                 renderer.autoClearDepth = curClearDepth
             }
 
