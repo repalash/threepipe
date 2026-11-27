@@ -274,7 +274,7 @@ export class Reflector2<TG extends BufferGeometry2 = BufferGeometry2> extends Me
                         `
                     + (this.reflectorModePhysical ? `
                         #if !defined(SSR_ENABLED) || SSR_ENABLED < 1 
-                        vec3 specularColor = EnvironmentBRDF(geometryNormal, geometryViewDir, material.specularColor.rgb, material.specularF90, material.roughness);
+                        vec3 specularColor = EnvironmentBRDF(geometryNormal, geometryViewDir, material.specularColorBlended.rgb, material.specularF90, material.roughness);
                         #endif
                         reflectedLight.indirectSpecular = mix(vec3(reflectedLight.indirectSpecular), saturate(specularColor.rgb * refBaseColor.rgb), refBaseColor.a);
                         ` : `

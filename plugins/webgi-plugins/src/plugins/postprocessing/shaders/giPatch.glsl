@@ -23,7 +23,7 @@ reflectedLight.indirectDiffuse *= ambientOcclusion;
 #if defined(SSGI_ENABLED) && SSGI_ENABLED > 0
 
 vec3 ssgiColor = ssgi.rgb * ssgiIntensity;
-reflectedLight.indirectDiffuse += ssgiColor * (material.diffuseColor.rgb);
+reflectedLight.indirectDiffuse += ssgiColor * (material.diffuseContribution.rgb);
 
 #endif
 
@@ -37,7 +37,7 @@ reflectedLight.indirectSpecular *= specularOcclusion;
 #if defined(SSGI_ENABLED) && SSGI_ENABLED > 0
 #if !defined(SSR_ENABLED) || SSR_ENABLED < 1
 
-reflectedLight.indirectSpecular += ssgiColor * material.specularColor;
+reflectedLight.indirectSpecular += ssgiColor * material.specularColorBlended;
 
 #endif
 #endif

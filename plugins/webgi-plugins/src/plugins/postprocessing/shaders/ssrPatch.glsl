@@ -37,7 +37,7 @@ if(true)
 }
 alphaModifier *= vignette;
 
-vec3 specularColor = EnvironmentBRDF(geometryNormal, geometryViewDir, material.specularColor.rgb, material.specularF90, material.roughness);
+vec3 specularColor = EnvironmentBRDF(geometryNormal, geometryViewDir, material.specularColorBlended.rgb, material.specularF90, material.roughness);
 
 if(length(specularColor.rgb) * alphaModifier > 0.01 && roughnessFactor < 0.9){ // Note: using material.roughness here causes some clipping issues at edges because of geometryRoughness
     #if defined(SSR_INLINE) && SSR_INLINE > 0

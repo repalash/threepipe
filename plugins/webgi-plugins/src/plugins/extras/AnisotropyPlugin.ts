@@ -131,13 +131,14 @@ export class AnisotropyPlugin extends AViewerPluginSync {
             const multiscatterCall = 'BRDF_GGX_Multiscatter( directLight.direction, geometryViewDir, geometryNormal, material )'
             if (lights_physical_pars_fragment.includes(multiscatterCall)) {
                 // three.js r181 (#32072): RE_Direct_Physical calls BRDF_GGX_Multiscatter, which adds multiple-scattering
-                // energy compensation to BRDF_GGX. The anisotropic lobe becomes its single-scattering term.
+                // energy compensation to BRDF_GGX. The anisotropic lobe becomes its single-scattering term, with the F0
+                // that three.js r182 (#32190) mixes with the base color by metalness, specularColorBlended (as BRDF_GGX).
                 lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
                     'vec3 BRDF_GGX_Multiscatter( const in vec3 lightDir, const in vec3 viewDir, const in vec3 normal, const in PhysicalMaterial material ) {',
                     'vec3 BRDF_GGX_Multiscatter( const in vec3 lightDir, const in vec3 viewDir, const in vec3 normal, const in PhysicalMaterial material, const in vec3 anisotropicT, const in vec3 anisotropicB ) {')
                 lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
                     'vec3 singleScatter = BRDF_GGX( lightDir, viewDir, normal, material );',
-                    'vec3 singleScatter = BRDF_GGX_Anisotropy( lightDir, viewDir, normal, material.specularColor, material.specularF90, material.roughness, anisotropicT, anisotropicB );')
+                    'vec3 singleScatter = BRDF_GGX_Anisotropy( lightDir, viewDir, normal, material.specularColorBlended, material.specularF90, material.roughness, anisotropicT, anisotropicB );')
                 lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
                     multiscatterCall,
                     'BRDF_GGX_Multiscatter( directLight.direction, geometryViewDir, geometryNormal, material, anisotropicT, anisotropicB )')

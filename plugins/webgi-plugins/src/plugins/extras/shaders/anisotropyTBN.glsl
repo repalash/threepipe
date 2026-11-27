@@ -19,7 +19,7 @@ rot2 = normalize(rot2);
 
 const float anisoSpecMultiplier = 0.25;
 
-float matSpecAniso = (length(material.specularColor.rgb))*2.*PI;
+float matSpecAniso = (length(material.specularColorBlended.rgb))*2.*PI;
 rot2 = mix(rot2, vec2(sin(matSpecAniso), cos(matSpecAniso)), anisoSpecMultiplier);
 rot2 = normalize(rot2);
 
