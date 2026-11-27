@@ -508,10 +508,10 @@ The plugin is not saved with the viewer config (`serializeWithViewer = false`).
 ## UiConfigForm
 
 [Example](https://threepipe.org/examples/#ui-config-form/) &mdash;
-[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/ui/UiConfigForm.ts) &mdash;
-[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/UiConfigForm.html)
+[Source Code](https://github.com/repalash/uiconfig.js/blob/master/packages/uiconfig.js/src/dom/UiConfigForm.ts) &mdash;
+[Docs](https://github.com/repalash/uiconfig.js/blob/master/packages/uiconfig.js/DOM.md)
 
-`UiConfigForm` draws a list of uiconfig.js configs (the same configs that the Tweakpane panels use) as a small plain-DOM form. Use it for a popup or a card next to an object, where a Tweakpane panel is too large.
+`UiConfigForm` is `uiconfig.js/dom`, exported by `threepipe` (the editor exports it too, for earlier imports). It draws a list of uiconfig.js configs (the same configs that the Tweakpane panels use) as a small plain-DOM form. Use it for a popup or a card next to an object, where a Tweakpane panel is too large.
 
 - Fields: number (drag the name to scrub, Shift for 10x), slider, checkbox, dropdown, vector, color, text, button, monitor, and folders (always open). An `input` bound to a boolean or a number gets a checkbox or a number field.
 - A button's function can return an undo function or `{action, undo, redo}`, as in uiconfig.js: the action runs, and with an `undoManager` it is one undo step.
@@ -522,8 +522,7 @@ The plugin is not saved with the viewer config (`serializeWithViewer = false`).
 - The form adds its stylesheet once (`UiConfigForm.InjectStyles`). The colours follow the Tweakpane theme variables (`--tp-...`) when the page sets them.
 
 ```typescript
-import {UiConfigMethods, UndoManagerPlugin} from 'threepipe'
-import {UiConfigForm} from '@threepipe/plugin-tweakpane-editor'
+import {UiConfigForm, UiConfigMethods, UndoManagerPlugin} from 'threepipe'
 
 const undo = viewer.addPluginSync(UndoManagerPlugin)
 
@@ -540,4 +539,32 @@ popup.appendChild(form.element)
 form.refresh()
 ```
 
-The form does not watch the values: call `refresh()` after a change from elsewhere (code, another panel). Its own undo and redo steps refresh it. A form made in `onStructureChange` takes the place of the old one: the undo and redo of edits made in the old form refresh the new one. A config that is `hidden` when the form is made is not drawn.
+The form does not watch the values: call `refresh()` after a change from elsewhere (code, another panel). Its own undo and redo steps refresh it. A form made in `onStructureChange` takes the place of the old one: the undo and redo of edits made in the old form refresh the new one. A config that is `hidden` when the form is made is not drawn. A refresh changes the DOM only when a value changes, so it can run after each frame (`viewer.addEventListener('postFrame', () => form.refresh())`).
+
+### Toolbar layouts: bar and stack
+
+The `layout` option draws the same configs as a toolbar, e.g. the buttons over a canvas: `bar` is a row, `stack` a column (`form`, the rows above, is the default). `form.layout` changes it later; between `bar` and `stack` the elements stay.
+
+- A button is a button, a checkbox a toggle button (pressed while the value is true, `aria-pressed`), a dropdown a select, and any other field (a slider, a number, a colour, a vector, a text) a button with its value that opens the field in a small popover. A folder is a group, with a line between groups.
+- `icon` (uiconfig.js 0.4.2): SVG markup (drawn in the text colour), an image URL, or the name of an icon of the set of the form, a part of [Lucide](https://lucide.dev) (`lucideIcons`, like `'camera'`, `'download'`, `'rotate-3d'`). The icon is in front of the label. In a bar on a narrow screen (640 px), a button with an icon shows the icon only, and the label in its tooltip. An `icon` and a `label` can be functions (play or pause): a refresh draws them again.
+- An async button (its function returns a promise) is disabled, with a spinner, until the promise settles; an error goes to `onError` (default `console.error`) and enables the button again. This is in all the layouts.
+- The tooltips show the label when only the icon shows, and the key that `shortcutOf(config)` gives (e.g. the key of an action in `viewer.actions`). They are the native `title` by default, and the editor look (tippy.js) while the `TweakpaneEditorPlugin` is added, which sets `UiConfigRendererBase.Tooltip` (`editorTooltip`). `UiConfigForm.Tooltips = false` turns them off.
+- The bar takes the panel colour of the Tweakpane theme of the page (`clean`, `clean-dark`, ...), else light, or dark when the system prefers it. The accessible name of each button is its label.
+
+```typescript
+const bar = new UiConfigForm([
+    {type: 'folder', label: 'Views', children: [
+        {type: 'button', label: 'Top', icon: 'arrow-up', value: async() => views.animateToView(top)},
+        {type: 'button', label: 'Reset', icon: 'house', value: async() => views.animateToView(start)},
+    ]},
+    {type: 'checkbox', label: 'Auto rotate', icon: 'rotate-3d', property: [controls, 'autoRotate']},
+    {type: 'slider', label: 'Exposure', icon: 'sun', property: [tonemap, 'exposure'], bounds: [0, 4]},
+    {type: 'button', label: 'Snapshot', icon: 'camera', value: async() => snapshot.downloadSnapshot('a.png')},
+], {layout: 'bar'})
+viewer.container.appendChild(bar.element) // the page places it, e.g. at the bottom centre
+viewer.addEventListener('postFrame', () => bar.refresh())
+```
+
+A monitor is a read-only row with its value (a live readout). In a stack, a button shows its key (`shortcutOf`) at the end of its row; in a bar the key is in the tooltip.
+
+The examples use the stack in their card (`createExampleCard` in `examples/examples-utils/example-card.ts`): a card at the top left of the canvas with the title of the example, what it shows, its controls, its own elements (`content`: a list of results, a table of stats) and a link to its source, collapsible, at the bottom on a phone (collapsed at first). `exampleAction` makes a button that is also an action in `viewer.actions`, with its key.
