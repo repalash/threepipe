@@ -1,4 +1,5 @@
 export {GLTFLightExtrasExtension} from './GLTFLightExtrasExtension'
+export {GLTFLightsAmbientExtension, type GLTFLightsAmbientLightDef} from './GLTFLightsAmbientExtension'
 export {GLTFMaterialExtrasExtension} from './GLTFMaterialExtrasExtension'
 export {GLTFMaterialsAlphaMapExtension} from './GLTFMaterialsAlphaMapExtension'
 export {GLTFMaterialsBumpMapExtension} from './GLTFMaterialsBumpMapExtension'
