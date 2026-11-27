@@ -4,9 +4,9 @@ All notable changes to this plugin will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [0.11.0-r182.1] - 2026-11-27
+## [0.11.0-r183.1] - 2026-11-27
 
-Release candidate of the three.js r182 upgrade lane, under the npm dist-tag `three-r182`, for threepipe 0.7.0-r182.1: the changes listed under [Unreleased] below.
+Release candidate of the three.js r183 upgrade lane, under the npm dist-tag `three-r183`, for threepipe 0.7.0-r183.1: the changes listed under [Unreleased] below.
 
 ## [Unreleased]
 
