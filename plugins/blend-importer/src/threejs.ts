@@ -92,6 +92,12 @@ export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
     /** `false`: no mipmaps for the images {@link maxTextureSize} shrank (a quarter less GPU memory each). */
     downsizedMipmaps = true
 
+    /**
+     * `true`: every object in the file. By default only the active scene's objects are imported, as Blender
+     * shows them (not collections kept for reuse, asset libraries or other scenes).
+     */
+    allObjects = false
+
     constructor(manager?: LoadingManager) {
         super(manager)
     }
@@ -152,6 +158,7 @@ export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
             evaluationMode: this.evaluationMode,
             maxTextureSize: this.maxTextureSize,
             downsizedMipmaps: this.downsizedMipmaps,
+            allObjects: this.allObjects,
             loadExternalTexture: (p: string, srgb: boolean) => this._loadExternal(p, srgb, resourcePath, pending, issues),
             onTextureIssue: (_issue, name) => issues.packedUnsupported.push(name),
             onPending: (done) => pending.push(done),

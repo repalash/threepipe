@@ -96,6 +96,11 @@ export interface Ctx {
     maxTextureSize?: number
     /** `false`: no mipmaps for the images {@link maxTextureSize} shrank (a quarter less GPU memory each). Default `true`. */
     downsizedMipmaps?: boolean
+    /**
+     * `true`: every object in the file. By default only the active scene's objects are imported, as Blender
+     * shows them: not those in collections kept for reuse (a fake user), in an asset library, or in other scenes.
+     */
+    allObjects?: boolean
     /** Set by the loader: the textures of the packed images decoded in this import (`material.ts`). */
     packedImages?: Map<object, any>
     /** Set by the loader: with {@link maxTextureSize}, packed images decode one after another (`material.ts`). */
