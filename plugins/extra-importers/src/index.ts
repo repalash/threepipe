@@ -115,16 +115,11 @@ export class VOXLoadPlugin extends BaseImporterPlugin {
         // for a file without one). VOXMesh and the result as an array of chunks are deprecated.
         transform(result: VOXLoaderResult, _: AnyOptions): Object3D {
             const obj = new Object3D()
-            if (result.scene) {
-                result.scene.scale.multiplyScalar(0.0015)
-                obj.add(result.scene)
-            } else {
-                for (const chunk of result.chunks) {
-                    const mesh = buildMesh(chunk)
-                    mesh.scale.setScalar(0.0015)
-                    obj.add(mesh)
-                }
-            }
+            // the scale is on the root: the scene of the file places its models in voxels (a single model can be a
+            // translated mesh itself)
+            obj.scale.setScalar(0.0015)
+            if (result.scene) obj.add(result.scene)
+            else for (const chunk of result.chunks) obj.add(buildMesh(chunk))
             return obj
         }
     }, ['vox'], [''], false)
