@@ -7,7 +7,6 @@ import {
     ColorManagement,
     ColorSpace,
     CubeReflectionMapping,
-    CubeUVReflectionMapping,
     CustomBlending,
     DepthPackingStrategies,
     EquirectangularReflectionMapping,
@@ -61,7 +60,6 @@ const mapping: Record<string, AnyMapping> = {
     UV: UVMapping,
     Cube: CubeReflectionMapping,
     // CubeRefraction: CubeRefractionMapping,
-    CubeUV: CubeUVReflectionMapping,
     Equirectangular: EquirectangularReflectionMapping,
     // EquirectangularRefraction: EquirectangularRefractionMapping,
 }
