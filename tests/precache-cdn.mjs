@@ -51,6 +51,8 @@ const assetPrefixes = [
     'https://demo-assets.pixotronics.com/',
     'https://dist.pixotronics.com/',
     'https://dl.polyhaven.org/',
+    'https://api.polyhaven.com/',
+    'https://acg-download.struffelproductions.com/',
 ]
 
 // Skip patterns (not cacheable or too dynamic)
