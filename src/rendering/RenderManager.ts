@@ -102,7 +102,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
      * `renderer.capabilities.maxTextures` textures per shader: 16 on Apple GPUs, 32 on most others. Past that, no
      * shader compiles and nothing is drawn (an imported Blender scene with 16 shadow-casting lights, for example).
      *
-     * Lights over the budget don't cast shadows while rendering: directional lights first, then point and spot lights by
+     * Only visible lights count. Lights over the budget don't cast shadows while rendering: directional lights first, then point and spot lights by
      * intensity, keep their shadows. Their `castShadow` is left as it is in the scene, the UI and exports; it's only
      * turned off during {@link render}. A warning names the lights that lose their shadows.
      *
@@ -132,7 +132,8 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
 
     /**
      * Recompute which lights cast shadows within {@link maxShadowMaps} before the next render. The viewer calls it when
-     * the scene changes.
+     * the scene changes or a light updates; call it after showing or hiding lights (or their parents), since only visible
+     * lights count.
      */
     shadowBudgetNeedsUpdate() {
         this._shadowBudgetDirty = true
@@ -144,7 +145,8 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
             Math.max(0, this._renderer.capabilities.maxTextures - RenderManager.SHADOW_TEXTURE_RESERVE) :
             this.maxShadowMaps
         const casting: Light[] = []
-        scene.traverse((o: any) => {
+        // visible lights only: three.js skips invisible ones (and their shadows)
+        scene.traverseVisible((o: any) => {
             if (o.isLight && o.castShadow && o.shadow && (o.isDirectionalLight || o.isPointLight || o.isSpotLight)) casting.push(o)
         })
         const rank = (l: any) => l.isDirectionalLight ? 1 : 0

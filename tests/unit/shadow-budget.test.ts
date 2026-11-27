@@ -53,6 +53,14 @@ describe('RenderManager.maxShadowMaps', () => {
         warn.mockRestore()
     })
 
+    it('counts only visible lights', () => {
+        const {scene, points} = sceneWithLights(16)
+        points.slice(0, 12).forEach(p => { p.visible = false })
+        const rm = standIn(16)
+        refresh(rm, scene) // sun + 4 visible points = 5, within 6
+        expect(rm._shadowBudgetOff).toHaveLength(0)
+    })
+
     it('changing maxShadowMaps recomputes the budget before the next render', () => {
         const rm = standIn(16)
         rm._shadowBudgetDirty = false
