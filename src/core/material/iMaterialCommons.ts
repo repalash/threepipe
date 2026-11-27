@@ -1,9 +1,12 @@
 import {
+    Blending,
     ColorManagement,
     Event,
     Material,
     MaterialParameters,
+    MultiplyBlending,
     Scene,
+    SubtractiveBlending,
     Texture,
     WebGLProgramParametersWithUniforms,
     WebGLRenderer,
@@ -260,6 +263,39 @@ export const materialTexturePropertiesUserData: Set<string> = new Set<string>([]
 /**
  * Convert a standard three.js {@link Material} to {@link IMaterial}
  */
+/**
+ * MultiplyBlending and SubtractiveBlending need `premultipliedAlpha` since three.js r178: without it WebGLState logs an
+ * error and the draw keeps the last blend function. While `blending` is one of them, `premultipliedAlpha` is true, in
+ * whatever order the two are set (the UI, code, `copy()`, `setValues()`, a loaded material). It stays as set when
+ * `blending` changes to another mode.
+ */
+function premultipliedAlphaForBlending(material: IMaterial) {
+    let blending: Blending = material.blending
+    let premultipliedAlpha = material.premultipliedAlpha
+    const setPremultipliedAlpha = (value: boolean) => {
+        const v = value || blending === MultiplyBlending || blending === SubtractiveBlending
+        if (v === premultipliedAlpha) return
+        premultipliedAlpha = v
+        material.needsUpdate = true // the PREMULTIPLIED_ALPHA define of the shader
+    }
+    Object.defineProperty(material, 'blending', {
+        get: () => blending,
+        set: (value: Blending) => {
+            blending = value
+            setPremultipliedAlpha(premultipliedAlpha)
+        },
+        configurable: true,
+        enumerable: true,
+    })
+    Object.defineProperty(material, 'premultipliedAlpha', {
+        get: () => premultipliedAlpha,
+        set: setPremultipliedAlpha,
+        configurable: true,
+        enumerable: true,
+    })
+    setPremultipliedAlpha(premultipliedAlpha)
+}
+
 export function upgradeMaterial(this: IMaterial): IMaterial {
     if (!this.isMaterial) {
         console.error('Material is not a material', this)
@@ -272,6 +308,7 @@ export function upgradeMaterial(this: IMaterial): IMaterial {
 
     if (!(this as any).__upgradeSetup) {
         this.dispatchEvent = iMaterialCommons.dispatchEvent(this.dispatchEvent)
+        premultipliedAlphaForBlending(this)
         ;(this as any).__upgradeSetup = true
     }
     // legacy

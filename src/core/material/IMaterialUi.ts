@@ -168,6 +168,12 @@ export const iMaterialUI = {
                     })),
                 },
                 {
+                    // Multiply and Subtractive need it (three.js r178): it stays on with them
+                    type: 'checkbox',
+                    label: 'Premultiplied Alpha',
+                    property: [material, 'premultipliedAlpha'],
+                },
+                {
                     type: 'dropdown',
                     hidden: ()=>material.blending !== CustomBlending,
                     property: [material, 'blendingEquation'],
