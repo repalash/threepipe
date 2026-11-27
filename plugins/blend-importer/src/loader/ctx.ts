@@ -24,6 +24,7 @@ import type {
     MagnificationTextureFilter,
     MinificationTextureFilter,
 } from 'threepipe'
+import type {BlendLightUnits} from './light'
 
 /**
  * Everything the loader core needs from three.js, handed in rather than imported, so the same code
@@ -96,6 +97,18 @@ export interface Ctx {
     maxTextureSize?: number
     /** `false`: no mipmaps for the images {@link maxTextureSize} shrank (a quarter less GPU memory each). Default `true`. */
     downsizedMipmaps?: boolean
+    /**
+     * `true`: every object in the file. By default only the active scene's objects are imported, as Blender
+     * shows them: not those in collections kept for reuse (a fake user), in an asset library, or in other scenes.
+     */
+    allObjects?: boolean
+    /**
+     * The name of the Blender scene to import (as Blender shows it, e.g. `"Scene.001"`). Default: the scene open
+     * when the file was saved. A name the file doesn't have is warned about, and the open scene is used.
+     */
+    scene?: string
+    /** How Blender's light power becomes three.js intensity. Default `'blender'`: see {@link BlendLightUnits}. */
+    lightUnits?: BlendLightUnits
     /** Set by the loader: the textures of the packed images decoded in this import (`material.ts`). */
     packedImages?: Map<object, any>
     /** Set by the loader: with {@link maxTextureSize}, packed images decode one after another (`material.ts`). */

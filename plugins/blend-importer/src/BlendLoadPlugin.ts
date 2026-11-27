@@ -45,6 +45,7 @@ import {createObjects} from './loader'
 import {MESH_TOPOLOGY_USERDATA} from './loader/meshData'
 import {decompressBlend} from './decompress'
 import type {BlendEvaluationMode} from './loader/ctx'
+import type {BlendLightUnits} from './loader/light'
 import {createCtx} from './loader/ctx'
 import type {BlendFileData} from './blendFile'
 import {decodeTGA} from './loader/tga.js'
@@ -313,6 +314,27 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
      */
     downsizedMipmaps = true
 
+    /**
+     * `true`: every object in the file. By default only the active scene's objects are imported, as Blender
+     * shows them: not those in collections kept for reuse (a fake user), in an asset library, or in other
+     * scenes. A file whose scene has no objects imports all of them either way.
+     */
+    allObjects = false
+
+    /**
+     * The name of the Blender scene to import (as Blender shows it, e.g. `"Scene.001"`). Default `''`: the scene
+     * open when the file was saved. A name the file doesn't have is warned about, and the open scene is used.
+     * {@link blendScenes} lists a file's scenes (call it in `onBlendLoad`).
+     */
+    scene = ''
+
+    /**
+     * How Blender's light power becomes three.js light intensity. `'blender'` (the default): lights as bright
+     * as in Blender's renders. `'photometric'`: x 683 (watts to lumens), as the glTF exporter's "Standard" mode,
+     * for a renderer with a physical camera exposure. See {@link BlendLightUnits}.
+     */
+    lightUnits: BlendLightUnits = 'blender'
+
     constructor() {
         super()
     }
@@ -426,6 +448,9 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
                 evaluationMode: this.plugin?.evaluationMode,
                 maxTextureSize: this.plugin?.maxTextureSize,
                 downsizedMipmaps: this.plugin?.downsizedMipmaps,
+                allObjects: this.plugin?.allObjects,
+                scene: this.plugin?.scene || undefined,
+                lightUnits: this.plugin?.lightUnits,
                 loadExternalTexture: importer
                     ? (p: string, srgb: boolean) => {
                         const req = resolveExternalTexture(p, srgb, importer, url, issues)

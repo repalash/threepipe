@@ -20,6 +20,7 @@ import {gunzipSync} from 'fflate'
 import {parseBlend} from './js-blend/main.js'
 import {createObjects} from './loader'
 import {BlendEvaluationMode, createCtx, srgbSetter} from './loader/ctx'
+import type {BlendLightUnits} from './loader/light'
 import {decompressBlend} from './decompress'
 import {decodeTGA} from './loader/tga.js'
 import type {BlendFileData} from './blendFile'
@@ -92,6 +93,24 @@ export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
     /** `false`: no mipmaps for the images {@link maxTextureSize} shrank (a quarter less GPU memory each). */
     downsizedMipmaps = true
 
+    /**
+     * `true`: every object in the file. By default only the active scene's objects are imported, as Blender
+     * shows them (not collections kept for reuse, asset libraries or other scenes).
+     */
+    allObjects = false
+
+    /**
+     * The name of the Blender scene to import (e.g. `"Scene.001"`). Default `''`: the scene open when the file
+     * was saved. {@link blendScenes} lists a file's scenes.
+     */
+    scene = ''
+
+    /**
+     * How Blender's light power becomes three.js intensity: `'blender'` (the default, as bright as in Blender's
+     * renders) or `'photometric'` (x 683, as the glTF exporter's "Standard" mode). See {@link BlendLightUnits}.
+     */
+    lightUnits: BlendLightUnits = 'blender'
+
     constructor(manager?: LoadingManager) {
         super(manager)
     }
@@ -152,6 +171,9 @@ export class BlendLoader extends (three.Loader as typeof THREE.Loader) {
             evaluationMode: this.evaluationMode,
             maxTextureSize: this.maxTextureSize,
             downsizedMipmaps: this.downsizedMipmaps,
+            allObjects: this.allObjects,
+            scene: this.scene || undefined,
+            lightUnits: this.lightUnits,
             loadExternalTexture: (p: string, srgb: boolean) => this._loadExternal(p, srgb, resourcePath, pending, issues),
             onTextureIssue: (_issue, name) => issues.packedUnsupported.push(name),
             onPending: (done) => pending.push(done),
@@ -288,3 +310,8 @@ function tgaTexture(buffer: ArrayBuffer): Texture {
     return texture
 }
 export type {BlendEvaluationMode} from './loader/ctx'
+export {readBlendThumbnail, blendThumbnailImageData, BLEND_THUMBNAIL_BYTES} from './thumbnail'
+export {blendScenes, blendViewSettings} from './loader/scene'
+export type {BlendSceneInfo, BlendViewSettings} from './loader/scene'
+export type {BlendLightUnits} from './loader/light'
+export type {BlendThumbnail} from './thumbnail'
