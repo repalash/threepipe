@@ -1,6 +1,7 @@
 import {HiddenPageClock} from './HiddenPageClock'
 import {
     AddEquation,
+    BasicShadowMap,
     Color,
     ConstantAlphaFactor,
     CustomBlending,
@@ -19,6 +20,7 @@ import {
     ShadowMapType,
     Vector2,
     Vector4,
+    VSMShadowMap,
     WebGLRenderer,
     WebGLRenderTarget,
     WebGLShadowMap,
@@ -82,7 +84,8 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     }
 
     @serialize()
-    @uiDropdown('Shadow Map Type', ['BasicShadowMap', 'PCFShadowMap', 'PCFSoftShadowMap', 'VSMShadowMap'].map((v, i) => ({label: v, value: i})), {tags: [UiTags.Advanced]})
+    // PCFSoftShadowMap is deprecated in three.js r182 (PCFShadowMap is soft): three.js warns and uses PCFShadowMap
+    @uiDropdown('Shadow Map Type', ([['BasicShadowMap', BasicShadowMap], ['PCFShadowMap', PCFShadowMap], ['VSMShadowMap', VSMShadowMap]] as const).map(([label, value]) => ({label, value})), {tags: [UiTags.Advanced]})
     @bindToValue({obj: 'shadowMap', key: 'type', onChange: RenderManager.prototype._shadowMapTypeChanged})
         shadowMapType: ShadowMapType
 

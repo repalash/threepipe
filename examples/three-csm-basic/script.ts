@@ -28,7 +28,7 @@ async function init() {
         plugins: [LoadingScreenPlugin, SSAAPlugin, BloomPlugin, SSReflectionPlugin, SSAOPlugin, TemporalAAPlugin, PickingPlugin],
     })
 
-    viewer.renderManager.webglRenderer.shadowMap.type = THREE.PCFSoftShadowMap
+    viewer.renderManager.webglRenderer.shadowMap.type = THREE.PCFShadowMap
     viewer.renderManager.stableNoise = true
     viewer.scene.mainCamera.autoNearFar = false
     viewer.scene.mainCamera.far = 5000

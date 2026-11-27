@@ -5,7 +5,7 @@ import {
     LoadingScreenPlugin,
     Mesh,
     Object3DWidgetsPlugin,
-    PCFSoftShadowMap,
+    PCFShadowMap,
     PhysicalMaterial,
     PlaneGeometry,
     RenderTargetPreviewPlugin,
@@ -63,7 +63,7 @@ async function init() {
     light.shadowAspect = 1
     light.shadowFov = 45
 
-    viewer.renderManager.renderer.shadowMap.type = PCFSoftShadowMap
+    viewer.renderManager.renderer.shadowMap.type = PCFShadowMap
 
     const rt = viewer.addPluginSync(RenderTargetPreviewPlugin)
     rt.addTarget(()=>light.shadow.map || undefined, 'shadow', true, true, true)

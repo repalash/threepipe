@@ -3,7 +3,7 @@ import {
     GBufferPlugin,
     IObject3D,
     LoadingScreenPlugin,
-    PCFSoftShadowMap,
+    PCFShadowMap,
     RenderTargetPreviewPlugin,
     SSAAPlugin,
     ThreeViewer,
@@ -45,7 +45,7 @@ async function init() {
 
     ui.setupPluginUi(AdvancedGroundPlugin, {expanded: true})
 
-    viewer.renderManager.renderer.shadowMap.type = PCFSoftShadowMap
+    viewer.renderManager.renderer.shadowMap.type = PCFShadowMap
 
     const rt = viewer.addPluginSync(RenderTargetPreviewPlugin)
     rt.addTarget(()=>ground.shadowBaker?.light.shadow.map, 'shadow', false, false, true, (s)=>s + ' = vec4(' + s + '.r/2.);')

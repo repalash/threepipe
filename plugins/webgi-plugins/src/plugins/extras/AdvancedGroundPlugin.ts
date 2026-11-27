@@ -14,7 +14,6 @@ import {
     NoColorSpace,
     onChange,
     PCFShadowMap,
-    PCFSoftShadowMap,
     PlaneGeometry,
     RGBAFormat,
     serialize,
@@ -293,7 +292,8 @@ export class AdvancedGroundPlugin extends BaseGroundPlugin {
             {
                 label: 'Baked shadow type',
                 type: 'dropdown',
-                children: [['Basic', BasicShadowMap], ['PCF', PCFShadowMap], ['PCFSoft', PCFSoftShadowMap], ['VSM', VSMShadowMap]].map((v) => ({label: v[0].toString(), value: v[1]})),
+                children: [['Basic', BasicShadowMap], ['PCF', PCFShadowMap], ['VSM', VSMShadowMap]] // PCFSoftShadowMap is deprecated in three.js r182, PCFShadowMap is soft
+                    .map((v) => ({label: v[0].toString(), value: v[1]})),
                 property: ()=>[this._shadowBaker, 'shadowMapType'],
             },
             {

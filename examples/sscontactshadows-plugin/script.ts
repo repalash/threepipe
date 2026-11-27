@@ -4,7 +4,7 @@ import {
     DirectionalLight2,
     GBufferPlugin,
     IObject3D, LoadingScreenPlugin,
-    PCFSoftShadowMap,
+    PCFShadowMap,
     PickingPlugin,
     RenderTargetPreviewPlugin,
     SSAAPlugin,
@@ -59,7 +59,7 @@ async function init() {
     light.shadowFar = 10
     light.shadowFrustum = 4
 
-    viewer.renderManager.renderer.shadowMap.type = PCFSoftShadowMap
+    viewer.renderManager.renderer.shadowMap.type = PCFShadowMap
 
     const rt = viewer.addPluginSync(RenderTargetPreviewPlugin)
     rt.addTarget(()=>light.shadow.map || undefined, 'shadow', true, true, true)
