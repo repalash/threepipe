@@ -687,7 +687,7 @@ const ambientcgRow = a => ({
     authors: ['ambientCG'], source_url: `https://ambientcg.com/view?id=${a.assetId}`, links: [], changes: null, linked: true, images: [],
     remoteImages: a.previewImage?.['1024-PNG'] ? [{label: 'preview', url: a.previewImage['1024-PNG']}] : [],
 })
-// the extension of threepipe's ambientCG zip loader (src/assetmanager/import), so viewer.load picks it for these zips
+// the extension of AmbientCGLoadPlugin (@threepipe/plugins-extra-importers, #231), so viewer.load picks it for these zips
 const AMBIENTCG_LOAD_AS = 'acgzip'
 
 async function* ambientcgHdris() {

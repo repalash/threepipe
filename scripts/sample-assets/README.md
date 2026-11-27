@@ -27,7 +27,8 @@ How the catalog is queried and used: [Sample Asset Catalog](https://threepipe.or
   - `url` is the default file: a 2k HDR (or 2K zip) for an HDRI; a 1k Poly Haven glTF or a 1K-JPG ambientCG zip for a
     material.
   - Every other resolution and format is in `metadata.files`.
-  - `load_as` gives the extension to load with: `phmatgltf` for a Poly Haven material, `acgzip` for an ambientCG zip.
+  - `load_as` gives the extension to load with: `phmatgltf` for a Poly Haven material, `acgzip` for an ambientCG zip
+    (`PolyhavenMaterialLoadPlugin` and `AmbientCGLoadPlugin` of `@threepipe/plugins-extra-importers`).
   - ambientCG's own download link redirects without a CORS header, so the file URL it redirects to is stored instead.
 - **Licences:** each source's own. A list entry gives its licence as an SPDX id, or `null` with a `license_note` when it
   isn't known. A row with no licence shows up in the build's summary.
