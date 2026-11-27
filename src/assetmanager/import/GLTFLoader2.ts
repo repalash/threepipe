@@ -7,6 +7,7 @@ import {generateUUID, whiteImageData} from '../../three'
 import {
     glbEncryptionPreparser,
     GLTFLightExtrasExtension,
+    GLTFLightsAmbientExtension,
     GLTFMaterialExtrasExtension,
     GLTFMaterialsAlphaMapExtension,
     GLTFMaterialsBumpMapExtension,
@@ -71,6 +72,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
     static ImportExtensions: ((parser: GLTFParser) => GLTFLoaderPlugin)[] = [
         GLTFObject3DExtrasExtension.Import,
         GLTFLightExtrasExtension.Import,
+        GLTFLightsAmbientExtension.Import,
         GLTFMaterialsBumpMapExtension.Import,
         GLTFMaterialsDisplacementMapExtension.Import,
         GLTFMaterialsLightMapExtension.Import,

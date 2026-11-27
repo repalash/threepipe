@@ -105,6 +105,7 @@ export {TubeGeometryGenerator, type TubeGeometryGeneratorParams} from './geometr
 export {ShapeGeometryGenerator, type ShapeGeometryGeneratorParams} from './geometry/primitives/ShapeGeometryGenerator'
 export {TubeShapeGeometryGenerator, type TubeShapeGeometryGeneratorParams} from './geometry/primitives/TubeShapeGeometryGenerator'
 export {LineGeometryGenerator, type LineGeometryGeneratorParams} from './geometry/primitives/LineGeometryGenerator'
+export {ArchWallGeometryGenerator, type ArchWallGeometryGeneratorParams} from './geometry/primitives/ArchWallGeometryGenerator'
 export {createShapeFromPreset, reverseShapeWinding} from './geometry/helpers/ShapePresets'
 export {curveUiConfigs, createCurveTypeDropdown, createCurvePropertyUi, type CurveUiEntry, type SupportedCurveTypes} from './geometry/helpers/CurveUiHelper'
 export {ShapeTubeExtrudePlugin} from './geometry/ShapeTubeExtrudePlugin'
