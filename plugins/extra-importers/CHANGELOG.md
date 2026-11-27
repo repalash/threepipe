@@ -6,7 +6,7 @@ All notable changes to this plugin will be documented in this file.
 
 ## [0.3.0-r182.1] - 2026-11-27
 
-Release candidate of the three.js r182 upgrade lane, under the npm dist-tag `three-r182`, for threepipe 0.7.0-r182.1: the changes listed under [Unreleased] below.
+Release candidate of the three.js r182 upgrade lane, under the npm dist-tag `three-r182`, for threepipe 0.7.0-r182.1: the changes listed under [Unreleased] below. Its peer range is `threepipe >=0.7.0-r182.1`: `VOXLoadPlugin` needs the `VOXLoader` of three.js r182 that threepipe 0.7.0-r182.1 brings.
 
 ## [Unreleased]
 

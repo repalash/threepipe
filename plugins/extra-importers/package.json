@@ -11,7 +11,7 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": ">=0.1.0 || >=0.7.0-r182.1"
+        "threepipe": ">=0.7.0-r182.1"
     },
     "clean-package": {
         "remove": [
