@@ -686,16 +686,14 @@ export const iMaterialUI = {
                 {
                     type: 'slider',
                     bounds: [0, 500],
-                    label: 'Thickness0',
-                    property: [material.iridescenceThicknessRange, '0'],
-                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev, change: 'iridescenceThicknessRange', key: '0'}),
+                    label: 'Thickness Min',
+                    property: [material, 'iridescenceThicknessMinimum'],
                 },
                 {
                     type: 'slider',
                     bounds: [0, 500],
-                    label: 'Thickness1',
-                    property: [material.iridescenceThicknessRange, '1'],
-                    onChange: (ev)=>material.setDirty({uiChangeEvent: ev, change: 'iridescenceThicknessRange', key: '1'}),
+                    label: 'Thickness Max',
+                    property: [material, 'iridescenceThicknessMaximum'],
                 },
                 {
                     type: 'image',

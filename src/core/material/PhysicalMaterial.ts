@@ -189,6 +189,12 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
         }
 
         if ((parameters as any).ior !== undefined) this.ior = (parameters as any).ior // ior is not serialized in MeshPhysicalMaterial.toJSON, so we need to set it here
+        // iridescenceThicknessRange (saved before three.js r187, which replaced it with iridescenceThicknessMinimum and Maximum)
+        const range = !(parameters as Material).isMaterial ? (parameters as any).iridescenceThicknessRange : undefined
+        if (Array.isArray(range) && (parameters as any).iridescenceThicknessMinimum === undefined && (parameters as any).iridescenceThicknessMaximum === undefined) {
+            this.iridescenceThicknessMinimum = range[0]
+            this.iridescenceThicknessMaximum = range[1]
+        }
         iMaterialCommons.setValues(super.setValues).call(this, parameters, allowInvalidType, clearCurrentUserData, time)
 
         if (!isFinite(this.attenuationDistance)) this.attenuationDistance = 0 // hack for ui
@@ -301,13 +307,17 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
         clearcoatNormalMap: null,
 
         dispersion: 0,
+        diffuseRoughness: 0, // three.js r187
+        diffuseRoughnessMap: null,
+        retroreflectivity: 0, // three.js r186
 
         reflectivity: 0.5, // because this is used in Material.js->toJSON and fromJSON instead of ior
 
         iridescence: 0,
         iridescenceMap: null,
         iridescenceIOR: 1.3,
-        iridescenceThicknessRange: [100, 400],
+        iridescenceThicknessMinimum: 100, // iridescenceThicknessRange before three.js r187
+        iridescenceThicknessMaximum: 400,
         iridescenceThicknessMap: null,
 
         sheen: 0,
@@ -351,6 +361,7 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
         'clearcoatNormalMap',
         'iridescenceMap',
         'iridescenceThicknessMap',
+        'diffuseRoughnessMap',
         'sheenColorMap',
         'sheenRoughnessMap',
         'transmissionMap',
@@ -382,7 +393,10 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
         'clearcoatNormalScale',
         'iridescence',
         'iridescenceIOR',
-        'iridescenceThicknessRange',
+        'iridescenceThicknessMinimum',
+        'iridescenceThicknessMaximum',
+        'diffuseRoughness',
+        'retroreflectivity',
         'sheen',
         'sheenColor',
         'sheenRoughness',

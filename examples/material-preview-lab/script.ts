@@ -43,7 +43,7 @@ const palette: [PhysicalMaterial, Animate?][] = [
     [new PhysicalMaterial({name: 'Ceramic', color: new Color('#f4f1ea'), roughness: 0.35, clearcoat: 1, clearcoatRoughness: 0.1})],
     [new PhysicalMaterial({name: 'Rubber', color: new Color('#1b1b1d'), roughness: 0.9})],
     [new PhysicalMaterial({name: 'Velvet', color: new Color('#4a1260'), roughness: 0.9, sheen: 1, sheenRoughness: 0.4, sheenColor: new Color('#e8a6ff')})],
-    [new PhysicalMaterial({name: 'Pearl', color: new Color('#f3eee6'), roughness: 0.25, iridescence: 1, iridescenceIOR: 1.3, iridescenceThicknessRange: [200, 600]})],
+    [new PhysicalMaterial({name: 'Pearl', color: new Color('#f3eee6'), roughness: 0.25, iridescence: 1, iridescenceIOR: 1.3, iridescenceThicknessMinimum: 200, iridescenceThicknessMaximum: 600})],
     [new PhysicalMaterial({name: 'Glass', color: new Color('#ffffff'), roughness: 0, transmission: 1, ior: 1.5, thickness: 0.6})],
     [new PhysicalMaterial({name: 'Frosted glass', color: new Color('#dbe9f2'), roughness: 0.35, transmission: 1, ior: 1.5, thickness: 0.6})],
     [new PhysicalMaterial({name: 'Jade', color: new Color('#3fa36b'), roughness: 0.3, transmission: 0.6, thickness: 1})],
@@ -51,7 +51,10 @@ const palette: [PhysicalMaterial, Animate?][] = [
     [new PhysicalMaterial({name: 'Neon (animated)', color: new Color('#101014'), roughness: 0.5, emissive: new Color('#ff2a8a')}),
         (m, t) => m.emissiveIntensity = 1.5 + Math.sin(t * 4) * 1.4],
     [new PhysicalMaterial({name: 'Soap bubble (animated)', color: new Color('#ffffff'), roughness: 0, transmission: 1, iridescence: 1, iridescenceIOR: 1.33}),
-        (m, t) => m.iridescenceThicknessRange = [100 + 150 * (1 + Math.sin(t * 1.3)), 500 + 300 * (1 + Math.cos(t))]],
+        (m, t) => {
+            m.iridescenceThicknessMinimum = 100 + 150 * (1 + Math.sin(t * 1.3))
+            m.iridescenceThicknessMaximum = 500 + 300 * (1 + Math.cos(t))
+        }],
     [new PhysicalMaterial({name: 'Lava (animated)', color: new Color('#200804'), roughness: 0.8, emissive: new Color('#ff4a00'), emissiveIntensity: 2}),
         (m, t) => m.emissive.setHSL(0.02 + 0.05 * (1 + Math.sin(t * 2)), 1, 0.5)],
 ]
