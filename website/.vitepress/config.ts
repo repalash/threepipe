@@ -234,6 +234,7 @@ export default defineConfig({
           {text: 'Cloud Plugin (feedback, sign-in, drive)', link: 'package/plugin-cloud'},
           {text: 'Blend Importer Plugin', link: 'package/plugin-blend-importer'},
           {text: 'Gaussian Splatting Plugin', link: 'package/plugin-gaussian-splatting'},
+          {text: 'Volume Rendering Plugin', link: 'package/plugin-volume'},
           {text: 'svg-renderer Plugin', link: 'package/plugin-svg-renderer'},
           {text: '3D Tiles (OGC) Renderer Plugin', link: 'package/plugin-3d-tiles-renderer'},
           {text: 'Assimpjs Plugin', link: 'package/plugin-assimpjs'},

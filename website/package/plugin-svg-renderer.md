@@ -1,7 +1,7 @@
 ---
 prev: 
-    text: '@threepipe/plugin-gaussian-splatting'
-    link: './plugin-gaussian-splatting'
+    text: '@threepipe/plugin-volume'
+    link: './plugin-volume'
 
 next:
     text: '@threepipe/plugin-3d-tiles-renderer'

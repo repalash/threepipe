@@ -1,0 +1,26 @@
+@threepipe/plugin-volume
+Copyright 2026 Palash Bansal <palash@shaders.app>
+Apache-2.0 License
+
+This package includes material from the following projects.
+
+src/library/volviewPresets.ts
+  The transfer function presets of VolView (src/vtk/MedicalColorPresets.json), copied as data.
+  https://github.com/Kitware/VolView
+  Copyright Kitware, Inc. Apache License 2.0.
+
+src/library/colorMaps.ts
+  Colour maps from vtk.js (Sources/Rendering/Core/ColorTransferFunction/ColorMaps.json), resampled.
+  https://github.com/Kitware/vtk-js
+  Copyright (c) 2016, Kitware Inc. BSD 3-Clause License.
+  viridis, magma, inferno and plasma are the matplotlib colour maps by Nathaniel J. Smith, Stefan van der Walt and
+  Eric Firing, released as CC0: https://bids.github.io/colormap/
+
+src/shaders/volume.frag.glsl
+  volNoise: interleaved gradient noise, Jorge Jimenez, "Next Generation Post Processing in Call of Duty: Advanced
+  Warfare", SIGGRAPH 2014.
+  The ray-box test, back-face ray setup and camera-inside handling follow the three.js volume examples
+  (examples/webgl_volume_cloud.html) and VolumeNodeMaterial, https://github.com/mrdoob/three.js, MIT License.
+
+src/loaders/NRRDLoadPlugin.ts, src/VolumeData.ts
+  Use three.js NRRDLoader and Volume (examples/jsm), https://github.com/mrdoob/three.js, MIT License.

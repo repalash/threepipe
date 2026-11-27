@@ -24,6 +24,7 @@ const alias = {
     '@threepipe/plugins-extra-importers': path.resolve(import.meta.dirname, './plugins/extra-importers/src/index.ts'),
     '@threepipe/plugin-geometry-generator': path.resolve(import.meta.dirname, './plugins/geometry-generator/src/index.ts'),
     '@threepipe/plugin-gaussian-splatting': path.resolve(import.meta.dirname, './plugins/gaussian-splatting/src/index.ts'),
+    '@threepipe/plugin-volume': path.resolve(import.meta.dirname, './plugins/volume/src/index.ts'),
     '@threepipe/plugin-configurator': path.resolve(import.meta.dirname, './plugins/configurator/src/index.ts'),
     '@threepipe/plugin-gltf-transform': path.resolve(import.meta.dirname, './plugins/gltf-transform/src/index.ts'),
     '@threepipe/plugin-assimpjs': path.resolve(import.meta.dirname, './plugins/assimpjs/src/index.ts'),
