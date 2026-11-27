@@ -19,4 +19,8 @@ All notable changes to this plugin will be documented in this file.
 - `dragOnlySelected` (default true, also in the UI folder in editable mode, not saved with the scene): only the open annotation can be dragged; a click on another marker opens it, and a drag from it orbits the camera as on the canvas
 - The selection is undoable in editable mode, as in `PickingPlugin`: opening another annotation or closing the card is one undo step, whose undo opens the one before (or none) without moving the camera. Undoing a delete or Remove all opens the annotation that was open. No undo steps in a viewer (not editable) or during `playTour`
 
+### Changed
+
+- `peerDependencies.threepipe` is `>=0.7.0-next.1` (was `>=0.6.0`): the plugin registers its keys in `viewer.actions`, which threepipe has from 0.7.0. With an older threepipe npm installed it without a warning and adding the plugin threw.
+
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/annotations
