@@ -272,6 +272,7 @@ export class ViewHelper2 extends Object3D<ViewHelper2EventMap> {
         })
 
         this.domContainer.remove()
+        super.dispose()
 
         // ;(this.controls as any)?.removeEventListener(
         //     'change',

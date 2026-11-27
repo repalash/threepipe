@@ -570,6 +570,8 @@ class TransformControls extends Object3D {
 
         } );
 
+        super.dispose();
+
     }
 
     // Set current object

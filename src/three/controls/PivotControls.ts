@@ -569,6 +569,7 @@ export class PivotControls extends Group<PivotControlsEventMap & Object3DEventMa
             this._annotationEl.remove()
             this._annotationEl = null
         }
+        super.dispose()
     }
 
     // ========================================================================
