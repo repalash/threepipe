@@ -243,7 +243,9 @@ export class GLTFMaterialExtrasExtension {
             if (material.toneMapped !== undefined && material.toneMapped !== threeMaterialPropList.toneMapped) dat.toneMapped = material.toneMapped
 
             // ignoring data from the GLTFExporter.
-            if (material.normalScale !== undefined && material.normalScale.isVector2 && (material.normalScale.x !== PhysicalMaterial.MaterialProperties.normalScale.x || material.normalScale.y !== PhysicalMaterial.MaterialProperties.normalScale.y)) dat.normalScale = [material.normalScale.x, material.normalScale.y]
+            // Always written with a normal map: the extras stop GLTFLoader from negating normalScale.y on meshes without
+            // tangents, and GLTFWriter2 does not bake that flip into the map (see GLTFWriter2.buildNormalMapTextureAsync).
+            if (material.normalScale !== undefined && material.normalScale.isVector2 && (material.normalMap || material.normalScale.x !== PhysicalMaterial.MaterialProperties.normalScale.x || material.normalScale.y !== PhysicalMaterial.MaterialProperties.normalScale.y)) dat.normalScale = [material.normalScale.x, material.normalScale.y]
 
             // if (material.reflectivity !== undefined) dat.reflectivity = material.reflectivity // see KHR_materials_ior, and comments in parser.
 

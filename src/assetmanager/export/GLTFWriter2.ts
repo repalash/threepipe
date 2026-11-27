@@ -132,6 +132,20 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
     protected _defaultMaterial = new MeshStandardMaterial()
 
     /**
+     * three.js r185 (#33837) bakes the sign of `normalScale`, and the green flip of meshes without tangents, into a copy
+     * of the normal map, which `GLTFLoader` undoes by negating `normalScale.y` on import. threepipe writes the
+     * `normalScale` of every material with a normal map in its material extras (`WEBGI_material_extras`), and
+     * three-modded's `GLTFLoader` does not negate `normalScale.y` for a material with the extras, so a baked copy would
+     * load inverted. The normal map is written as it is, as before r185.
+     * @param normalMap - the material's normal map
+     * @param _flipX - whether three.js would invert the red channel
+     * @param _flipY - whether three.js would invert the green channel
+     */
+    async buildNormalMapTextureAsync(normalMap: Texture, _flipX: boolean, _flipY: boolean): Promise<Texture> {
+        return normalMap
+    }
+
+    /**
      * Checks for shader material and does the same thing...
      * @param material
      * @param geometry - the geometry the material is used with. three.js r185 bakes the sign of `normalScale` into the
