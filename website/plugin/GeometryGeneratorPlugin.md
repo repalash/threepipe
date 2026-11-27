@@ -25,6 +25,7 @@ Built-in geometry generators:
 * shape — flat 2D shapes (rectangle, circle, polygon)
 * tubeShape — arbitrary shape cross-section extruded along a curve
 * line — curve/path visualization with interactive control point handles
+* archWall — a wall with a row of round-arched openings (an arcade), standing on y = 0
 
 Additional `text` geometry is available through `GeometryGeneratorExtrasPlugin` in the [`@threepipe/plugin-geometry-generator`](../package/plugin-geometry-generator) package.
 

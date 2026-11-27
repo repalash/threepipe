@@ -18,6 +18,7 @@ import {TubeGeometryGenerator} from './primitives/TubeGeometryGenerator'
 import {ShapeGeometryGenerator} from './primitives/ShapeGeometryGenerator'
 import {TubeShapeGeometryGenerator} from './primitives/TubeShapeGeometryGenerator'
 import {LineGeometryGenerator} from './primitives/LineGeometryGenerator'
+import {ArchWallGeometryGenerator} from './primitives/ArchWallGeometryGenerator'
 import {AGeometryGenerator, removeUi, updateUi} from './AGeometryGenerator'
 
 // for type autocomplete
@@ -32,13 +33,14 @@ export interface IGeometryGeneratorMap extends Record<string, AGeometryGenerator
     shape: ShapeGeometryGenerator
     tubeShape: TubeShapeGeometryGenerator
     line: LineGeometryGenerator
+    archWall: ArchWallGeometryGenerator
 }
 
 /**
  * GeometryGeneratorPlugin
  *
  * Geometry generator plugin to create updatable parametric objects/geometries.
- * Built-in generators: plane, sphere, box, circle, torus, cylinder, tube, shape, tubeShape, line.
+ * Built-in generators: plane, sphere, box, circle, torus, cylinder, tube, shape, tubeShape, line, archWall.
  *
  * Additional generators (text) can be registered at runtime via the `generators` property
  * or by using `GeometryGeneratorExtrasPlugin` from `@threepipe/plugin-geometry-generator`.
@@ -63,6 +65,7 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
         shape: new ShapeGeometryGenerator('shape'),
         tubeShape: new TubeShapeGeometryGenerator('tubeShape'),
         line: new LineGeometryGenerator('line'),
+        archWall: new ArchWallGeometryGenerator('archWall'),
     } as IGeometryGeneratorMap
 
     defaultMeshClass: Class<IObject3D> = Mesh2
