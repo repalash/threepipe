@@ -1,5 +1,5 @@
 import {PartialRecord} from 'ts-browser-helpers'
-import {Blending, Clock, ShaderMaterial, Texture, Vector2, Vector4, WebGLRenderer, WebGLRenderTarget} from 'three'
+import {Blending, ShaderMaterial, Texture, Timer, Vector2, Vector4, WebGLRenderer, WebGLRenderTarget} from 'three'
 import {CreateRenderTargetOptions, IRenderTarget, RenderTargetManager} from '../rendering'
 import {IShaderPropertiesUpdater} from '../materials'
 import {EffectComposer2, IPassID, IPipelinePass} from '../postprocessing'
@@ -75,7 +75,14 @@ export interface IRenderManager<TE extends IRenderManagerEventMap = IRenderManag
     renderScale: number
     readonly context: WebGLRenderingContext
     webglRenderer: WebGLRenderer
-    clock: Clock
+    /**
+     * The timer of the effect composer (three.js r183 replaced its `Clock` with a `Timer`).
+     */
+    readonly timer: Timer
+    /**
+     * @deprecated use {@link timer}. The effect composer has a `Timer` since three.js r183 (`Clock` is deprecated).
+     */
+    readonly clock: Timer
 
     blit(destination: IRenderTarget|undefined|null, options?: RendererBlitOptions): void
     clearColor({r, g, b, a, target, depth, stencil, viewport}:

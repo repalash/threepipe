@@ -1,9 +1,55 @@
-import {Clock, EventDispatcher} from 'three'
+import {EventDispatcher} from 'three'
 import {ThreeViewer} from '../viewer'
 import {ProgressivePlugin} from '../plugins'
 import {uiButton, uiFolderContainer, uiInput, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {onChangeDispatchEvent, serializable, serialize} from 'ts-browser-helpers'
 import {OnChangeDispatchEventType} from './browser-helpers'
+
+/**
+ * The clock of {@link ViewerTimeline}: three.js's `Clock` (r183), which three.js deprecates for `Timer` since r183.
+ * The timeline sets its `elapsedTime` and `oldTime` itself (seek, recording), which `Timer` keeps private.
+ */
+export class TimelineClock {
+    startTime = 0
+    oldTime = 0
+    elapsedTime = 0
+    running = false
+
+    constructor(public autoStart = true) {}
+
+    start() {
+        this.startTime = performance.now()
+        this.oldTime = this.startTime
+        this.elapsedTime = 0
+        this.running = true
+    }
+
+    stop() {
+        this.getElapsedTime()
+        this.running = false
+        this.autoStart = false
+    }
+
+    getElapsedTime() {
+        this.getDelta()
+        return this.elapsedTime
+    }
+
+    getDelta() {
+        let diff = 0
+        if (this.autoStart && !this.running) {
+            this.start()
+            return 0
+        }
+        if (this.running) {
+            const newTime = performance.now()
+            diff = (newTime - this.oldTime) / 1000
+            this.oldTime = newTime
+            this.elapsedTime += diff
+        }
+        return diff
+    }
+}
 
 export interface ViewerTimelineEventMap{
     start: object,
@@ -90,7 +136,7 @@ export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
         return this.running || this._step
     }
 
-    protected _clock = new Clock(false)
+    protected _clock = new TimelineClock(false)
 
     private _start = false
     private _stop = false

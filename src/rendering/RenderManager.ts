@@ -456,8 +456,15 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         return this._renderer
     }
 
+    get timer() {
+        return this._composer.timer
+    }
+
+    /**
+     * @deprecated use {@link timer}. The effect composer has a `Timer` since three.js r183 (`Clock` is deprecated).
+     */
     get clock() {
-        return this._composer.clock
+        return this._composer.timer
     }
 
     // endregion
