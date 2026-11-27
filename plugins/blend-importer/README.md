@@ -59,9 +59,10 @@ ignores `Range` sends the whole file; reading the response as a stream and cance
 
 Set these on the plugin (`viewer.getPlugin(BlendLoadPlugin)`) or on a plain three.js `BlendLoader` before loading:
 
-- `evaluationMode`: `'viewport'` (default) or `'render'`. Evaluates modifier stacks the way Blender's viewport or its renderer does: which modifiers run and which Subdivision level is used.
+- `evaluationMode`: `'viewport'` (default) or `'render'`. Evaluates the file the way Blender's viewport or its renderer does: which modifiers run, which Subdivision level is used, and which objects are hidden.
 - `maxTextureSize`: the longest side, in pixels, of the images packed in the file. A bigger image is shrunk while it is decoded, keeping its aspect ratio, before it becomes a texture. Packed images then decode one at a time, so only one is ever held at full size. `0` (default) keeps images as stored. External image files load at their own size.
 - `downsizedMipmaps`: `false` builds no mipmaps for the images `maxTextureSize` shrank, a quarter less GPU memory each. Images that weren't shrunk keep theirs. Default `true`.
+- `allObjects`: `true` imports every object in the file. By default only what Blender shows is imported: the active scene's objects, without hidden ones (following `evaluationMode`), with collection instances expanded. A file whose scene has no objects imports all of them either way.
 
 ```ts
 const blend = viewer.addPluginSync(BlendLoadPlugin)

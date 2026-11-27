@@ -311,6 +311,13 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
      */
     downsizedMipmaps = true
 
+    /**
+     * `true`: every object in the file. By default only the active scene's objects are imported, as Blender
+     * shows them: not those in collections kept for reuse (a fake user), in an asset library, or in other
+     * scenes. A file whose scene has no objects imports all of them either way.
+     */
+    allObjects = false
+
     constructor() {
         super()
     }
@@ -379,6 +386,7 @@ export class BlendLoadPlugin extends BaseImporterPlugin {
                 evaluationMode: this.plugin?.evaluationMode,
                 maxTextureSize: this.plugin?.maxTextureSize,
                 downsizedMipmaps: this.plugin?.downsizedMipmaps,
+                allObjects: this.plugin?.allObjects,
                 loadExternalTexture: importer
                     ? (p: string, srgb: boolean) => {
                         const req = resolveExternalTexture(p, srgb, importer, url, issues)

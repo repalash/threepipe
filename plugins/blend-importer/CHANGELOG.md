@@ -32,6 +32,13 @@ Works with threepipe 0.3.0 and later: every name the build imports from threepip
 
 ### Fixed
 
+- **Only what Blender shows is imported.** The importer built every object in the file, so objects Blender doesn't show piled up in the scene. Mr Elephant (Blender's demo) got 88 meshes from a collection kept only for reuse (white cabinets and books at the origin, inside the couch). A 2.7x car with 10 scenes got all 560 objects on top of each other. Now, as Blender does:
+  - **The active scene:** its collection tree since 2.80, its objects on its visible layers before.
+  - **Hidden objects left out**, following `evaluationMode`: collections excluded in the view layer, collections and objects disabled in the viewport (or, with `'render'`, in renders), and the view layer's eye icons (viewport only).
+  - **Collection instances** (an empty placing a collection, a "group" before 2.80) are expanded at the empty, moved by the collection's instance offset. The copies share geometry and materials. Barcelona Pavilion: its 4 chairs.
+  - **Hidden parents:** the parent of a shown object is still made, as an empty, for the transform.
+  - **One note per file** says how many objects were left out and why. `allObjects: true` (plugin and plain `BlendLoader`) imports every object as before. A file whose scene has no objects (an asset library) imports all of them either way.
+  - **Checked against Blender 5.3 on 17 files, in both modes:** the imported objects are exactly the scene's shown ones, and the instanced meshes are at Blender's positions. Particle and geometry-nodes instancing are still not imported.
 - **Memory.** Loading Blender's Mr Elephant demo (Blender 2.93, 116 MB uncompressed, 69 MB gzip) peaked at 594-613 MB of JS heap in Chromium and kept 429 MB after the load, for as long as the page lived; it now peaks at 157-276 MB and keeps 42 MB. In Node: peak heap 1.1 GB -> 0.13-0.28 GB, peak RSS 1.6 GB -> 0.7-0.8 GB, and once the app lets go of the parsed file only the scene's geometry stays (50 MB). Loads are also 1-1.5 s faster. What changed:
   - The parser no longer copies the whole decompressed file before reading it, and keeps nothing of a file in its module state after the parse (it kept the last file, its buffer and every parsed block, until the next parse).
   - Arrays of structs (a mesh's vertices, loops, faces, UVs...) no longer get a JS object per element up front: elements are made when first read, and the mesh code reads the block's bytes directly. That was ~520 MB of heap for this file.
