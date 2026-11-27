@@ -83,6 +83,25 @@ export const iObjectCommons = {
 
         this.traverse((obj) => {
             const l = obj as any
+            if (l.isLight) {
+                // Lights that fade with distance work in world units: a point or spot light falls off with
+                // distance^decay, so after scaling the object by `scale` it would be 1/scale^decay as bright on its
+                // (now nearer) surfaces. Scale the intensity, the cutoff distance and the area light's size with it,
+                // so the scene looks the same, only smaller. Directional, ambient and hemisphere lights don't fade.
+                if ((l.isPointLight || l.isSpotLight) && l.decay > 0) l.intensity *= Math.pow(scale, l.decay)
+                if ((l.isPointLight || l.isSpotLight) && l.distance > 0) l.distance *= scale
+                if (l.isRectAreaLight) {
+                    l.width *= scale
+                    l.height *= scale
+                }
+                const sc = l.shadow?.camera
+                if (sc?.isPerspectiveCamera) {
+                    sc.near *= scale
+                    sc.far *= scale
+                    sc.updateProjectionMatrix()
+                }
+                if (l.isPointLight || l.isSpotLight || l.isRectAreaLight || sc?.isPerspectiveCamera) obj.setDirty && obj.setDirty()
+            }
             if (l.isLight && l.shadow?.camera?.right) {
                 l.shadow.camera.right *= scale
                 l.shadow.camera.left *= scale
