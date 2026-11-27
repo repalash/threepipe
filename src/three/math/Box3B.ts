@@ -1,4 +1,4 @@
-import {Box2, Box3, BufferGeometry, Camera, Mesh, Object3D, Vector3} from 'three'
+import {Box2, Box3, BufferGeometry, Camera, InstancedMesh, Mesh, Object3D, SkinnedMesh, Vector3} from 'three'
 import type {IObject3D} from '../../core'
 
 export class Box3B extends Box3 {
@@ -17,6 +17,17 @@ export class Box3B extends Box3 {
 
         object.updateWorldMatrix(false, false)
 
+        // A skinned mesh's bone matrices are set by the renderer (skeleton.update in each frame): before its first render
+        // they are zeros, and its vertices (getVertexPosition, computeBoundingBox) all fall on one point. So a model
+        // centered or scaled right after loading (autoCenter, autoScale) was measured as a point.
+        if ((object as SkinnedMesh).isSkinnedMesh && (precise || (object as SkinnedMesh).boundingBox === null)) {
+            const skeleton = (object as SkinnedMesh).skeleton
+            if (skeleton) {
+                for (const bone of skeleton.bones) bone.updateWorldMatrix(true, false)
+                skeleton.update()
+            }
+        }
+
         const geometry = (object as IObject3D).geometry
 
         if (geometry !== undefined) {
@@ -24,9 +35,10 @@ export class Box3B extends Box3 {
             const positionAttribute = geometry.getAttribute('position')
 
             // precise AABB computation based on vertex data requires at least a position attribute.
-            // instancing isn't supported so far and uses the normal (conservative) code path.
+            // instancing isn't supported so far and uses the normal (conservative) code path (as in three.js: the vertices of
+            // an InstancedMesh are one instance, its bounding box has all of them).
 
-            if (precise === true && positionAttribute !== undefined && Object.getPrototypeOf(geometry).computeBoundingBox === BufferGeometry.prototype.computeBoundingBox) {
+            if (precise === true && positionAttribute !== undefined && (object as InstancedMesh).isInstancedMesh !== true && Object.getPrototypeOf(geometry).computeBoundingBox === BufferGeometry.prototype.computeBoundingBox) {
 
                 for (let i = 0, l = positionAttribute.count; i < l; i++) {
 

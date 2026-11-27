@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [Unreleased]
+
+### Fixed
+
+- `Box3B.expandByObject` measures every instance of an `InstancedMesh` also when precise (`autoCenter`, `autoScale`): the precise path read the vertices of one instance, as three.js avoids, so a model of instances (a 3D Tiles `.i3dm` or `.cmpt` of trees) was scaled to the size of one and the camera then fitted to all of them, far away
+- `Box3B.expandByObject` measures a `SkinnedMesh` in its pose before its first render: its bone matrices are set by the renderer, so they were zeros and the mesh measured as one point (`autoCenter`, `autoScale`, and the bounding box `fitToView` keeps)
+
 ## [0.6.1] - 2026-11-15
 
 ### Fixed
