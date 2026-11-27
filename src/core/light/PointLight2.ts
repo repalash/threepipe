@@ -50,9 +50,17 @@ export class PointLight2 extends PointLight implements ILight<PointLightShadow> 
     @uiNumber('Decay')
     @onChange3('setDirty')
     declare decay: number
+    /**
+     * The luminous power of the light in lumens, computed from and setting {@link intensity} (an accessor of three.js
+     * PointLight, so setting it sets intensity, which calls setDirty).
+     */
     @uiNumber('Power')
-    @onChange3('setDirty')
-    declare power: number
+    get power(): number {
+        return super.power
+    }
+    set power(value: number) {
+        super.power = value
+    }
 
     @uiVector('Position', undefined, undefined, (that: PointLight2)=>({onChange: ()=>that.setDirty()}))
     declare readonly position: Vector3
