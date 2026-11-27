@@ -68,7 +68,7 @@ An app that installs the release candidate pins `three` and `@types/three` to th
 
 ### Changed
 
-- Upgrade `three` from v0.168.10008 to v0.180.10001 (three.js r180, through r172 and r177)
+- Upgrade `three` from v0.168.10008 to v0.181.10001 (three.js r181, through r172, r177 and r180)
   - **Breaking** `RenderManager.exportRenderTarget()` is async and returns `Promise<BlobExt>` (three.js r169 made `EXRExporter.parse()` async); `RenderTargetPreviewPlugin.downloadTarget()` returns a promise too
   - **Breaking** glTF export is async (three.js r170): `GLTFWriter2.processObjects/processMaterial/processTexture` are now `processObjectsAsync/processMaterialAsync/processTextureAsync`, and glTF exporter plugins must implement `writeMaterialAsync` instead of `writeMaterial` — the old hook is silently ignored by three, so material extensions would be dropped from exports. All built-in extensions are updated. The `writeMesh`, `writeNode`, `beforeParse` and `afterParse` hooks may return a promise (three-modded awaits them)
   - `DisplayP3ColorSpace` moved out of three.js core (r170). threepipe registers Display P3 from `three/examples/jsm/math/ColorSpaces.js`, so the `ColorSpace` ui mapping keeps working
@@ -89,6 +89,10 @@ An app that installs the release candidate pins `three` and `@types/three` to th
   - `.hdr` files load with three.js `HDRLoader` (r180 renamed `RGBELoader`, which now warns when constructed). threepipe exports `HDRLoader`; its `RGBELoader` export stays for now and is deprecated
   - `MultiplyBlending` and `SubtractiveBlending` need `material.premultipliedAlpha = true` from three.js r178; without it three.js logs an error and draws the material with no blending
   - The types (three-types-modded 0.180.10001) type `Material.uuid` as writable, add back `Material.id` and `Material.defines`, and type `AnimationClip.userData` as `Record<string, any>` (upstream r178–r180 changed them)
+  - PBR materials look slightly different with three.js r181: indirect specular light uses a DFG lookup table, rough materials (roughness above 0.5) keep more energy and are a bit brighter (multiple-scattering compensation), and PMREM reflections are improved
+  - `AnisotropyPlugin` (webgi-plugins): the anisotropic lobe is the single-scattering term of three.js r181's `BRDF_GGX_Multiscatter` for direct lights, so anisotropic materials get the same energy compensation. With r181 the old patch did not find its anchor and direct light on anisotropic materials was isotropic
+  - The types (three-types-modded 0.181.10001) put the image type first: `Texture<TImage, TEventMap>` (three.js types r181). `ITexture<TE>` extends `Texture<any, TE>`, so code using `ITexture` does not change. `Source` needs its data type (`Source<any>`), `TextureImageData` is `DataTextureImageData` (`textureDataToImageData` takes it), and `Texture.DEFAULT_IMAGE` can be set (upstream r181 types it as `null`)
+  - three.js r181 writes its messages with `log()`, `warn()` and `error()` (still prefixed `THREE.`), which an app can redirect with `setConsoleFunction()`
 - `TransformControls2` and `PivotControls` do not listen to keys themselves now: their plugins register the keys (`actions`) in `viewer.actions`. An app that makes a gizmo without its plugin registers them: `viewer.actions.register(controls.actions)`
 - Uses ts-browser-helpers 0.23.0 (was 0.20.0). The dialogs of `viewer.dialog` with a UI plugin (`htmlDialogWrapper`: alert, confirm, prompt, choose) are modal `<dialog>` elements: the page behind an open dialog takes no click and no focus, and a close by the browser (Escape, the Android back gesture) resolves the dialog as its Escape does. They have the look of a Figma-like UI, a dark mode and CSS variables (`--dialog-*`) for an app's theme.
 - `ObjectPicker.setSelected` of a list switches the selection mode as its first item does (a list of objects after a material: object mode again), as a single item does

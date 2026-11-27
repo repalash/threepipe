@@ -152,7 +152,7 @@ export class ThreeSerialization {
                     imageOnLoad = resolve
                 }))
             }
-            const sources = data.image.isSource ? {[data.image.uuid]: data.image as Source} : loader.parseImages([data.image], imageOnLoad)
+            const sources = data.image.isSource ? {[data.image.uuid]: data.image as Source<any>} : loader.parseImages([data.image], imageOnLoad)
             data.image = Object.keys(sources)[0]
             if (meta?.images) meta.images[data.image] = sources[data.image]
             if (data.userData) data.userData = ThreeSerialization.Deserialize(data.userData, {}, meta)
@@ -782,7 +782,7 @@ export class MetaImporter {
                 tex = newTex
             }
             if (typeof HTMLCanvasElement !== 'undefined' && tex.source.data instanceof HTMLCanvasElement && !(tex as CanvasTexture).isCanvasTexture) { // no DOM in Node.js
-                const newTex = new CanvasTexture(tex.source.data).copy(tex)
+                const newTex = new CanvasTexture(tex.source.data).copy(tex as Texture<HTMLCanvasElement>)
                 resources.textures[key1] = newTex
                 tex = newTex
             }
@@ -792,7 +792,7 @@ export class MetaImporter {
         // todo: should this be moved after processRaw?
         const textures2 = {...resources.textures}
         for (const inpTexture of Object.values(json.textures)) {
-            inpTexture.rootPathPromise?.then((v: Source|null) => {
+            inpTexture.rootPathPromise?.then((v: Source<any>|null) => {
                 if (!v) return
                 const texture = textures2[inpTexture.uuid]
                 texture.dispose()
@@ -995,7 +995,7 @@ export function serializeTextureInExtras(texture: ITexture & ImportResultExtras,
 }
 
 declare module 'three'{
-    export interface Source{
+    export interface Source<TData>{
         ['__texCtor']?: typeof Texture
     }
 }

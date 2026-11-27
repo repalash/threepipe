@@ -62,7 +62,7 @@ declare module 'three'{
 
 }
 
-export interface ITexture<TE extends ITextureEventMap = ITextureEventMap> extends Texture<TE> {
+export interface ITexture<TE extends ITextureEventMap = ITextureEventMap> extends Texture<any, TE> {
     assetType?: 'texture'
     userData: ITextureUserData
     readonly isTexture: true
@@ -75,7 +75,7 @@ export interface ITexture<TE extends ITextureEventMap = ITextureEventMap> extend
 
     setDirty?(): void
 
-    source: Source & {
+    source: Source<any> & {
         _sourceImgBuffer?: ArrayBuffer|Uint8Array // see KTX2LoadPlugin and serializeTextureInExtras
         _canSerialize?: boolean // see KTX2LoadPlugin and GLTFExporter.js. Disables auto decompress for glTF export
     }

@@ -17,6 +17,7 @@ Release candidate of the three.js r177 upgrade lane, under the npm dist-tag `thr
 ### Changed
 
 - `AnisotropyPlugin` glTF export uses the async `writeMaterialAsync` hook and `processTextureAsync` (three.js r170 made `GLTFExporter` async and no longer calls `writeMaterial`; without this, exported files silently lost the anisotropy extension)
+- `AnisotropyPlugin` with three.js r181: the anisotropic lobe is the single-scattering term of `BRDF_GGX_Multiscatter`, which r181 uses for direct lights, so anisotropic materials keep its energy compensation (with r181 the old patch did not find its anchor, and direct light on anisotropic materials was isotropic)
 
 ## [0.7.0] - 2026-10-24
 

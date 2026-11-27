@@ -17,7 +17,7 @@ import {
     RGBIntegerFormat,
     RGFormat,
     RGIntegerFormat,
-    Texture, TextureImageData,
+    Texture, DataTextureImageData,
     TextureDataType,
     UnsignedByteType,
     WebGLRenderer,
@@ -43,9 +43,9 @@ export function getTextureDataType(renderer?: WebGLRenderer): TextureDataType {
     return halfFloatSupport ? HalfFloatType : floatSupport ? FloatType : UnsignedByteType
 }
 
-export function textureDataToImageData(imgData: TextureImageData | ImageData | {data: Float32Array|Uint16Array|Uint8Array, width: number, height: number}, colorSpace?: string, outData?: ImageData) {
+export function textureDataToImageData(imgData: DataTextureImageData | ImageData | {data: Float32Array|Uint16Array|Uint8Array, width: number, height: number}, colorSpace?: string, outData?: ImageData) {
     const data = outData?.data ?? new Uint8ClampedArray(imgData.height * imgData.width * 4)
-    const src = imgData.data as ArrayLike<number> // TextureImageData.data is an ArrayBufferView since three r172 types
+    const src = imgData.data as ArrayLike<number> // DataTextureImageData.data is an ArrayBufferView since three r172 types
     const isFloat32 = imgData.data instanceof Float32Array
     const isUint16 = imgData.data instanceof Uint16Array
 
@@ -76,9 +76,9 @@ export function textureDataToImageData(imgData: TextureImageData | ImageData | {
  * @param canvas
  */
 export function textureToCanvas(texture: Texture|DataTexture, maxWidth: number, flipY = false) {
-    let img
-    if ((texture as DataTexture).isDataTexture) img = textureDataToImageData(texture.image, texture.colorSpace)
-    else img = texture.image
+    const img = (texture as DataTexture).isDataTexture ?
+        textureDataToImageData((texture as DataTexture).image, texture.colorSpace) :
+        texture.image as TexImageSource // any other texture holds an image the canvas can draw (three r181 types Texture.image as unknown)
     return texImageToCanvas(img, maxWidth, flipY)
 }
 

@@ -128,9 +128,24 @@ export class AnisotropyPlugin extends AViewerPluginSync {
             lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
                 'vec3 BRDF_GGX( const in vec3 lightDir, const in vec3 viewDir, const in vec3 normal, const in PhysicalMaterial material ) {',
                 anisotropyBsdf + '\n', {prepend: true})
-            lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
-                'BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material )',
-                'BRDF_GGX_Anisotropy( directLight.direction, geometryViewDir, geometryNormal, material.specularColor, material.specularF90, material.roughness, anisotropicT, anisotropicB )')
+            const multiscatterCall = 'BRDF_GGX_Multiscatter( directLight.direction, geometryViewDir, geometryNormal, material )'
+            if (lights_physical_pars_fragment.includes(multiscatterCall)) {
+                // three.js r181 (#32072): RE_Direct_Physical calls BRDF_GGX_Multiscatter, which adds multiple-scattering
+                // energy compensation to BRDF_GGX. The anisotropic lobe becomes its single-scattering term.
+                lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
+                    'vec3 BRDF_GGX_Multiscatter( const in vec3 lightDir, const in vec3 viewDir, const in vec3 normal, const in PhysicalMaterial material ) {',
+                    'vec3 BRDF_GGX_Multiscatter( const in vec3 lightDir, const in vec3 viewDir, const in vec3 normal, const in PhysicalMaterial material, const in vec3 anisotropicT, const in vec3 anisotropicB ) {')
+                lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
+                    'vec3 singleScatter = BRDF_GGX( lightDir, viewDir, normal, material );',
+                    'vec3 singleScatter = BRDF_GGX_Anisotropy( lightDir, viewDir, normal, material.specularColor, material.specularF90, material.roughness, anisotropicT, anisotropicB );')
+                lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
+                    multiscatterCall,
+                    'BRDF_GGX_Multiscatter( directLight.direction, geometryViewDir, geometryNormal, material, anisotropicT, anisotropicB )')
+            } else {
+                lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
+                    'BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material )',
+                    'BRDF_GGX_Anisotropy( directLight.direction, geometryViewDir, geometryNormal, material.specularColor, material.specularF90, material.roughness, anisotropicT, anisotropicB )')
+            }
 
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#include <lights_physical_pars_fragment>', lights_physical_pars_fragment)
 
