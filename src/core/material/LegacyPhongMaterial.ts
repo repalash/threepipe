@@ -239,6 +239,7 @@ export class LegacyPhongMaterial<TE extends IMaterialEventMap = IMaterialEventMa
                     },
                 ],
             },
+            iMaterialUI.environment(this), // three.js r183 lights phong materials with the scene environment too
             ...iMaterialUI.misc(this),
         ],
     }
