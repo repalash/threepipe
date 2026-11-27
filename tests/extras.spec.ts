@@ -85,6 +85,7 @@ test('fat-lines', async({page}) => expect(page).toHaveTitle('Fat Lines/Mesh Line
 test('fat-lines-ssr', async({page}) => expect(page).toHaveTitle('Fat/Mesh Lines SSR'))
 test('fbx-export', async({page}) => expect(page).toHaveTitle('FBX Export (Assimp)'))
 test('file-load', async({page}) => expect(page).toHaveTitle('File/Blob Load'))
+test('polyhaven-ambientcg-material-load', async({page}) => expect(page).toHaveTitle('Poly Haven and ambientCG Materials'))
 // test('flickity-carousel', async({page}) => expect(page).toHaveTitle('Threepipe + Flickity Carousel')) // not testFinish
 test('filmic-grain-plugin', async({page}) => expect(page).toHaveTitle('Filmic Grain Plugin'))
 test('follow-path-constraint', async({page}) => expect(page).toHaveTitle('Follow Path Constraint'))

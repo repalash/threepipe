@@ -51,6 +51,7 @@ const cachedHosts = [
     'https://cdn.jsdelivr.net/', 'https://raw.githubusercontent.com/',
     'https://demo-assets.pixotronics.com/', 'https://dist.pixotronics.com/',
     'https://dl.polyhaven.org/',
+    'https://api.polyhaven.com/', 'https://acg-download.struffelproductions.com/',
 ]
 
 function cacheKey(url: string) { return url.replace(/[^a-zA-Z0-9._-]/g, '_') }

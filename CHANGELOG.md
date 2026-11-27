@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- `PolyhavenMaterialGLTFLoader` (`fileExtension: 'phmatgltf'`) moved from core to `@threepipe/plugins-extra-importers` (`PolyhavenMaterialLoadPlugin`): an app that loads Poly Haven material glTFs adds that plugin
+
 ### Added
 
 - uiconfig.js 0.5.2: the `icon` of a config (`UiObjectConfig.icon`); a config can be drawn by several renderers at once (`config.uiRefresh` refreshes each); one tooltip hook for every renderer (`UiConfigRendererBase.Tooltip`, `titleTooltip`, `setElementTooltip`, types `UiTooltipHook`, `UiTooltipInfo`)
@@ -78,6 +82,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `fileExtension` in the import options picks the loader also for a url that ends in the extension of another loader that already exists (a `.gltf` url with `fileExtension: 'phmatgltf'` after a glTF was loaded got the glTF loader, a `.zip` url with `'acgzip'` the zip loader)
+- A texture loaded from a file (in a zip, a dropped file) no longer keeps the file name as `userData.rootPath`: a saved material or scene with it fetched that name relative to the page on load (a 404 and errors, then the saved image was used)
+- The import of a file in a zip, or of a dropped file, says done for its path (`importFile` event, the loading screen) also with `processRaw: false`; it stayed at 'downloading'
 - The shadow maps are drawn again after a material change that changes what casts: Side, Shadow Side, Visible, Wireframe, Alpha Test, the map and alpha map, the displacement map, scale and bias, and the clipping planes (the `change` of `setDirty`, listed in `ThreeViewer.ShadowMaterialChanges`), a `setDirty()` with no `change`, and an object getting another material. Before, the old shadows stayed until something else reset them: for the first frames of a change with `SSAAPlugin` (it draws them again from the second frame), and for good without it
 - `BVHPlugin`: adopting a `geometry.boundsTree` set from outside that is not a `MeshBVH` (a `SkinnedMeshBVH`, `PointsBVH` or `LineSegmentsBVH` of three-mesh-bvh 0.9) threw, since only a `MeshBVH` has `resolveTriangleIndex`. Such a tree is now treated as not covering the drawn triangles, so the meshes keep the raycast of three.js. The plugin's types also accept three-mesh-bvh's `GeometryBVH` type of `boundsTree`, which failed to type-check in plugins that import three-mesh-bvh
 - `IAssetImporter` declares `resolveURL(url)`, which `AssetImporter` has (`@threepipe/plugin-blend-importer` calls it)

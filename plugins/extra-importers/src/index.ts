@@ -30,6 +30,11 @@ import {VRMLLoader} from 'three/examples/jsm/loaders/VRMLLoader.js'
 import {LDrawLoader} from 'three/examples/jsm/loaders/LDrawLoader.js'
 import {VTKLoader} from 'three/examples/jsm/loaders/VTKLoader.js'
 import {XYZLoader} from 'three/examples/jsm/loaders/XYZLoader.js'
+import {AmbientCGZipLoader} from './AmbientCGZipLoader'
+import {PolyhavenMaterialGLTFLoader} from './PolyhavenMaterialGLTFLoader'
+
+export {PolyhavenMaterialGLTFLoader} from './PolyhavenMaterialGLTFLoader'
+export {AmbientCGZipLoader, AmbientCGMaterialMaps, parseAmbientCGFileName, pickAmbientCGMapFiles, findAmbientCGHDRIFile, ambientCGMaterialParameters, type AmbientCGMapFile} from './AmbientCGZipLoader'
 
 // 3ds
 /**
@@ -229,6 +234,31 @@ export class XYZLoadPlugin extends BaseImporterPlugin {
     }, ['xyz'], ['text/plain+xyz'], false)
 }
 
+// ambientCG
+/**
+ * Adds support for loading [ambientCG](https://ambientcg.com) zips with `fileExtension: 'acgzip'`: a material zip (like
+ * `Fabric087_1K-JPG.zip`) as a {@link PhysicalMaterial}, an HDRI zip (like `NightEnvironmentHDRI011_1K.zip`) as its HDR
+ * texture. A plain `.zip` loads as before. See {@link AmbientCGZipLoader}.
+ */
+export class AmbientCGLoadPlugin extends BaseImporterPlugin {
+    public static readonly PluginType = 'AmbientCGLoadPlugin'
+    protected _importer = new Importer<AmbientCGZipLoader>(AmbientCGZipLoader, ['acgzip'], [], true, (l, assetImporter) => {
+        if (l) l.importer = assetImporter // it loads the files in the zip
+        return l
+    })
+}
+
+// Poly Haven
+/**
+ * Adds support for loading a [Poly Haven](https://polyhaven.com/textures) material glTF as a {@link PhysicalMaterial}, with
+ * `fileExtension: 'phmatgltf'` (from Poly Haven's CDN or a copy of the glTF with its files). See
+ * {@link PolyhavenMaterialGLTFLoader}.
+ */
+export class PolyhavenMaterialLoadPlugin extends BaseImporterPlugin {
+    public static readonly PluginType = 'PolyhavenMaterialLoadPlugin'
+    protected _importer = new Importer(PolyhavenMaterialGLTFLoader, ['phmatgltf'], [], true)
+}
+
 export const extraImportPlugins = [
     TDSLoadPlugin,
     ThreeMFLoadPlugin,
@@ -244,4 +274,6 @@ export const extraImportPlugins = [
     LDrawLoadPlugin,
     VTKLoadPlugin,
     XYZLoadPlugin,
+    AmbientCGLoadPlugin,
+    PolyhavenMaterialLoadPlugin,
 ] as const

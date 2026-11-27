@@ -111,6 +111,30 @@ viewer.assetManager.materialManager.applyMaterial(pMaterial, 'METAL') // apply p
 
 TODO: add examples for material load and copy
 
+### Poly Haven and ambientCG materials
+
+Materials from [Poly Haven](https://polyhaven.com/textures) (glTF) and [ambientCG](https://ambientcg.com) (zip) load as a [PhysicalMaterial](https://threepipe.org/docs/classes/PhysicalMaterial) with its maps set, with the `AmbientCGLoadPlugin` and `PolyhavenMaterialLoadPlugin` of [@threepipe/plugins-extra-importers](../package/plugins-extra-importers). Their files have the usual extensions (`.gltf`, `.zip`), so pass `fileExtension` to pick the loader:
+
+```typescript
+import {AmbientCGLoadPlugin, PolyhavenMaterialLoadPlugin} from '@threepipe/plugins-extra-importers'
+viewer.addPluginsSync([AmbientCGLoadPlugin, PolyhavenMaterialLoadPlugin])
+
+// Poly Haven: a material glTF, the result is the first material in it
+const planks = await viewer.load<PhysicalMaterial>('https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/worn_planks/worn_planks_1k.gltf', {fileExtension: 'phmatgltf'})
+
+// ambientCG: a material zip, like Fabric087_1K-JPG.zip
+const fabric = await viewer.load<PhysicalMaterial>('https://acg-download.struffelproductions.com/file/ambientCG-Web/download/Fabric087_PbQRcKaT/Fabric087_1K-JPG.zip', {fileExtension: 'acgzip'})
+
+object.material = fabric
+```
+
+- **ambientCG** (`acgzip`, `AmbientCGZipLoader`): the maps of the zip go to `map` (Color, sRGB), `normalMap` (NormalGL; NormalDX with `normalScale.y = -1` when there is no NormalGL), `roughnessMap`, `metalnessMap`, `aoMap` (AmbientOcclusion), `alphaMap` (Opacity, and `transparent` is set), `emissiveMap` (Emission, sRGB, white `emissive`) and `displacementMap`. The maps repeat (`RepeatWrapping`). `roughness` is 1, and `metalness` 1 with a Metalness map, else 0. `displacementScale` is 0: the depth depends on the size and the tessellation of the mesh, set it to use the displacement. Scattering maps are not used. Use the download url of the zip (`https://acg-download.struffelproductions.com/...`, the `downloadLink` of the [ambientCG API](https://ambientcg.com/api/v2/full_json?id=Fabric087&include=downloadData) redirects there): the `https://ambientcg.com/get?file=...` link cannot be loaded in a browser, its redirect has no CORS header. An ambientCG HDRI zip loads as an environment map, see [Background, Environment maps](#background-environment-maps).
+- **Poly Haven** (`phmatgltf`, `PolyhavenMaterialGLTFLoader`): the glTF of a material, from Poly Haven's CDN (`https://dl.polyhaven.org/file/ph-assets/Textures/gltf/<res>/<id>/<id>_<res>.gltf`, the `gltf` urls of the [Poly Haven API](https://api.polyhaven.com/files/worn_planks)) or downloaded with its `textures` folder and `.bin` to any host. The CDN keeps a glTF's textures in `Textures/<jpg|png>/<res>/<id>/`, not in the `textures` folder the glTF names, so for a glTF loaded from there the loader works out each texture's url the same way (`PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl`).
+
+A loaded material can be saved and loaded back like any material (`viewer.export(material)` gives a `.pmat` file). The textures of an ambientCG material are saved in the file (they have no url of their own); the textures of a Poly Haven material are saved as their urls (on the CDN, the urls the loader worked out).
+
+Check the example [polyhaven-ambientcg-material-load](https://threepipe.org/examples/#polyhaven-ambientcg-material-load/).
+
 ## Images/Textures
 
 Images can be loaded using the `viewer.load` method.
@@ -231,6 +255,14 @@ await viewer.setEnvironmentMap('https://example.com/file.hdr', {setBackground: t
 ```
 
 Check the HDR Load example to see it in action: https://threepipe.org/examples/#hdr-load/
+
+An [ambientCG](https://ambientcg.com/list?type=hdri) HDRI zip (like `NightEnvironmentHDRI011_1K.zip`) is loaded with `AmbientCGLoadPlugin` and `fileExtension: 'acgzip'`: the result is the HDR image in it (the `_HDR.exr` file, an equirectangular texture). Use the download url of the zip (see [Poly Haven and ambientCG materials](#poly-haven-and-ambientcg-materials)).
+```typescript
+await viewer.setEnvironmentMap('https://acg-download.struffelproductions.com/file/ambientCG-Web/download/NightEnvironmentHDRI011_avlc9BKw/NightEnvironmentHDRI011_1K.zip', {fileExtension: 'acgzip', setBackground: true})
+// or, also sets the environment (like a .hdr or .exr file)
+await viewer.load<ITexture>('https://acg-download.struffelproductions.com/file/ambientCG-Web/download/NightEnvironmentHDRI011_avlc9BKw/NightEnvironmentHDRI011_1K.zip', {fileExtension: 'acgzip'})
+```
+The texture keeps the zip url, so a saved scene refers to the zip and loads it again from there.
 
 ## SVG strings
 SVG strings can be converted to data urls using the [svgUrl](https://repalash.com/ts-browser-helpers/functions/svgUrl.html) string template function

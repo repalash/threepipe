@@ -39,14 +39,16 @@ This package exports several plugins to add support for several file types using
 - [MPDLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/MPDLoadPlugin.html) - Load LDraw (.mpd) files
 - [VTKLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/VTKLoadPlugin.html) - Load VTK (.vtk) files
 - [XYZLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/XYZLoadPlugin.html) - Load XYZ (.xyz) files
+- [AmbientCGLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/AmbientCGLoadPlugin.html) - Load [ambientCG](https://ambientcg.com) material zips as a PhysicalMaterial and HDRI zips as an environment map (`fileExtension: 'acgzip'`)
+- [PolyhavenMaterialLoadPlugin](https://threepipe.org/plugins/extra-importers/docs/classes/PolyhavenMaterialLoadPlugin.html) - Load [Poly Haven](https://polyhaven.com/textures) material glTFs as a PhysicalMaterial (`fileExtension: 'phmatgltf'`), also straight from their CDN
 
-To add all the plugins at once use `extraImporters`. This adds support for loading all the above file types.
+To add all the plugins at once use `extraImportPlugins`. This adds support for loading all the above file types.
 ```typescript
 import {ThreeViewer} from 'threepipe'
-import {extraImporters} from '@threepipe/plugins-extra-importers'
+import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 
 const viewer = new ThreeViewer({...})
-viewer.addPluginsSync(extraImporters)
+viewer.addPluginsSync(extraImportPlugins)
 
 // Now load any file as is.
 const model = await viewer.load<IObject3D>('file.3mf')

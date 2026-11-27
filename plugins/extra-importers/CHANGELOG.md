@@ -8,7 +8,8 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
-- NA
+- `AmbientCGLoadPlugin` with `AmbientCGZipLoader`: an [ambientCG](https://ambientcg.com) zip with `fileExtension: 'acgzip'`. A material zip (like `Fabric087_1K-JPG.zip`) loads as a `PhysicalMaterial` with its maps (Color, NormalGL, or NormalDX with the green channel flipped, Roughness, Metalness, AmbientOcclusion, Opacity, Emission, Displacement with `displacementScale` 0), repeating, with the colour spaces set; an HDRI zip (like `NightEnvironmentHDRI011_1K.zip`) loads as its equirectangular `_HDR.exr` texture, for `viewer.setEnvironmentMap(url, {fileExtension: 'acgzip'})` or `viewer.load`, and is saved as a reference to the zip. Ported from cc0textures-threejs. `PolyhavenMaterialGLTFLoader` and `AmbientCGZipLoader` are exported, and the website guide (Loading files) documents both. Example: `examples/polyhaven-ambientcg-material-load`
+- `PolyhavenMaterialLoadPlugin` with `PolyhavenMaterialGLTFLoader` (`phmatgltf`, moved from core): a material glTF from Poly Haven's CDN loads its textures (the CDN keeps them in `Textures/<jpg|png>/<res>/<id>/`, not in the `textures/` folder the glTF names; the loader maps each url by that rule)
 
 ## [0.2.7] - 2026-10-23
 
