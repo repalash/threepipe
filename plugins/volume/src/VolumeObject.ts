@@ -1,4 +1,4 @@
-import {BoxGeometry, IGeometry, IObject3D, Intersection, Matrix4, Mesh2, Ray, Raycaster, Vector3} from 'threepipe'
+import {BoxGeometry, IGeometry, IObject3D, Intersection, Material, Matrix4, Mesh2, Ray, Raycaster, Vector3} from 'threepipe'
 import {VolumeData} from './VolumeData'
 import {VolumeMaterial, VolumeRenderMode} from './VolumeMaterial'
 
@@ -62,6 +62,18 @@ export class VolumeObject extends Mesh2<IGeometry, VolumeMaterial> {
         this.fields[data.name] = data
         data.events.addEventListener('update', this._onFieldUpdate)
         if (!this._activeField || this._activeField === data.name) this.activeField = data.name
+    }
+
+    /**
+     * In iso mode, the material that draws the surface into the G-buffer ({@link VolumeMaterial.gbufferMaterial});
+     * else none (the volume is not in the G-buffer).
+     */
+    get customGBufferMaterial(): Material | undefined {
+        const m = this.material
+        return m?.isVolumeMaterial && m.mode === 'iso' ? m.gbufferMaterial : undefined
+    }
+    set customGBufferMaterial(_v: Material | undefined) {
+        // follows the mode of the material
     }
 
     /**

@@ -194,3 +194,4 @@ test('vue-sfc-sample', async({page}) => expect(page).toHaveTitle('Threepipe Vue/
 test('svelte-sample', async({page}) => expect(page).toHaveTitle('Threepipe Svelte Sample'))
 test('volume-plugin', async({page}) => expect(page).toHaveTitle('Volume Plugin'))
 test('volume-benchmark', async({page}) => expect(page).toHaveTitle('Volume Benchmark'))
+test('volume-lighting', async({page}) => expect(page).toHaveTitle('Volume Lighting'))

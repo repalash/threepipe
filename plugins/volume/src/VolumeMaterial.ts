@@ -36,6 +36,8 @@ import {
     Vector2,
     Vector3,
     WebGLRenderer,
+    UniformsLib,
+    UniformsUtils,
 } from 'threepipe'
 import {TransferFunction} from './TransferFunction'
 import type {VolumeData} from './VolumeData'
@@ -43,6 +45,11 @@ import {defaultVolumePresetName, volumePresets} from './library'
 import {MinMaxBlocks} from './derived/MinMaxBlocks'
 import {EmptySpaceMap} from './derived/EmptySpaceMap'
 import {GradientField, gradientMaxLength} from './derived/GradientField'
+import {LightVolume} from './derived/LightVolume'
+import {AmbientOcclusionVolume} from './derived/AmbientOcclusionVolume'
+import type {VolumeOpacityParams} from './derived/opacityParams'
+import {VolumeGBufferMaterial} from './VolumeGBufferMaterial'
+import {findShadowLight, lightDirectionInTexture} from './lighting'
 import vertexShader from './shaders/volume.vert.glsl'
 import fragmentShader from './shaders/volume.frag.glsl'
 
@@ -55,6 +62,27 @@ import fragmentShader from './shaders/volume.frag.glsl'
  * - `xray`: summed absorption, like a radiograph.
  */
 export type VolumeRenderMode = 'composite' | 'mip' | 'minip' | 'average' | 'iso' | 'xray'
+
+/**
+ * How samples are lit by the lights and the environment of the scene.
+ * - `none`: the colour of the transfer function as it is (emission only).
+ * - `surface`: shaded as a surface with the gradient as its normal (Lambert and GGX), like a mesh.
+ * - `volume`: scattered by the medium with a phase function, no normal: fog, smoke, soft tissue.
+ * - `hybrid`: surface where the gradient is strong, volume where it is weak ({@link VolumeMaterial.gradientFactor}).
+ */
+export type VolumeShading = 'none' | 'surface' | 'volume' | 'hybrid'
+
+const shadingDefine: Record<VolumeShading, number> = {none: 0, surface: 1, volume: 2, hybrid: 3}
+
+/**
+ * Context for {@link VolumeMaterial.updateDerived}: the object drawn with the material and its scene, for the
+ * lighting fields.
+ */
+export interface VolumeDerivedContext {
+    object?: IObject3D
+    scene?: Scene
+    camera?: Camera
+}
 
 const modeDefine: Record<VolumeRenderMode, number> = {composite: 0, mip: 1, minip: 2, average: 3, iso: 4, xray: 5}
 
@@ -99,6 +127,11 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this._field?.events.removeEventListener('update', this._fieldUpdate)
         this._emptySpace?.dispose()
         this._emptySpace = undefined
+        this._lightVolume?.dispose()
+        this._aoVolume?.dispose()
+        this._lightVolume = this._aoVolume = undefined
+        this._gbufferMaterial?.dispose()
+        this._gbufferMaterial = undefined
         this.transferFunction.removeEventListener('update', this._tfUpdate)
         this.transferFunction.dispose()
         return iMaterialCommons.dispose(super.dispose).call(this)
@@ -259,6 +292,78 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     @serialize() gradientTexture = false
 
     /**
+     * Sampling of the field between voxels: `linear` (8 voxels), or `cubic`, a tricubic B-spline (64 voxels in 8
+     * lookups) that is smoother, for isosurfaces and shading, and slower.
+     */
+    @uiDropdown('Sampling', (['linear', 'cubic'] as const).map(label => ({label})))
+    @onChange(VolumeMaterial.prototype._definesChanged)
+    @serialize() sampling: 'linear' | 'cubic' = 'linear'
+
+    /**
+     * Lighting by the lights and the environment of the scene, see {@link VolumeShading}. Iso mode is always shaded as
+     * a surface when it is not `none`.
+     */
+    @uiDropdown('Shading', (['none', 'surface', 'volume', 'hybrid'] as VolumeShading[]).map(label => ({label})))
+    @onChange(VolumeMaterial.prototype._definesChanged)
+    @serialize() shading: VolumeShading = 'none'
+
+    /**
+     * Hybrid shading: how fast a stronger gradient turns a sample into a surface. The surface share is
+     * `1 - exp(-gradientFactor * |gradient|)`, with the gradient of the transfer function coordinate per voxel
+     * (Exposure Render's gradient factor).
+     */
+    @uiSlider('Gradient Factor', [0, 100], 0.5)
+    @serialize() gradientFactor = 20
+
+    /**
+     * Volume shading: the Henyey-Greenstein anisotropy of the scattering, from -1 (back to the light) through 0
+     * (the same in all directions) to 1 (forward, bright when looking toward the light).
+     */
+    @uiSlider('Anisotropy', [-0.95, 0.95], 0.01)
+    @serialize() anisotropy = 0
+
+    /**
+     * Surface shading: roughness of the GGX highlight.
+     */
+    @uiSlider('Roughness', [0, 1], 0.01)
+    @serialize() roughness = 0.5
+
+    /**
+     * Surface shading: strength of the highlight (reflectance 0.04 at 1).
+     */
+    @uiSlider('Specular', [0, 2], 0.01)
+    @serialize() specular = 1
+
+    /**
+     * The volume shadows itself from one light of the scene: the first directional, spot or point light that casts
+     * shadows, else the first directional light. A {@link LightVolume} built on the GPU by {@link VolumePlugin}. Point
+     * and spot lights are taken as coming from one direction (from the centre of the volume).
+     */
+    @uiToggle('Shadows')
+    @onChange(VolumeMaterial.prototype._definesChanged)
+    @serialize() shadows = false
+
+    /**
+     * Local ambient occlusion: darkens the environment and ambient light in creases and inside dense parts. An
+     * {@link AmbientOcclusionVolume} built on the GPU by {@link VolumePlugin}.
+     */
+    @uiToggle('Ambient Occlusion')
+    @onChange(VolumeMaterial.prototype._definesChanged)
+    @serialize() ambientOcclusion = false
+
+    /**
+     * Reach of the ambient occlusion, in voxels.
+     */
+    @uiSlider('AO Radius', [1, 32], 1)
+    @serialize() aoRadius = 8
+
+    /**
+     * Resolution of the shadow and ambient occlusion volumes relative to the field, per axis.
+     */
+    @uiDropdown('Lighting Resolution', [0.25, 0.5, 1].map(value => ({label: String(value), value})))
+    @serialize() lightingResolution = 0.5
+
+    /**
      * Show the work per pixel instead of the image: red is the samples read, green the loop iterations and blue the
      * samples a ray would read without {@link emptySpaceSkipping}, each over 512. Not saved.
      */
@@ -272,6 +377,11 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     interactive = false
 
     private _emptySpace?: EmptySpaceMap
+    private _lightVolume?: LightVolume
+    private _aoVolume?: AmbientOcclusionVolume
+    private _shadowLightType = 0
+    private _shadowLightIndex = 0
+    private _lightingVersion = 0
 
     constructor(parameters?: {field?: VolumeData, mode?: VolumeRenderMode, preset?: string}) {
         super()
@@ -279,7 +389,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         super.setValues({
             vertexShader,
             fragmentShader,
-            uniforms: {
+            // the three.js light uniforms, used when shading is on (material.lights)
+            uniforms: UniformsUtils.merge([UniformsLib.lights, {
                 volumeMap: {value: null},
                 transferMap: {value: null},
                 uBoxSize: {value: new Vector3(1, 1, 1)},
@@ -305,7 +416,22 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
                 uOpenEnds: {value: 0},
                 uGradientMap: {value: null},
                 uGradientReady: {value: 0},
-            },
+                uEnvSH: {value: Array.from({length: 9}, () => new Vector3())},
+                uEnvRotation: {value: new Matrix3()},
+                uGradientFactor: {value: 20},
+                uAnisotropy: {value: 0},
+                uRoughness: {value: 0.5},
+                uSpecular: {value: 1},
+                uLightMap: {value: null},
+                uLightReady: {value: 0},
+                uLightPerm: {value: new Matrix3()},
+                uLightOffset: {value: new Vector3()},
+                uShadowLightType: {value: 0},
+                uShadowLightIndex: {value: 0},
+                uAOMap: {value: null},
+                uAOReady: {value: 0},
+                uAOBias: {value: 3},
+            }]),
             defines: {
                 VOLUME_MODE: 0,
                 VOL_GRADIENT_MAX: gradientMaxLength.toFixed(7),
@@ -362,8 +488,28 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
 
     private _modeChanged() {
         this.defines.VOLUME_MODE = modeDefine[this.mode] ?? 0
+        // an isosurface is opaque: it writes its depth and goes into the G-buffer (VolumeGBufferMaterial)
+        const iso = this.mode === 'iso'
+        if (iso) this.defines.VOL_WRITE_DEPTH = 1
+        else delete this.defines.VOL_WRITE_DEPTH
+        this.transparent = !iso
+        this.depthWrite = iso
+        if (this.userData) {
+            this.userData.renderToGBuffer = iso
+            this.userData.renderToDepth = iso
+        }
         this.needsUpdate = true
         this.setDirty({change: 'mode'})
+    }
+
+    private _gbufferMaterial?: VolumeGBufferMaterial
+
+    /**
+     * The material that draws the isosurface into the G-buffer (iso mode), see {@link VolumeGBufferMaterial}.
+     */
+    get gbufferMaterial(): VolumeGBufferMaterial {
+        if (!this._gbufferMaterial) this._gbufferMaterial = new VolumeGBufferMaterial(this)
+        return this._gbufferMaterial
     }
 
     private _definesChanged() {
@@ -376,6 +522,19 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
             this.needsUpdate = true
         }
         set('VOL_SKIP', this.emptySpaceSkipping)
+        set('VOL_CUBIC', this.sampling === 'cubic')
+        const shading = shadingDefine[this.shading] ?? 0
+        if ((d.VOL_LIGHTING ?? 0) !== shading) {
+            if (shading) d.VOL_LIGHTING = shading
+            else delete d.VOL_LIGHTING
+            this.needsUpdate = true
+        }
+        if (this.lights !== shading > 0) {
+            this.lights = shading > 0
+            this.needsUpdate = true
+        }
+        set('VOL_SHADOWS', shading > 0 && this.shadows)
+        set('VOL_AO', shading > 0 && this.ambientOcclusion)
         set('VOL_GRADIENT_MAP', this.gradientTexture)
         set('VOL_DEBUG_STEPS', this.debugSteps)
         this.setDirty({change: 'defines'})
@@ -405,7 +564,7 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     }
 
     private _blocks(field: VolumeData) {
-        const minMax = MinMaxBlocks.of(field, this.skipBlockSize)
+        const minMax = MinMaxBlocks.of(field, this.skipBlockSize, this.sampling === 'cubic' ? 2 : 1)
         if (this._emptySpace && this._emptySpace.minMax !== minMax) {
             this._emptySpace.dispose()
             this._emptySpace = undefined
@@ -428,10 +587,11 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      * Builds the GPU maps the march uses ({@link emptySpaceSkipping}, {@link gradientTexture}), spending at most
      * `budget` texture reads; called by {@link VolumePlugin} before each frame. Returns the reads spent.
      */
-    updateDerived(renderer: WebGLRenderer, budget = Infinity): number {
+    updateDerived(renderer: WebGLRenderer, budget = Infinity, context: VolumeDerivedContext = {}): number {
         const field = this._field
         if (!field) return 0
         let spent = 0
+        spent += this._updateLighting(renderer, budget, field, context)
         if (this._usesMinMax()) {
             const {minMax, emptySpace} = this._blocks(field)
             spent += minMax.update(renderer, budget - spent)
@@ -449,7 +609,95 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      */
     invalidateDerived() {
         this._emptySpace?.invalidate()
+        this._lightVolume?.invalidate()
+        this._aoVolume?.invalidate()
         this._field?.invalidateDerived()
+    }
+
+    private _opacityParams(field: VolumeData): VolumeOpacityParams {
+        return {
+            source: field.texture,
+            transferTexture: this.transferFunction.texture,
+            valueMap: this._valueMap(field),
+            mode: this.mode === 'iso' ? 'iso' : 'transfer',
+            iso: (this.isoValue - this.range.x) / (this.range.y - this.range.x || 1),
+            density: this.density,
+        }
+    }
+
+    private _usesShadows() {
+        return this.shading !== 'none' && this.shadows
+    }
+
+    private _usesAO() {
+        return this.shading !== 'none' && this.ambientOcclusion
+    }
+
+    /**
+     * Picks the shadow light and builds the light and ambient occlusion volumes.
+     */
+    private _updateLighting(renderer: WebGLRenderer, budget: number, field: VolumeData, context: VolumeDerivedContext): number {
+        let spent = 0
+        this._shadowLightType = 0
+        if (this._usesShadows() && context.scene && context.object) {
+            const found = findShadowLight(context.scene, context.camera)
+            if (found) {
+                this._shadowLightType = found.type
+                this._shadowLightIndex = found.index
+                if (!this._lightVolume) this._lightVolume = new LightVolume()
+                const dir = lightDirectionInTexture(found.light, context.object, this._boxSize(context.object))
+                this._lightVolume.setParams({
+                    ...this._opacityParams(field),
+                    lightDirection: dir,
+                    sourceSize: field.textureSize,
+                    scale: this.lightingResolution,
+                })
+                const v = this._lightVolume.version
+                if (budget - spent > 0) spent += this._lightVolume.update(renderer, budget - spent)
+                if (this._lightVolume.version !== v) this._lightingVersion++
+            }
+        }
+        if (this._usesAO()) {
+            if (!this._aoVolume) this._aoVolume = new AmbientOcclusionVolume()
+            this._aoVolume.setParams({
+                ...this._opacityParams(field),
+                sourceSize: field.textureSize,
+                scale: this.lightingResolution,
+                radius: this.aoRadius,
+            })
+            const v = this._aoVolume.version
+            if (budget - spent > 0) spent += this._aoVolume.update(renderer, budget - spent)
+            if (this._aoVolume.version !== v) this._lightingVersion++
+        }
+        return spent
+    }
+
+    private _boxSize(object: IObject3D): Vector3 {
+        const p = (object as any).geometry?.parameters
+        return p && p.width !== undefined ? new Vector3(p.width, p.height, p.depth) : new Vector3(1, 1, 1)
+    }
+
+    /**
+     * Increments when a lighting field finished building and the image changes ({@link VolumePlugin} then starts
+     * the progressive frames again).
+     */
+    get lightingVersion() {
+        return this._lightingVersion
+    }
+
+    /**
+     * The environment light as spherical harmonics (radiance, world space, 9 coefficients) and the rotation from world
+     * to environment directions. Set by {@link VolumePlugin} from `scene.environment`.
+     */
+    setEnvironment(coefficients: Vector3[] | undefined, rotation?: Matrix3) {
+        const u = this.uniforms as Record<string, IUniform>
+        const sh = u.uEnvSH.value as Vector3[]
+        for (let i = 0; i < 9; i++) {
+            if (coefficients?.[i]) sh[i].copy(coefficients[i])
+            else sh[i].set(0, 0, 0)
+        }
+        if (rotation) u.uEnvRotation.value.copy(rotation)
+        else u.uEnvRotation.value.identity()
     }
 
     /**
@@ -463,6 +711,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
             if (!minMax.ready) return true
             if (this._usesEmptySpaceMap() && !emptySpace.ready) return true
         }
+        if (this._usesShadows() && this._shadowLightType && this._lightVolume && !this._lightVolume.ready) return true
+        if (this._usesAO() && this._aoVolume && !this._aoVolume.ready) return true
         return this.gradientTexture && !GradientField.of(field).ready
     }
 
@@ -471,7 +721,7 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      * ({@link MinMaxBlocks}, {@link GradientField}) are counted by the field.
      */
     get derivedGpuBytes(): number {
-        return this._emptySpace?.gpuBytes ?? 0
+        return (this._emptySpace?.gpuBytes ?? 0) + (this._lightVolume?.gpuBytes ?? 0) + (this._aoVolume?.gpuBytes ?? 0)
     }
 
     private _rangeChanged() {
@@ -502,6 +752,26 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         u.uSkipReady.value = 0
         u.uMinMaxReady.value = 0
         u.uGradientReady.value = 0
+        u.uLightReady.value = 0
+        u.uAOReady.value = 0
+        u.uGradientFactor.value = this.gradientFactor
+        u.uAnisotropy.value = this.anisotropy
+        u.uRoughness.value = this.roughness
+        u.uSpecular.value = this.specular
+        if (this._usesShadows() && this._shadowLightType && this._lightVolume?.texture) {
+            u.uLightMap.value = this._lightVolume.texture
+            u.uLightPerm.value.copy(this._lightVolume.texturePermutation)
+            u.uLightOffset.value.copy(this._lightVolume.textureOffset)
+            u.uShadowLightType.value = this._shadowLightType
+            u.uShadowLightIndex.value = this._shadowLightIndex
+            u.uLightReady.value = 1
+        }
+        if (this._usesAO() && this._aoVolume?.texture) {
+            u.uAOMap.value = this._aoVolume.texture
+            // about 1.5 voxels of the occlusion volume
+            u.uAOBias.value = 1.5 / Math.max(0.05, this.lightingResolution)
+            u.uAOReady.value = 1
+        }
         if (field) {
             const tex = field.texture
             u.volumeMap.value = tex
@@ -560,7 +830,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
             // stop the ray at opaque geometry when the viewer has a G-buffer with depth
             const ext = rm.gbufferUnpackExtension
             if (ext && !this.materialExtensions.includes(ext)) this.registerMaterialExtensions([ext])
-            const hasDepth = !!rm.gbufferTarget
+            // the isosurface writes its own depth and is depth tested
+            const hasDepth = !!rm.gbufferTarget && this.mode !== 'iso'
             if (this.depthTest === hasDepth) {
                 // with scene depth in the shader, the back faces must not be depth tested: a mesh inside the
                 // volume would hide the part of the volume in front of it
@@ -652,3 +923,4 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     }
 
 }
+

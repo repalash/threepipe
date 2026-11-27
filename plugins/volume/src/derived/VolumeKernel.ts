@@ -1,4 +1,4 @@
-import {FullScreenQuad, IUniform, ShaderMaterial, WebGL3DRenderTarget, WebGLRenderer} from 'threepipe'
+import {FullScreenQuad, IUniform, ShaderMaterial, WebGL3DRenderTarget, WebGLRenderer, WebGLRenderTarget} from 'threepipe'
 
 export interface VolumeKernelOptions {
     /**
@@ -60,10 +60,11 @@ void main() {
     }
 
     /**
-     * Runs the kernel for the layers `from` to `to - 1` of `target`. The render target, the viewport and the clear
-     * settings of the renderer are restored after.
+     * Runs the kernel for the layers `from` to `to - 1` of `target` (a 2D target has one layer, 0). The render target,
+     * the viewport and the clear settings of the renderer are restored after.
      */
-    run(renderer: WebGLRenderer, target: WebGL3DRenderTarget, from = 0, to = target.depth) {
+    run(renderer: WebGLRenderer, target: WebGL3DRenderTarget | WebGLRenderTarget, from = 0, to = (target as WebGL3DRenderTarget).depth ?? 1) {
+        const depth = (target as WebGL3DRenderTarget).isWebGL3DRenderTarget ? (target as WebGL3DRenderTarget).depth : 1
         const prevTarget = renderer.getRenderTarget()
         const prevFace = renderer.getActiveCubeFace()
         const prevMip = renderer.getActiveMipmapLevel()
@@ -72,8 +73,8 @@ void main() {
         renderer.autoClear = false
         renderer.xr.enabled = false
         const u = this.material.uniforms
-        u.uOutputSize.value = [target.width, target.height, target.depth]
-        for (let z = Math.max(0, from); z < Math.min(to, target.depth); z++) {
+        u.uOutputSize.value = [target.width, target.height, depth]
+        for (let z = Math.max(0, from); z < Math.min(to, depth); z++) {
             u.uLayer.value = z
             // for 3D targets three.js uses the second argument as the layer
             renderer.setRenderTarget(target, z)

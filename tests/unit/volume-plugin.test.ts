@@ -1,11 +1,13 @@
 import {describe, expect, test} from 'vitest'
-import {DataUtils, FloatType, HalfFloatType, UnsignedByteType} from 'three'
+import {Data3DTexture, DataTexture, DataUtils, DirectionalLight, FloatType, HalfFloatType, PointLight, Scene, UnsignedByteType, Vector3} from 'three'
 import {NRRDLoader} from 'three/examples/jsm/loaders/NRRDLoader.js'
 import {TransferFunction} from '../../plugins/volume/src/TransferFunction'
 import {VolumeData} from '../../plugins/volume/src/VolumeData'
 import {VolumeMaterial} from '../../plugins/volume/src/VolumeMaterial'
 import {colorMaps, volumePresets, volViewPresets} from '../../plugins/volume/src/library'
 import {DerivedField, DerivedFieldPass} from '../../plugins/volume/src/derived/DerivedField'
+import {LightVolume} from '../../plugins/volume/src/derived/LightVolume'
+import {findShadowLight} from '../../plugins/volume/src/lighting'
 
 describe('TransferFunction', () => {
     test('interpolates between points and clamps outside them', () => {
@@ -272,5 +274,53 @@ describe('VolumeMaterial', () => {
         expect(b.preset).toBe('CT-Bone')
         expect(b.transferFunction.colorPoints).toEqual([[0, 1, 0, 0], [1, 0, 0, 1]])
         expect(b.range.toArray()).toEqual([-500, 500])
+    })
+})
+
+describe('lighting', () => {
+    test('the shadow light and its index follow the three.js light order', () => {
+        const scene = new Scene()
+        const dirA = new DirectionalLight()
+        const point = new PointLight()
+        const dirB = new DirectionalLight()
+        scene.add(dirA, point, dirB)
+        // no light casts shadows: the first directional light
+        expect(findShadowLight(scene)).toEqual({light: dirA, type: 1, index: 0})
+        // three.js lists the shadow casters first, so dirB is directional light 0
+        dirB.castShadow = true
+        expect(findShadowLight(scene)).toEqual({light: dirB, type: 1, index: 0})
+        // the first shadow caster in scene order
+        point.castShadow = true
+        expect(findShadowLight(scene)).toEqual({light: point, type: 2, index: 0})
+        point.visible = false
+        expect(findShadowLight(scene)).toEqual({light: dirB, type: 1, index: 0})
+    })
+
+    test('the light volume sweeps along the axis closest to the light, from the side of the light', () => {
+        const renderer = {extensions: {has: () => true}} as any
+        const make = (dir: Vector3) => {
+            const lv = new LightVolume()
+            lv.setParams({
+                source: new Data3DTexture(), transferTexture: new DataTexture(), valueMap: [1, 0], mode: 'transfer', iso: 0.5, density: 1,
+                lightDirection: dir, sourceSize: [64, 32, 16], scale: 0.5,
+            })
+            ;(lv as any)._createPasses(renderer)
+            return lv
+        }
+        // grid 32 x 16 x 8; in grid voxels the direction is (3.2, 16, 1.6): along y
+        const up = make(new Vector3(0.1, 1, 0.2))
+        expect(up.size).toEqual([32, 8, 16])
+        expect(new Vector3(1, 2, 3).applyMatrix3(up.permutation).toArray()).toEqual([1, 3, 2])
+        expect((up as any)._propagation.flip).toBe(true)
+        // the shadow bias points toward the light
+        expect((up as any)._offset.y).toBeGreaterThan(0)
+        const down = make(new Vector3(0.1, -1, 0.2))
+        expect((down as any)._propagation.flip).toBe(false)
+        // along z when that is the largest in grid voxels: (1.6, 1.6, 8)
+        const z = make(new Vector3(0.05, 0.1, 1))
+        expect(z.size).toEqual([32, 16, 8])
+        up.dispose()
+        down.dispose()
+        z.dispose()
     })
 })
