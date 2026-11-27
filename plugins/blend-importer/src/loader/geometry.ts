@@ -1,5 +1,5 @@
 import {Ctx} from './ctx'
-import {buildGeometry, MeshSource} from './meshBuilder'
+import {buildGeometry, MeshSource, withEmptyPosition} from './meshBuilder'
 
 // Reads a Blender Mesh datablock into a {@link MeshSource} and builds it with `buildGeometry`, which
 // does triangulation and normals the way Blender does. Blender has stored meshes in four layouts:
@@ -381,6 +381,55 @@ function sourceFromAttributes(meshData: any, opts: GeometryOptions): MeshSource 
     }
 }
 
+/**
+ * The polygon cage the Subsurf modifier subdivides (`catmull.ts`): shared positions in three.js space,
+ * the faces as vertex lists, per-corner UVs and per-face material slots. Same faces as the triangulated
+ * geometry, so Catmull-Clark smooths across them instead of across disconnected triangles.
+ *
+ * Made only when a Subsurf modifier asks for it (`cageOf`), from the mesh's source kept for the length of
+ * the import (`ctx.cageSources`). It used to be made for every mesh and kept on `geometry.userData.__cage`
+ * for the life of the scene: nested arrays, one per vertex, face and corner, ~200 MB of heap that nothing
+ * used after the import for Blender's Mr Elephant demo.
+ */
+type Cage = {positions: number[][], faces: number[][], uvs: number[][][] | null, materialIndices: number[] | null}
+
+export function cageOf(geometry: any, ctx: Ctx): Cage | undefined {
+    const src = ctx.cageSources?.get(geometry)
+    return src ? makeCage(src) : undefined
+}
+
+function makeCage(src: MeshSource): Cage | undefined {
+    const {positions: p, cornerVerts: cv, faceOffsets: fo, faceCount, vertCount} = src
+    const positions: number[][] = new Array(vertCount)
+    for (let i = 0; i < vertCount; i++) positions[i] = [p[i * 3], p[i * 3 + 2], -p[i * 3 + 1]] // Z-up -> Y-up
+    const uv = src.cornerUVs && src.cornerUVs.length >= cv.length * 2 ? src.cornerUVs : null
+    const useMats = src.materialSlots > 1 && !!src.faceMat
+    const faces: number[][] = [], uvs: number[][][] | null = uv ? [] : null, mats: number[] | null = useMats ? [] : null
+    for (let f = 0; f < faceCount; f++) {
+        const face: number[] = [], fuv: number[][] = []
+        for (let c = fo[f]; c < fo[f + 1]; c++) {
+            const v = cv[c]
+            if (!(v >= 0 && v < vertCount)) continue
+            face.push(v)
+            if (uv) fuv.push([uv[c * 2], uv[c * 2 + 1]])
+        }
+        if (face.length < 3) continue
+        faces.push(face)
+        if (uvs) uvs.push(fuv)
+        if (mats) mats.push(src.faceMat![f] || 0)
+    }
+    if (!faces.length) return undefined
+    return {positions, faces, uvs, materialIndices: mats}
+}
+
+function build(src: MeshSource | null, name: string, ctx: Ctx) {
+    if (!src) return withEmptyPosition(new ctx.BufferGeometry(), ctx)
+    const geometry = buildGeometry(src, name, ctx)
+    if (!ctx.cageSources) ctx.cageSources = new WeakMap()
+    ctx.cageSources.set(geometry, src)
+    return geometry
+}
+
 export function createBufferGeometry(meshData: any, ctx: Ctx, opts: GeometryOptions = {}) {
     const name = meshData.aname || ''
     let src: MeshSource | null = null
@@ -388,6 +437,10 @@ export function createBufferGeometry(meshData: any, ctx: Ctx, opts: GeometryOpti
     if (!src && meshData.mpoly && meshData.totpoly > 0) src = sourceFromMPoly(meshData)
     if (!src && meshData.poly_offset_indices) src = sourceFromLayers(meshData, opts)
     if (!src && meshData.mface && meshData.totface > 0) src = sourceFromMFace(meshData)
-    if (!src) return new ctx.BufferGeometry()
-    return buildGeometry(src, name, ctx)
+    return build(src, name, ctx)
+}
+
+/** A pre-4.0 (`MPoly`/`MLoop`) mesh datablock as geometry. Kept for tests that target that layout. */
+export function createBufferGeometryOld(meshData: any, ctx: Ctx) {
+    return build(sourceFromMPoly(meshData), meshData.aname || '', ctx)
 }

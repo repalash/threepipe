@@ -1,4 +1,5 @@
 import type {Texture} from 'threepipe'
+import {decodeTGA} from './tga.js'
 import {Ctx} from './ctx'
 
 // Material.blend_flag bit for the "Backface Culling" toggle (DNA_material_types.h: MA_BL_CULL_BACKFACE).
@@ -94,14 +95,125 @@ function imageMime(b: Uint8Array): string | null {
     if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45) return 'image/webp'
     return null
 }
+// The number of colour components in a JPEG's frame header (SOFn): 1 grey, 3 colour, 4 CMYK or YCCK; 0 if not found.
+export function jpegComponents(b: Uint8Array): number {
+    let i = 2
+    while (i + 9 < b.length) {
+        if (b[i] !== 0xff) return 0
+        const marker = b[i + 1]
+        if (marker === 0xff) { i++; continue } // fill byte
+        if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd8)) { i += 2; continue } // no length
+        if (marker === 0xda || marker === 0xd9) return 0 // scan data before any frame header
+        if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) return b[i + 9]
+        i += 2 + ((b[i + 2] << 8) | b[i + 3])
+    }
+    return 0
+}
+const imageName = (img: any): string => (typeof img?.aname === 'string' ? img.aname : '') || (typeof img?.name === 'string' ? img.name : '') || 'blendTexture'
+
+// ── Downsizing (Ctx.maxTextureSize) ───────────────────────────────
+function makeCanvas(width: number, height: number): any {
+    if (typeof document !== 'undefined') {
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        return canvas
+    }
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height)
+    return null
+}
+
+// `image` (an <img>, canvas or ImageBitmap) drawn at most `max` pixels on its longest side, keeping its aspect
+// ratio, or undefined when it is small enough already (or there is no canvas to draw on). With `always`, drawn
+// even when it is small enough, at its own size.
+function downsized(image: any, max: number | undefined, always = false): any {
+    const w = image.naturalWidth || image.width, h = image.naturalHeight || image.height
+    if (!(w > 0 && h > 0)) return undefined
+    const shrink = !!max && max > 0 && Math.max(w, h) > max
+    if (!shrink && !always) return undefined
+    const scale = shrink ? max! / Math.max(w, h) : 1
+    const width = Math.max(1, Math.round(w * scale)), height = Math.max(1, Math.round(h * scale))
+    const canvas = makeCanvas(width, height)
+    const c2d = canvas && canvas.getContext('2d')
+    if (!c2d) return undefined
+    c2d.imageSmoothingEnabled = true
+    c2d.imageSmoothingQuality = 'high'
+    c2d.drawImage(image, 0, 0, width, height)
+    return canvas
+}
+
+function setDownsized(texture: Texture, ctx: Ctx) {
+    if (ctx.downsizedMipmaps !== false) return
+    texture.generateMipmaps = false
+    texture.minFilter = ctx.LinearFilter
+}
+
+// A packed TGA (Blender packs whatever file the image came from): decoded here, since browsers can't.
+function tgaTexture(bytes: Uint8Array, img: any, srgb: boolean, ctx: Ctx): Texture | null {
+    let tga
+    try {
+        tga = decodeTGA(bytes.buffer as ArrayBuffer)
+    } catch (e) {
+        return null
+    }
+    let texture: Texture
+    const full = ctx.maxTextureSize && Math.max(tga.width, tga.height) > ctx.maxTextureSize ? makeCanvas(tga.width, tga.height) : null
+    const small = full && (() => {
+        full.getContext('2d')?.putImageData(new ImageData(new Uint8ClampedArray(tga.data.buffer, tga.data.byteOffset, tga.data.byteLength), tga.width, tga.height), 0, 0)
+        return downsized(full, ctx.maxTextureSize)
+    })()
+    if (small) {
+        // rows top-down like an image, so the texture's default flipY is right
+        texture = new ctx.Texture(small)
+        setDownsized(texture, ctx)
+    } else {
+        texture = new ctx.DataTexture(tga.data, tga.width, tga.height)
+        // Rows are top-down like an image, so upload flipped like one; DataTexture defaults to Nearest, no mips.
+        texture.flipY = true
+        texture.generateMipmaps = true
+        texture.minFilter = ctx.LinearMipmapLinearFilter
+        texture.magFilter = ctx.LinearFilter
+    }
+    if (srgb) ctx.setSRGB(texture)
+    texture.name = imageName(img)
+    texture.needsUpdate = true
+    return texture
+}
+
 // Load the packed image of an Image Texture node. `srgb` for color maps (base/emissive); false for data maps.
-function packedTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null {
+// Returns undefined when the image isn't packed, null when it is but can't be decoded here.
+//
+// Each packed image is decoded once per import and color space: the next node using it gets a clone, which
+// shares the image (and, on three r138+, the upload to the GPU) but has its own wrap and UV transform. It used
+// to be decoded again for every use: 44 decodes for 37 images in Blender's Mr Elephant demo.
+interface PackedImage {texture: Texture | null | undefined, users: Texture[], loaded: boolean}
+function packedTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null | undefined {
     const img = imageNode && imageNode.id
-    if (!img) return null
+    if (!img) return undefined
+    if (!ctx.packedImages) ctx.packedImages = new Map()
+    let byColorSpace: Record<string, PackedImage> = ctx.packedImages.get(img)
+    if (!byColorSpace) ctx.packedImages.set(img, byColorSpace = {})
+    const key = srgb ? 'srgb' : 'linear'
+    const known = byColorSpace[key]
+    if (known) {
+        if (!known.texture) return known.texture
+        const clone = known.texture.clone()
+        known.users.push(clone)
+        if (known.loaded) clone.needsUpdate = true
+        return clone
+    }
+    const entry: PackedImage = {texture: undefined, users: [], loaded: false}
+    byColorSpace[key] = entry
+    entry.texture = decodePacked(img, srgb, ctx, entry)
+    if (entry.texture) entry.users.push(entry.texture)
+    return entry.texture
+}
+
+function decodePacked(img: any, srgb: boolean, ctx: Ctx, entry: PackedImage): Texture | null | undefined {
     const pf = img.packedfile || (img.packedfiles && img.packedfiles.first && img.packedfiles.first.packedfile)
     const block = pf && pf.data
     const size = pf && typeof pf.size === 'number' ? pf.size : 0
-    if (!block || block.__data_address__ === undefined || size <= 0) return null
+    if (!block || block.__data_address__ === undefined || size <= 0) return undefined
     // Bounds-check before constructing the view: a stale/corrupt PackedFile.size or address would otherwise
     // make `new Uint8Array(buffer, offset, size)` throw a RangeError that bubbles up and fails the whole
     // import. Skip the one bad texture instead.
@@ -109,15 +221,47 @@ function packedTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null 
     if (block.__data_address__ + size > buf.byteLength) return null
     const bytes = new Uint8Array(buf, block.__data_address__, size).slice()
     const mime = imageMime(bytes)
-    if (!mime || typeof Blob === 'undefined' || typeof URL === 'undefined' || typeof Image === 'undefined') return null
-    const url = URL.createObjectURL(new Blob([bytes], {type: mime}))
+    // A CMYK JPEG decodes in an <img>, but WebKit refuses to upload one to WebGL ("texSubImage2D: bad image
+    // data"): it goes through a canvas, which holds RGBA.
+    const viaCanvas = mime === 'image/jpeg' && jpegComponents(bytes) === 4
+    if (!mime) {
+        const tga = /\.tga$/i.test(String(img.name ?? '')) || /\.tga$/i.test(imageName(img)) ? tgaTexture(bytes, img, srgb, ctx) : null
+        if (!tga && ctx.onTextureIssue) ctx.onTextureIssue('packed-unsupported', imageName(img))
+        entry.loaded = !!tga
+        return tga
+    }
+    if (typeof Blob === 'undefined' || typeof URL === 'undefined' || typeof Image === 'undefined') return null
     const el = new Image()
     const texture = new ctx.Texture(el)
     if (srgb) ctx.setSRGB(texture)
-    texture.name = (typeof img.aname === 'string' ? img.aname : '') || 'blendTexture'
-    el.onload = () => { texture.needsUpdate = true; URL.revokeObjectURL(url) }
-    el.onerror = () => { URL.revokeObjectURL(url) }
-    el.src = url
+    texture.name = imageName(img)
+    const decode = () => new Promise<void>((resolve) => {
+        const url = URL.createObjectURL(new Blob([bytes], {type: mime}))
+        el.onload = () => {
+            URL.revokeObjectURL(url)
+            // Shrunk to Ctx.maxTextureSize: the textures get the small canvas and the full-size <img> is let go.
+            const small = downsized(el, ctx.maxTextureSize)
+            const drawn = small ?? (viaCanvas ? downsized(el, 0, true) : undefined)
+            for (const t of entry.users) {
+                if (drawn) t.image = drawn
+                if (small) setDownsized(t, ctx)
+                t.needsUpdate = true
+            }
+            entry.loaded = true
+            resolve()
+        }
+        el.onerror = () => {
+            URL.revokeObjectURL(url)
+            if (ctx.onTextureIssue) ctx.onTextureIssue('packed-unsupported', imageName(img))
+            resolve()
+        }
+        el.src = url
+    })
+    // With a size cap, one image at a time, so only one is ever in memory at full size; without, all at once.
+    const decoded = ctx.maxTextureSize && ctx.maxTextureSize > 0
+        ? ctx.decodeQueue = (ctx.decodeQueue || Promise.resolve()).then(decode)
+        : decode()
+    if (ctx.onPending) ctx.onPending(decoded)
     return texture
 }
 // Image source enum (DNA_image_types.h): GENERATED = 4, VIEWER = 5 have no backing file.
@@ -136,29 +280,64 @@ function applyWrap(tex: Texture | null, imageNode: any, ctx: Ctx): Texture | nul
     if (!tex) return tex
     const ext = imageNode?.storage?.extension
     tex.wrapS = tex.wrapT = ext === 1 || ext === 2 ? ctx.ClampToEdgeWrapping : ext === 3 ? ctx.MirroredRepeatWrapping : ctx.RepeatWrapping
-    tex.needsUpdate = true
+    // No needsUpdate: the texture hasn't been uploaded yet (an image still decoding, or a placeholder),
+    // and flagging one without image data makes three warn on every frame.
     return tex
 }
-function imageNodeTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null {
+// Apply a Mapping node feeding the Image Texture's "Vector" input to the texture's UV transform. Blender's
+// Mapping (Point) composes scale → rotate → translate(location) around the origin, which is exactly three.js's
+// UV matrix (repeat → rotation → offset, center 0): repeat = Scale.xy, offset = Location.xy, rotation =
+// Rotation.z. Previously the Mapping node was ignored, so tiled/offset/rotated materials rendered at 1:1.
+function applyMapping(tex: Texture | null, imageNode: any, links: any[]): Texture | null {
+    if (!tex || !links) return tex
+    const src = nodeFeeding(links, socketByName(inputsOf(imageNode), 'Vector'))
+    if (!src || !idnameOf(src).includes('Mapping')) return tex
+    const inp = inputsOf(src)
+    const scl = socketConst(socketByName(inp, 'Scale')), loc = socketConst(socketByName(inp, 'Location')), rot = socketConst(socketByName(inp, 'Rotation'))
+    if (scl && scl.length >= 2) tex.repeat.set(num(scl[0]) ?? 1, num(scl[1]) ?? 1)
+    if (loc && loc.length >= 2) tex.offset.set(num(loc[0]) ?? 0, num(loc[1]) ?? 0)
+    if (rot && rot.length >= 3) tex.rotation = num(rot[2]) ?? 0
+    // The UV transform is a uniform; no re-upload needed.
+    return tex
+}
+function imageNodeTexture(imageNode: any, srgb: boolean, ctx: Ctx, links: any[] = []): Texture | null {
     const packed = packedTexture(imageNode, srgb, ctx)
-    if (packed) return applyWrap(packed, imageNode, ctx)
+    if (packed) return applyMapping(applyWrap(packed, imageNode, ctx), imageNode, links)
+    // Packed but undecodable (reported above): don't also try the path, which usually isn't there.
+    if (packed === null) return null
     const img = imageNode && imageNode.id
     if (img && img.source !== IMA_SRC_GENERATED && img.source !== IMA_SRC_VIEWER
         && typeof img.name === 'string' && img.name && ctx.loadExternalTexture) {
-        return applyWrap(ctx.loadExternalTexture(img.name, srgb), imageNode, ctx)
+        return applyMapping(applyWrap(ctx.loadExternalTexture(img.name, srgb), imageNode, ctx), imageNode, links)
     }
     return null
 }
-// The Image Texture node feeding a socket (directly, or through a Normal Map node for normals), or null.
-function imageNodeFeeding(links: any[], socket: any): any {
-    let src = nodeFeeding(links, socket)
-    if (src && idnameOf(src).includes('NormalMap')) src = nodeFeeding(links, socketByName(inputsOf(src), 'Color'))
-    return src && idnameOf(src).includes('TexImage') ? src : null
+// Pass-through nodes whose linked inputs we follow when hunting for the Image Texture feeding a socket.
+// (The exporter's get_texture_node_from_socket walks the graph; these cover the common colour/value relays:
+// Normal Map, Separate Color/RGB/XYZ, Mix/MixRGB, Math/MapRange, Gamma/Bright-Contrast/Hue-Sat/Invert/Curves,
+// Color Ramp.) Tracing through Separate Color back to a packed ORM image and assigning it as
+// roughnessMap/metalnessMap is correct because three.js samples roughness from .g and metalness from .b.
+const PASS_THROUGH_NODES = ['NormalMap', 'SeparateColor', 'SeparateRGB', 'SeparateXYZ', 'MixRGB', 'Mix',
+    'Math', 'MapRange', 'Gamma', 'BrightContrast', 'HueSaturation', 'Invert', 'RGBCurve', 'CurveRGB', 'ValToRGB']
+
+// The Image Texture node feeding a socket — directly, or through the pass-through relays above (recursively).
+// Was: only hopped a single Normal Map node, so packed-ORM, mix and group-relayed textures were missed.
+function imageNodeFeeding(links: any[], socket: any, depth = 0): any {
+    if (depth > 10) return null
+    const src = nodeFeeding(links, socket)
+    if (!src) return null
+    const id = idnameOf(src)
+    if (id.includes('TexImage')) return src
+    if (!PASS_THROUGH_NODES.some(p => id.includes(p))) return null // unknown node → stop (don't grab a stray image)
+    for (const link of links) {
+        if (link.tonode === src) { const r = imageNodeFeeding(links, link.tosock, depth + 1); if (r) return r }
+    }
+    return null
 }
 // Trace a socket to its Image Texture node and load it.
 function textureFromSocket(links: any[], socket: any, srgb: boolean, ctx: Ctx): Texture | null {
     const src = imageNodeFeeding(links, socket)
-    return src ? imageNodeTexture(src, srgb, ctx) : null
+    return src ? imageNodeTexture(src, srgb, ctx, links) : null
 }
 
 // ── Surface shader resolution ───────────────────────────────────────
@@ -236,7 +415,7 @@ export function createMaterial(mat: any, ctx: Ctx) {
         // Base color: texture takes precedence; factor (clamped) otherwise. (pbr_metallic_roughness.py:73)
         const baseSock = socketByName(inp, 'Base Color', 'BaseColor')
         const baseImgNode = imageNodeFeeding(links, baseSock)
-        const baseTex = baseImgNode ? imageNodeTexture(baseImgNode, true, ctx) : null
+        const baseTex = baseImgNode ? imageNodeTexture(baseImgNode, true, ctx, links) : null
         if (baseTex) {
             material.map = baseTex
             material.color.setRGB(1, 1, 1)
@@ -282,7 +461,7 @@ export function createMaterial(mat: any, ctx: Ctx) {
         // (three.js samples alphaMap.g), giving wrong cutouts — so only use a distinct alphaMap when the
         // alpha image differs from the base image.
         const alphaFromBase = !!(alphaImgNode && baseImgNode && alphaImgNode === baseImgNode)
-        const alphaTex = (alphaImgNode && !alphaFromBase) ? imageNodeTexture(alphaImgNode, false, ctx) : null
+        const alphaTex = (alphaImgNode && !alphaFromBase) ? imageNodeTexture(alphaImgNode, false, ctx, links) : null
         const alphaC = num(socketConst(alphaSock))
         const hasAlpha = !!alphaTex || alphaFromBase || (alphaC !== undefined && alphaC < 1.0)
         if (alphaTex) material.alphaMap = alphaTex

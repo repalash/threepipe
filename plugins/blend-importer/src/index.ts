@@ -1,2 +1,8 @@
 export {BlendLoadPlugin} from './BlendLoadPlugin'
 export type {BlendFile, BlendLoadOptions} from './BlendLoadPlugin'
+export type {BlendEvaluationMode} from './loader/ctx'
+export {readBlendThumbnail, blendThumbnailImageData, BLEND_THUMBNAIL_BYTES} from './thumbnail'
+export type {BlendThumbnail} from './thumbnail'
+export {blendScenes, blendViewSettings} from './loader/scene'
+export type {BlendSceneInfo, BlendViewSettings} from './loader/scene'
+export type {BlendLightUnits} from './loader/light'
