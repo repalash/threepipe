@@ -1,5 +1,5 @@
 import {IMaterial} from './IMaterial'
-import {Source, Texture, TextureEventMap} from 'three'
+import {Texture, TextureEventMap, TextureSource} from 'three'
 import {IRenderTarget} from '../rendering'
 import type {ChangeEvent, UiObjectConfig} from 'uiconfig.js'
 import {IObject3D} from './IObject'
@@ -75,7 +75,7 @@ export interface ITexture<TE extends ITextureEventMap = ITextureEventMap> extend
 
     setDirty?(): void
 
-    source: Source<any> & {
+    source: TextureSource<any> & {
         _sourceImgBuffer?: ArrayBuffer|Uint8Array // see KTX2LoadPlugin and serializeTextureInExtras
         _canSerialize?: boolean // see KTX2LoadPlugin and GLTFExporter.js. Disables auto decompress for glTF export
     }

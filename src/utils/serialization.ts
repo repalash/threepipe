@@ -34,10 +34,10 @@ import {
     QuadraticBezierCurve3,
     Quaternion,
     Shape,
-    Source,
     Spherical,
     SplineCurve,
     Texture,
+    TextureSource,
     Vector2,
     Vector3,
     Vector4,
@@ -141,18 +141,18 @@ export class ThreeSerialization {
                     data.image = meta.images[data.image]
                 }
             }
-            if (!data.image || typeof data.image === 'string' || !data.image.isSource && !data.image.url) {
+            if (!data.image || typeof data.image === 'string' || !data.image.isTextureSource && !data.image.url) {
                 console.error('ThreeSerialization: Cannot deserialize texture', data)
                 return obj
             }
             let imageOnLoad: undefined | (()=>void)
-            if (meta && !data.image.isSource) {
+            if (meta && !data.image.isTextureSource) {
                 if (!meta._context.imagePromises) meta._context.imagePromises = []
                 meta._context.imagePromises.push(new Promise<void>((resolve) => {
                     imageOnLoad = resolve
                 }))
             }
-            const sources = data.image.isSource ? {[data.image.uuid]: data.image as Source<any>} : loader.parseImages([data.image], imageOnLoad)
+            const sources = data.image.isTextureSource ? {[data.image.uuid]: data.image as TextureSource<any>} : loader.parseImages([data.image], imageOnLoad)
             data.image = Object.keys(sources)[0]
             if (meta?.images) meta.images[data.image] = sources[data.image]
             if (data.userData) data.userData = ThreeSerialization.Deserialize(data.userData, {}, meta)
@@ -771,7 +771,7 @@ export class MetaImporter {
             if (!tex) continue
             // its image did not load (a rootPath that failed, a missing image): an empty source, so the rest of the
             // file still loads (reading tex.source.__texCtor threw and nothing in the file loaded)
-            if (!tex.source) tex.source = new Source(null)
+            if (!tex.source) tex.source = new TextureSource(null)
             // __texCtor is set in MetaImporter.LoadRootPathTextures
             if (tex.source.__texCtor) {
                 const newTex: Texture = new tex.source.__texCtor(tex.source.data)
@@ -792,7 +792,7 @@ export class MetaImporter {
         // todo: should this be moved after processRaw?
         const textures2 = {...resources.textures}
         for (const inpTexture of Object.values(json.textures)) {
-            inpTexture.rootPathPromise?.then((v: Source<any>|null) => {
+            inpTexture.rootPathPromise?.then((v: TextureSource<any>|null) => {
                 if (!v) return
                 const texture = textures2[inpTexture.uuid]
                 texture.dispose()
@@ -889,7 +889,7 @@ export class MetaImporter {
                     return
                 }
                 // console.log(typeof image)
-                const source2 = new Source(source.data)
+                const source2 = new TextureSource(source.data)
                 if (inpTexture.image) source2.uuid = inpTexture.image
                 inpTexture.image = source2.uuid
 
@@ -995,7 +995,7 @@ export function serializeTextureInExtras(texture: ITexture & ImportResultExtras,
 }
 
 declare module 'three'{
-    export interface Source<TData>{
+    export interface TextureSource<TData>{
         ['__texCtor']?: typeof Texture
     }
 }
