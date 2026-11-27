@@ -43,7 +43,6 @@ function worker_code () {
         offset = 0,
         working_blend_file = null,
         current_SDNA_template = null,
-        templates = {},
         finished_objects = [],
         FILE = null,
         ERROR = null,
@@ -72,7 +71,9 @@ function worker_code () {
             // set data
             _data = msg.data;
 
-            AB = _data.slice();
+            // Parse the caller's buffer in place: the parser only reads it. It was copied here, which held
+            // the whole decompressed file twice (116 MB more for Blender's Mr Elephant demo).
+            AB = _data;
 
             data = new DataView(_data);
 
@@ -83,7 +84,13 @@ function worker_code () {
             readFile();
 
             // export parsed data
-            self.postMessage(FILE, ERROR);
+            const file = FILE, error = ERROR;
+            // Keep nothing of this file in the module: it used to stay referenced (the buffer and every
+            // parsed block) until the next parse, so the last loaded file was never freed.
+            AB = data = _data = FILE = working_blend_file = current_SDNA_template = null;
+            struct_names = [];
+            finished_objects = [];
+            self.postMessage(file, error);
         }
     }
 
@@ -100,6 +107,15 @@ function worker_code () {
 
         this.objects = {};
         this.memory_lookup = {},
+        // Per-ID pointer maps. Blender resolves a DATA block's old address only among the DATA blocks
+        // written after the same ID (blo_read_file.cc clears `fd->datamap` per ID); ID blocks resolve
+        // globally. Blender 5.x writes deterministic per-ID addresses, so the SAME address recurs in
+        // every mesh/material (e.g. each Mesh's attribute array) and a single global map makes every
+        // mesh resolve to the last one's data. `scope_lookup[scope][address]` holds the DATA blocks of
+        // one ID; `id_lookup` holds the ID blocks. See `resolve`.
+        this.scope_lookup = [];
+        this.id_lookup = {};
+        this.current_scope = -1;
         this.object_array = [];
 
         this.template = null;
@@ -110,6 +126,19 @@ function worker_code () {
             this.object_array.push(obj);
             if (!this.objects[obj.blender_name]) this.objects[obj.blender_name] = [];
             this.objects[obj.blender_name].push(obj);
+        },
+
+        // Resolve an old (file) address read from a struct that belongs to ID scope `scope`: DATA of
+        // that ID first, then ID blocks, then the legacy global map (last-written block wins).
+        resolve: function (pointer, scope) {
+            const scoped = scope >= 0 ? this.scope_lookup[scope] : undefined;
+            if (scoped) {
+                const hit = scoped[pointer];
+                if (hit !== undefined) return hit;
+            }
+            const id = this.id_lookup[pointer];
+            if (id !== undefined) return id;
+            return this.memory_lookup[pointer];
         },
 
         getPointer: function (offset) {
@@ -150,6 +179,42 @@ function worker_code () {
     // so on v1 (17-byte header) and some v0 files the payload lands at unaligned offsets where a
     // direct `new Float32Array(buf, oddOffset, n)` would throw. All supported files are
     // little-endian (big-endian is rejected at header parse), so a raw byte copy is correct.
+    // An array block (`count` structs of `length` bytes from `start`, e.g. a mesh's vertices, loops or faces)
+    // as an Array whose elements are made when first read. They were all made while parsing, one JS object
+    // per vertex/loop/face, and each was also listed in `objects`: ~570 MB of heap for Blender's Mr Elephant
+    // demo, which the mesh code doesn't need (it reads the block's bytes, see loader/geometry.ts). Indexing,
+    // `length`, `for...of` and the Array methods work as before; made elements are kept.
+    function lazyStructArray (first, constructor, start, length, count, file, scope) {
+        const made = [first];
+        const index = (key) => {
+            if (typeof key !== 'string' || key === '') return -1;
+            const c = key.charCodeAt(0);
+            if (c < 48 || c > 57) return -1;
+            const i = +key;
+            return Number.isInteger(i) && i < count && String(i) === key ? i : -1;
+        };
+        return new Proxy([], {
+            get (target, key, receiver) {
+                if (key === 'length') return count;
+                const i = index(key);
+                if (i < 0) return Reflect.get(target, key, receiver);
+                let o = made[i];
+                if (o === undefined) {
+                    o = new constructor();
+                    o.setData(0, start + length * i, start + length * i + length, file, scope, false);
+                    made[i] = o;
+                }
+                return o;
+            },
+            has (target, key) {
+                return index(key) >= 0 || key === 'length' || Reflect.has(target, key);
+            },
+            set () {
+                return true; // read-only, as the parsed file is
+            },
+        });
+    }
+
     function alignedTypedArray (Ctor, buffer, byteOffset, length) {
         if ((byteOffset % Ctor.BYTES_PER_ELEMENT) === 0) {
             return new Ctor(buffer, byteOffset, length);
@@ -302,8 +367,9 @@ function worker_code () {
         return {
             get: function () {
                 const bf = this.__blender_file__;
+                const scope = this.__scope__;
                 let pointer = bf.getPointer(this.__data_address__ + offset, bf);
-                const link = bf.memory_lookup[pointer];
+                const link = bf.resolve(pointer, scope);
 
                 const results = [];
 
@@ -320,14 +386,14 @@ function worker_code () {
                     if (count > 0) {
                         for (let j = 0; j < count; j++) {
                             pointer = bf.getPointer(address + j * ps, bf);
-                            results.push(bf.memory_lookup[pointer] || null);
+                            results.push(bf.resolve(pointer, scope) || null);
                         }
                     } else {
                         // Fallback (no known block length): read until the first null, as before.
                         let j = 0;
                         while (true) {
                             pointer = bf.getPointer(address + j * ps, bf);
-                            const obj = bf.memory_lookup[pointer];
+                            const obj = bf.resolve(pointer, scope);
                             if (!obj) break;
                             results.push(obj);
                             j++;
@@ -353,7 +419,7 @@ function worker_code () {
                     while (j < Blender_Array_Length) {
                         let pointer = this.__blender_file__.getPointer(this.__data_address__ + off, this.__blender_file__);
 
-                        array.push(this.__blender_file__.memory_lookup[pointer]);
+                        array.push(this.__blender_file__.resolve(pointer, this.__scope__));
                         off += length;
                         j++;
                     }
@@ -361,7 +427,7 @@ function worker_code () {
                     return array;
                 } else {
                     let pointer = this.__blender_file__.getPointer(this.__data_address__ + offset, this.__blender_file__);
-                    return this.__blender_file__.memory_lookup[pointer];
+                    return this.__blender_file__.resolve(pointer, this.__scope__);
                 }
             },
             set: function () {},
@@ -400,6 +466,9 @@ function worker_code () {
     }
 
     function compileProp (obj, name, type, offset, array_size, IS_POINTER, pointer_size, length) {
+        // Byte offset of each field in the struct, for code that reads many structs straight from a block's
+        // bytes instead of through an object per struct (loader/geometry.ts, `structBlock`).
+        obj.__fields__[name] = offset;
 
         if (!IS_POINTER) {
             switch (type) {
@@ -477,6 +546,7 @@ function worker_code () {
                 blen_struct.prototype.blender_name = name;
                 blen_struct.prototype.__pointers = [];
                 blen_struct.prototype.__list__ = [];
+                blen_struct.prototype.__fields__ = {};
 
                 const DNA = this.SDNA[name] = {
                     constructor: blen_struct,
@@ -514,11 +584,15 @@ function worker_code () {
                             PointerToArray = true;
                         }
 
-                        // arrays
+                        // arrays. DNA names can have more than two dimensions (Blender 3.0+ Image has
+                        // `*gputexture[3][2][2]`): the last dimension is the element array, the rest
+                        // are flattened into the outer (super-array) count, so the field takes its full
+                        // size and every field after it keeps the right offset.
                         if (match[4]) {
-                            if (match[6]) {
-                                Suparray_match = parseInt(match[5]);
-                                Blender_Array_Length = parseInt(match[7]);
+                            const dims = (original_name.match(/\[(\d+)\]/g) || []).map(d => parseInt(d.slice(1, -1)));
+                            if (dims.length > 1) {
+                                Blender_Array_Length = dims[dims.length - 1];
+                                Suparray_match = dims.slice(0, -1).reduce((a, b) => a * b, 1);
                             } else {
                                 Blender_Array_Length = parseInt(match[5]);
                             }
@@ -613,11 +687,16 @@ function worker_code () {
     }
 
     BLENDER_STRUCTURE.prototype = {
-        setData: function (pointer, _data_offset, data_block_length, BLENDER_FILE) {
+        // `scope`: the ID scope to resolve pointers in (default: the block being read). `register`: false for
+        // the elements of an array block made on first access (see lazyStructArray), which stay out of
+        // `objects`/`object_array` like the rest of their block.
+        setData: function (pointer, _data_offset, data_block_length, BLENDER_FILE, scope, register) {
             if (this.__list__ === null) return this;
-            BLENDER_FILE.addObject(this);
+            if (register !== false) BLENDER_FILE.addObject(this);
 
             this.__blender_file__ = BLENDER_FILE;
+            // ID scope this block (and its embedded structs) was read in — see BLENDER_FILE.resolve.
+            this.__scope__ = scope !== undefined ? scope : BLENDER_FILE.current_scope;
             // Byte length of this block's payload (data_block_length is the end offset). Lets
             // consumers derive element counts for raw DATA blocks (e.g. poly_offset_indices) whose
             // logical length isn't available elsewhere — needed for Blender 5.0 where Mesh.tot* are
@@ -640,6 +719,8 @@ function worker_code () {
                 obj = null;
                 name = struct[i];
                 type = struct[i + 1];
+                length = struct[i + 2]; // field byte length (pushed at compileProp/__list__) — was never read,
+                // leaving `length` undefined → inline-struct array members got NaN addresses (see line 653/661).
                 Blender_Array_Length = struct[i + 4];
                 Pointer_Match = struct[i + 5];
                 offset = this.__data_address__ + struct[i + 3];
@@ -648,17 +729,17 @@ function worker_code () {
                     this[name] = [];
                     j = 0;
                     while (j < Blender_Array_Length) {
-                        if (current_SDNA_template.getSDNAStructureConstructor(type)) {
-                            constructor = current_SDNA_template.getSDNAStructureConstructor(type);
-                            this[name].push((new constructor()).setData(0, offset, offset + length / Blender_Array_Length, BLENDER_FILE));
+                        constructor = BLENDER_FILE.template.getSDNAStructureConstructor(type);
+                        if (constructor) {
+                            this[name].push((new constructor()).setData(0, offset, offset + length / Blender_Array_Length, BLENDER_FILE, this.__scope__, register));
                         } else this[name].push(null);
                         offset += length / Blender_Array_Length;
                         j++;
                     }
                 } else {
-                    if (current_SDNA_template.getSDNAStructureConstructor(type)) {
-                        constructor = current_SDNA_template.getSDNAStructureConstructor(type);
-                        this[name] = (new constructor()).setData(0, offset, length + offset, BLENDER_FILE);
+                    constructor = BLENDER_FILE.template.getSDNAStructureConstructor(type);
+                    if (constructor) {
+                        this[name] = (new constructor()).setData(0, offset, length + offset, BLENDER_FILE, this.__scope__, register);
                     } else this[name] = null;
                 }
             }
@@ -701,6 +782,10 @@ function worker_code () {
         let curr_count2 = 0;
 
         FILE.memory_lookup = {};
+        // Scope 0 catches any DATA written before the first ID block.
+        FILE.scope_lookup = [{}];
+        FILE.id_lookup = {};
+        FILE.current_scope = 0;
         struct_names = [];
         offset = 0;
 
@@ -763,14 +848,11 @@ function worker_code () {
         const readSdna = (o) => data.getInt32(o + SDNA_OFF, BIG_ENDIAN)
         const readNr = (o) => NR_I64 ? Number(data.getBigInt64(o + NR_OFF, true)) : data.getInt32(o + NR_OFF, BIG_ENDIAN)
 
-        // create new master template if none exist for current blender version;
-        // Key on format + version so a v0 "050" and a v1 "0500" can never share a template.
-        const templateKey = (large_bhead ? 'v1:' : 'v0:') + version
-        if (!templates[templateKey]) {
-            templates[templateKey] = new MASTER_SDNA_SCHEMA(version);
-        }
-
-        current_SDNA_template = templates[templateKey];
+        // A new template for every file, built from that file's own DNA1 block. Templates used to be
+        // cached per version string, but files with the same 3-digit version (different subversions or
+        // builds) can have different struct layouts, so the second file parsed in a session read its
+        // structs at the first file's offsets (e.g. two 2.66 files: materials and the scene camera lost).
+        current_SDNA_template = new MASTER_SDNA_SCHEMA(version);
 
         FILE.template = current_SDNA_template;
 
@@ -984,7 +1066,8 @@ function worker_code () {
                         ERROR = 'Invalid TEST block length detected';
                         break;
                     }
-                    const image_data = alignedTypedArray(Uint32Array, _data, data_start + 8, data_len >> 2);
+                    // a copy: a view would keep the whole file's buffer alive for as long as the thumbnail
+                    const image_data = alignedTypedArray(Uint32Array, _data, data_start + 8, data_len >> 2).slice();
                     const image = {
                         width: width,
                         height: height,
@@ -994,6 +1077,13 @@ function worker_code () {
                 }
             }
             else {
+                // Every non-DATA block (an ID such as ME/OB/MA, or GLOB/REND/...) opens a new pointer
+                // scope for the DATA blocks that follow it — mirrors Blender's per-ID datamap.
+                const is_data = code_str === 'DATA';
+                if (!is_data) {
+                    FILE.current_scope = FILE.scope_lookup.length;
+                    FILE.scope_lookup.push({});
+                }
                 // Create a Blender object using a constructor template from current_SDNA_template
                 const data_start = data_offset + BLOCK_HDR;
 
@@ -1015,19 +1105,12 @@ function worker_code () {
                     obj.address = address + '';
 
                     obj.setData(address, data_start, data_start + size, FILE);
+                    let stored = obj;
 
-                    if (count > 1) {
-                        let array = [];
-                        array.push(obj);
-                        for (let u = 1; u < count; u++) {
-                            obj = new constructor();
-                            obj.setData(address, data_start + length * u, data_start + (length * u) + length, FILE);
-                            array.push(obj);
-                        }
-                        FILE.memory_lookup[address] = array;
-                    } else {
-                        FILE.memory_lookup[address] = obj;
-                    }
+                    if (count > 1) stored = lazyStructArray(obj, constructor, data_start, length, count, FILE, FILE.current_scope);
+                    FILE.memory_lookup[address] = stored;
+                    if (is_data) FILE.scope_lookup[FILE.current_scope][address] = stored;
+                    else FILE.id_lookup[address] = stored;
                 }
             }
         }

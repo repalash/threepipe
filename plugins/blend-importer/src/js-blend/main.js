@@ -10,9 +10,14 @@
  */
 import parser from './parser/parser.js';
 
+const noop = () => {}
+
 export async function parseBlend (buffer, name = '') {
     return new Promise((res, rej) => {
         parser.onParseReady = (file, error) => {
+            // Don't leave this callback on the module: it holds the promise, and so the parsed file, until
+            // the next parse. (A no-op from outside this function: one made here would keep `buffer`.)
+            parser.onParseReady = noop
             // Soft-error: log but still resolve with the partial result. Several
             // .blend files (notably geometry-nodes scenes in Blender 4.x) trigger
             // mid-parse errors but produce a usable partial scene; rejecting would

@@ -25,46 +25,17 @@
             margin: 0;
             overflow: hidden;
         }
+        .blender-demo-credit { margin: 0 6px 4px !important; }
+        .blender-demo-credit a { color: inherit; }
+        .blend-scenes { display: flex; gap: 8px; align-items: center; margin: 0 6px 6px; color: var(--ec-dim); }
+        .blend-scenes select { flex: 1; min-width: 0; font: inherit; }
+        .blend-notes { margin: 6px 6px 0; color: var(--ec-dim); }
+        .blend-notes summary { cursor: pointer; }
+        .blend-notes ul { margin: 4px 0 0; padding-left: 16px; max-height: 120px; overflow-y: auto; }
+        .blend-notes li { margin-bottom: 2px; word-break: break-word; }
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
-    <script id="example-script" type="module">
-        import {_testFinish, _testStart, DropzonePlugin, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
-        import {createExampleCard} from '../examples-utils/example-card.js'
-        import {modelStats} from '../examples-utils/model-stats.js'
-        import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
-
-        const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas'), dropzone: {
-            addOptions: {clearSceneObjects: true}
-            }})
-        viewer.addPluginsSync([BlendLoadPlugin, LoadingScreenPlugin])
-
-        async function init() {
-
-            await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
-            const loadStart = performance.now()
-            const result = await viewer.load('https://samples.threepipe.org/minimal/default-cube.blend', {
-                autoCenter: true,
-                autoScale: false,
-            })
-            const loadMs = Math.round(performance.now() - loadStart)
-            // console.log(result)
-
-            const stats = modelStats(viewer)
-            createExampleCard(viewer, {
-                description: 'BlendLoadPlugin (plugin-blend-importer) reads Blender .blend files directly, here the default cube. It is a work in progress: meshes and basic point lights load, materials not yet. Drop or open a .blend.',
-                actions: [
-                    {type: 'button', label: 'Open file…', icon: 'file-code', value: () => viewer.getPlugin(DropzonePlugin)?.promptForFile()},
-                    {type: 'monitor', label: 'Meshes', getValue: () => stats.meshes.toLocaleString()},
-                    {type: 'monitor', label: 'Triangles', getValue: () => stats.triangles.toLocaleString()},
-                    {type: 'monitor', label: 'Load time', getValue: () => `${loadMs} ms`},
-                ],
-            })
-
-        }
-
-        _testStart()
-        init().finally(_testFinish)
-    </script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
 </head>
 <body>
 <noscript>This threepipe example needs JavaScript. Its source and instructions for agents: <a href="../llms.txt">llms.txt</a></noscript>
