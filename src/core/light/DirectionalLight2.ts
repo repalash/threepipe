@@ -18,6 +18,7 @@ import {UiTags} from '../../ui/uiconfig'
  */
 export class DirectionalLight2 extends DirectionalLight implements ILight<DirectionalLightShadow>, IObject3D {
     assetType = 'light' as const
+    declare readonly isLight: true // the three.js r183 types declare it as boolean
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
     uiConfig: UiObjectConfig = {

@@ -17,6 +17,8 @@ import {UiTags} from '../../ui/uiconfig'
  */
 export class RectAreaLight2 extends RectAreaLight implements ILight<undefined> {
     assetType = 'light' as const
+    declare readonly isLight: true // the three.js r183 types declare it as boolean
+    declare shadow: undefined // no shadows, see ILight.shadow
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
     uiConfig: UiObjectConfig = {

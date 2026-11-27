@@ -4,9 +4,15 @@ import {IObject3D, IObject3DEventMap, IObject3DUserData} from '../IObject'
 export interface ILight<
     TShadowSupport extends LightShadow | undefined = LightShadow | undefined,
     TE extends IObject3DEventMap = IObject3DEventMap
-> extends Light<TShadowSupport, TE>, IObject3D<TE, undefined, undefined> {
+> extends Light<TE>, IObject3D<TE, undefined, undefined> {
     assetType: 'light'
     readonly isLight: true
+
+    /**
+     * The shadow of the light, `undefined` for a light type without shadows.
+     * (three.js r183 removed the shadow type parameter of Light, only the light types with shadows declare it.)
+     */
+    shadow: TShadowSupport
 
     /**
      * @deprecated use `this` instead
