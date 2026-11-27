@@ -14,6 +14,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [new SSAAPlugin(4), LoadingScreenPlugin],
@@ -27,7 +28,7 @@ async function init() {
     const parallaxMapping = viewer.addPluginSync(ParallaxMappingPlugin)
     console.log(parallaxMapping)
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     ui.setupPluginUi(ParallaxMappingPlugin, {expanded: true})
 

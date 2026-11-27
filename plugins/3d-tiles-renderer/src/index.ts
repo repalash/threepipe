@@ -12,5 +12,4 @@ export {
     ReorientationPlugin,
     DebugTilesPlugin, GoogleCloudAuthPlugin,
     LoadRegionPlugin, UnloadTilesPlugin, TileCompressionPlugin,
-// @ts-expect-error moduleResolution issue
 } from '3d-tiles-renderer/plugins'

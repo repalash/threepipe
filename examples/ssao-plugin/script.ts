@@ -10,6 +10,7 @@ import {
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 const viewer = new ThreeViewer({
+    renderScale: 'auto',
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: true,
     plugins: [SSAAPlugin, LoadingScreenPlugin],
@@ -45,7 +46,7 @@ async function init() {
     targetPreview.addTarget(()=>ssaoTarget, 'ssao', false, true, true, (s)=>`${s} = vec4(${s}.r);`)
     targetPreview.addTarget(()=>viewer.getPlugin(ProgressivePlugin)?.target, 'progressive', false, false, true)
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.setupPluginUi(SSAOPlugin, {expanded: true})
     ui.setupPluginUi(ProgressivePlugin)
 }

@@ -1,6 +1,7 @@
 import {Matrix3, Plane as PlaneThree, Vector4, Vector4Tuple} from 'three'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
+import {UiTags} from '../../ui/uiconfig'
 import {serialize} from 'ts-browser-helpers'
 import {IMaterial, IMaterialUserData, IObject3D, PhysicalMaterial} from '../../core'
 import {MaterialExtension, updateMaterialDefines} from '../../materials'
@@ -130,6 +131,7 @@ export class FragmentClippingExtensionPlugin extends AViewerPluginSync {
                     {
                         type: 'checkbox',
                         label: 'Enabled',
+                        tags: [UiTags.Basic],
                         get value() {
                             return state.clipEnabled || false
                         },

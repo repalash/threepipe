@@ -14,6 +14,7 @@ import * as THREE from 'threepipe'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         rgbm: true,
@@ -21,7 +22,7 @@ async function init() {
         stencil: true,
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPlugins(PickingPlugin, TransformControlsPlugin)
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {

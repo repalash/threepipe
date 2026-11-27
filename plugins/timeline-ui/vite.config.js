@@ -1,7 +1,6 @@
 import {defineConfig} from 'vite'
-import dts from 'vite-plugin-dts'
-import packageJson from './package.json';
-import {commonPlugins, globalsReplacePlugin, fixDtsImports} from '../../scripts/vite-utils.mjs';
+import packageJson from './package.json' with {type: 'json'};
+import {commonPlugins, globalsReplacePlugin, declarations} from '../../scripts/vite-utils.mjs';
 
 const isProd = process.env.NODE_ENV === 'production'
 const { name } = packageJson
@@ -23,6 +22,10 @@ export default defineConfig({
         exclude: ['uiconfig.js', 'ts-browser-helpers'],
     },
     base: '',
+    resolve: {
+        // Bundle this package's own copies: in the workspace, hoisted dependencies (react-uid, ...) resolve the root react 19
+        dedupe: ['react', 'react-dom'],
+    },
     // define: {
     //     'process.env': process.env
     // },
@@ -42,10 +45,7 @@ export default defineConfig({
         },
         outDir: 'dist',
         emptyOutDir: isProd,
-        commonjsOptions: {
-            exclude: [/uiconfig.js/, /ts-browser-helpers/],
-        },
-        rollupOptions: {
+        rolldownOptions: {
             output: {
                 // inlineDynamicImports: false,
                 globals,
@@ -55,8 +55,8 @@ export default defineConfig({
         },
     },
     plugins: [
-        isProd ? dts({tsconfigPath: './tsconfig.json', afterBuild: fixDtsImports}) : null,
+        isProd ? declarations() : null,
         ...globalsReplacePlugin(globals, isProd),
-        ...commonPlugins(packageJson, __dirname, isProd),
+        ...commonPlugins(packageJson, import.meta.dirname, isProd),
     ],
 })

@@ -82,9 +82,10 @@ export class WebGLPathTracer2 extends WebGLPathTracer {
         this._materials.forEach((material: any) => {
             material.userData.__emissiveIntensity = material.emissiveIntensity
             material.emissiveIntensity *= this.emissiveMultiplier
+            // a zero distance absorbs everything in the path tracer: trace with a long one, and put the value back after
             if (material.attenuationDistance < 0.00001) {
-                material.attenuationDistance = 10000
                 material.userData.__attenuationDistance = material.attenuationDistance
+                material.attenuationDistance = 10000
             }
         })
         super.updateMaterials()
@@ -119,7 +120,16 @@ export class WebGLPathTracer2 extends WebGLPathTracer {
         super.reset()
     }
 
-    // @uiButton()
-    // dispose() {super.dispose()}
+    /**
+     * three-gpu-pathtracer 0.0.23 disposes `_renderQuad`, which does not exist (the quad is `_quad`), and throws. Fixed in
+     * 0.0.25, which needs three r185. This also disposes the low resolution path tracer.
+     */
+    dispose() {
+        const self = this as any
+        self._quad?.dispose()
+        self._quad?.material.dispose()
+        self._pathTracer?.dispose()
+        self._lowResPathTracer?.dispose()
+    }
 
 }

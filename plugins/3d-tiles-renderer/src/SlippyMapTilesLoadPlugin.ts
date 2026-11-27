@@ -1,5 +1,4 @@
 import {BaseImporterPlugin, Importer, LoadingManager, ThreeViewer} from 'threepipe'
-// @ts-expect-error moduleResolution issue
 import {XYZTilesPlugin} from '3d-tiles-renderer/plugins'
 import {TilesRendererLoader, TilesRendererPlugin} from './TilesRendererPlugin'
 

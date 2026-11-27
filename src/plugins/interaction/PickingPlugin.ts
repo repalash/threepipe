@@ -26,17 +26,50 @@ import {DropzonePlugin, DropzonePluginEventMap} from './DropzonePlugin'
 import {AssetImporter} from '../../assetmanager'
 import {BoxSelectionWidget, SelectionWidget} from '../../three/widgets'
 import {DuplicateTracker, type DuplicateMode} from './DuplicateTracker'
+import type {ViewerAction} from '../../viewer/ViewerActions'
 import {ObjectClipboard} from './ObjectClipboard'
 
 export interface PickingPluginEventMap extends AViewerPluginEventMap, ObjectPickerEventMap{
 }
 
+/**
+ * The widget that `selected` belongs to (itself or a parent with `assetType` `'widget'`), or the first object on the way
+ * up with `userData.allowPicking`; `selected` itself when there is neither.
+ */
 function getRootIfWidget(selected: IObject3D) {
-    while (selected.parent && selected.assetType !== 'widget') {
-        if (selected.userData.allowPicking) break // this is diff from userSelectable, its for widgets
-        selected = selected.parent
+    for (let o: IObject3D | null = selected; o; o = o.parent as IObject3D | null) {
+        if (o.assetType === 'widget') return o
+        if (o.userData.allowPicking) return o // this is diff from userSelectable, its for widgets
     }
     return selected
+}
+
+/**
+ * Whether the {@link PickingPlugin} can select `obj` (the selection condition of its {@link ObjectPicker}): an object
+ * with a material (or with `userData.userSelectable` set to true, or a widget), in a model or a light, and neither it
+ * nor a parent is hidden (from its widget, if it belongs to one), has `userData.userSelectable === false` or has
+ * `userData.bboxVisible === false` (from its widget). A widget itself is checked as its parts are; the DOM icons of
+ * `Object3DWidgetsPlugin` are checked on their widget.
+ */
+export function isPickable(obj: IObject3D): boolean {
+    const hasMat = obj.material
+    if (!hasMat && !obj.userData.userSelectable && obj.assetType !== 'widget') return false
+    const root = getRootIfWidget(obj)
+    // the parts between obj and its widget: one with userSelectable false (like a helper inside a widget) is not picked
+    for (let p: IObject3D | null = obj; p && p !== root; p = p.parent as IObject3D | null)
+        if (p.userData.userSelectable === false) return false
+    let o: IObject3D | null = root
+    let ret = false
+    while (o) {
+        if (!o.visible) return false
+        if (o.assetType === 'model' || o.assetType === 'light') ret = true
+        // else if (o.assetType === 'widget' && o !== obj) return false // only select widget if itself is selected (not its children)
+        if (o.userData.userSelectable === false) return false
+        if (o.userData.bboxVisible === false) return false
+        // todo colorwrite?
+        o = o.parent as IObject3D | null
+    }
+    return ret
 }
 
 export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
@@ -98,7 +131,25 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     @bindToValue({obj: '_picker', key: 'multiSelectEnabled'})
         multiSelectEnabled = true
 
+    /**
+     * The UI of the plugin shows the settings of the selection: its uiConfig, its geometry and materials, and the Focus
+     * button. Off: it shows only the picking settings, for an app that shows the selection in another place, like the
+     * `InspectorPlugin` of `@threepipe/plugin-tweakpane-editor` (a uiConfig renders in one UI at a time).
+     *
+     * Note: this is for runtime use only, not serialized
+     */
+    @onChange(PickingPlugin.prototype._selectionUiChanged)
+        selectionUi = true
+
+    protected _selectionUiChanged() {
+        this.refreshUiChildren(this.getSelectedObject())
+    }
+
     protected _widgetEnabledChange() {
+        // the hover widget too: its updates stop while the widgets are off, so it would stay on the last hovered object
+        const hovered = this._picker?.hoverObject as IObject3D | undefined
+        if (this.widgetEnabled && hovered?.isObject3D) this._hoverWidget?.attach(hovered)
+        else this._hoverWidget?.detach()
         if (!this._widget) return
         if (this.widgetEnabled && (this._picker?.selectedObject as IObject3D)?.isObject3D)
             this._widget.attach(this._picker!.selectedObject as IObject3D)
@@ -137,7 +188,10 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     setDirty() {
         if (!this._viewer) return
-        if (this.isDisabled() && this.getSelectedObject()) this.setSelectedObject(undefined)
+        // Clearing the selection because the plugin was disabled is not something the user did, so it
+        // is not an undo step (it used to be, which put a stray "deselect" on the stack every time edit
+        // mode suspended picking).
+        if (this.isDisabled() && this.getSelectedObject()) this.setSelectedObject(undefined, false, false)
         this._viewer.setDirty()
     }
     constructor(selection: Class<SelectionWidget>|undefined = BoxSelectionWidget, pickUi = true, autoFocus = false) {
@@ -195,42 +249,58 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.setSelected(null, true)
     }
 
-    private _onKeyDown = (event: KeyboardEvent) => {
-        if (this.isDisabled()) return
-        if ((event.target as any)?.tagName === 'TEXTAREA' || (event.target as any)?.tagName === 'INPUT') return
-        const ctrl = event.ctrlKey || event.metaKey
+    /**
+     * The keys of {@link actions}. Off: the actions have no keys (a UI still lists and runs them).
+     * @deprecated set the keys in `viewer.actions`: `setShortcut(id, null)` for one action, or `enabled = false` for all
+     * the keys (an app with its own keymap)
+     */
+    @onChange(PickingPlugin.prototype._keysChanged)
+        keyboardShortcuts = true
 
-        if (ctrl && event.code === 'KeyA') {
-            event.preventDefault()
-            this.selectAll()
-        } else if (ctrl && event.code === 'KeyD') {
-            event.preventDefault()
-            this.duplicateSelected(event.shiftKey ? this.duplicateMode === 'simple' ? 'compound' : 'simple' : undefined)
-        } else if (ctrl && event.code === 'KeyC') {
-            event.preventDefault()
-            this.copySelected()
-        } else if (ctrl && event.code === 'KeyX') {
-            event.preventDefault()
-            this.cutSelected()
-        } else if (ctrl && event.code === 'KeyV') {
-            event.preventDefault()
-            this.pasteFromClipboard()
-        } else if (event.code === 'Escape') {
-            this.clearSelection()
-        } else if (event.code === 'Delete' || event.code === 'Backspace') {
-            event.preventDefault()
-            this.deleteSelected()
-        } else if (event.code === 'KeyH' && !ctrl) {
-            event.preventDefault()
-            if (event.shiftKey) this.unhideAll()
-            else this.toggleVisibilitySelected()
-        } else if (event.code === 'KeyF' && !ctrl) {
-            event.preventDefault()
-            this.focusSelected()
-        } else if (event.altKey && !ctrl && (event.code === 'KeyG' || event.code === 'KeyR' || event.code === 'KeyS')) {
-            event.preventDefault()
-            this.resetTransform(event.code === 'KeyG' ? 'position' : event.code === 'KeyR' ? 'rotation' : 'scale')
+    /** An action of the selection; with no selection, a key of an action that needs one is left to other handlers */
+    private _action(id: string, label: string, keys: string | string[], run: () => void, needsSelection = true): ViewerAction {
+        const keysOn = () => this.keyboardShortcuts
+        return {
+            id: 'picking.' + id, label, group: 'Selection',
+            get shortcut() {
+                return keysOn() ? keys : undefined
+            },
+            enabled: () => !this.isDisabled() && (!needsSelection || !!this.getSelectedObject()),
+            run,
         }
+    }
+
+    /**
+     * The actions of the selection, registered in `viewer.actions` while the plugin is added (a UI lists them, the app
+     * changes their keys there). The edit keys (Mod+A, Mod+D, Mod+C, Mod+X, Mod+V) are letters, as in other apps: they
+     * follow the printed key on any layout. The other keys are places on the keyboard (`KeyboardEvent.code`). Mod is Cmd
+     * on a Mac and Ctrl on other platforms.
+     */
+    readonly actions: ViewerAction[] = [
+        this._action('selectAll', 'Select all', 'Mod+A', () => this.selectAll(), false),
+        this._action('duplicate', 'Duplicate', 'Mod+D', () => this.duplicateSelected()),
+        this._action('duplicateOther', 'Duplicate (the other mode)', 'Mod+Shift+D', () => this.duplicateSelected(this.duplicateMode === 'simple' ? 'compound' : 'simple')),
+        this._action('copy', 'Copy', 'Mod+C', () => this.copySelected()),
+        this._action('cut', 'Cut', 'Mod+X', () => this.cutSelected()),
+        this._action('paste', 'Paste', 'Mod+V', () => this.pasteFromClipboard(), false),
+        this._action('clearSelection', 'Clear the selection', 'Escape', () => this.clearSelection()),
+        this._action('delete', 'Delete', ['Delete', 'Backspace'], () => this.deleteSelected()),
+        this._action('toggleVisibility', 'Hide or show', 'KeyH', () => this.toggleVisibilitySelected()),
+        this._action('unhideAll', 'Show all', 'Shift+KeyH', () => this.unhideAll(), false),
+        // nothing selected: everything
+        this._action('focus', 'Focus', 'KeyF', () => this.getSelectedObject() ? this.focusSelected() : this._viewer?.fitToView(), false),
+        this._action('resetPosition', 'Reset the position', 'Alt+KeyG', () => this.resetTransform('position')),
+        this._action('resetRotation', 'Reset the rotation', 'Alt+KeyR', () => this.resetTransform('rotation')),
+        this._action('resetScale', 'Reset the scale', 'Alt+KeyS', () => this.resetTransform('scale')),
+    ]
+
+    private _unregisterActions?: () => void
+
+    /** {@link keyboardShortcuts} changed: registered again, so `viewer.actions` sends `actionsChange` (a list of the keys updates) */
+    private _keysChanged() {
+        if (!this._unregisterActions || !this._viewer) return
+        this._unregisterActions()
+        this._unregisterActions = this._viewer.actions.register(this.actions)
     }
 
     /** Helper to setSelected from an array without recording undo */
@@ -511,23 +581,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
         this.setDirty()
-        this._picker = new ObjectPicker(viewer.scene.modelRoot, viewer.canvas, viewer.scene.mainCamera, (obj)=>{
-            const hasMat = obj.material
-            if (!hasMat && !obj.userData.userSelectable) return false
-            let o: IObject3D|null = obj
-            o = getRootIfWidget(o)
-            let ret = false
-            while (o) {
-                if (!o.visible) return false
-                if (o.assetType === 'model' || o.assetType === 'light') ret = true
-                // else if (o.assetType === 'widget' && o !== obj) return false // only select widget if itself is selected (not its children)
-                if (o.userData.userSelectable === false) return false
-                if (o.userData.bboxVisible === false) return false
-                // todo colorwrite?
-                o = o.parent
-            }
-            return ret
-        })
+        this._picker = new ObjectPicker(viewer.scene.modelRoot, viewer.canvas, viewer.scene.mainCamera, isPickable)
 
         this._picker.extraObjects.push(...viewer.scene.children.filter(r=>r.userData.isWidgetRoot))
         this._viewer?.scene.addEventListener('addSceneObject', this._addSceneObject)
@@ -542,7 +596,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.addEventListener('selectionModeChanged', this._selectionModeChanged)
         this._picker.addEventListener('multiSelectChanged', this._multiSelectChanged)
 
-        window.addEventListener('keydown', this._onKeyDown)
+        this._unregisterActions = viewer.actions.register(this.actions)
 
         viewer.scene.addEventListener('select', this._onObjectSelectEvent)
         viewer.scene.addEventListener('materialChanged', this._objCompChange)
@@ -569,7 +623,8 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
 
     onRemove(viewer: ThreeViewer) {
-        window.removeEventListener('keydown', this._onKeyDown)
+        this._unregisterActions?.()
+        this._unregisterActions = undefined
         viewer.scene.removeEventListener('select', this._onObjectSelectEvent)
         viewer.scene.removeEventListener('materialChanged', this._objCompChange)
         viewer.scene.removeEventListener('geometryChanged', this._objCompChange)
@@ -767,7 +822,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         type: 'button',
         label: 'Select an object to see its properties',
         readOnly: true,
-        hidden: () => this.getSelectedObject() !== undefined,
+        hidden: () => this.getSelectedObject() !== undefined || !this.selectionUi,
     }
     private _uiConfigChildren: UiObjectConfig[] = [
         {
@@ -840,7 +895,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         if (this._pickUi) {
             const ui = this.uiConfig
             ui.children = [...this._uiConfigChildren]
-            if (selected) {
+            if (!this.selectionUi) {
+                // the app shows the selection in another place
+            } else if (selected) {
                 if ((selected as IObject3D).isObject3D) {
                     const obj = (selected as IObject3D)
                     ui.children.push(...this.objectSelectionUiConfig(obj))

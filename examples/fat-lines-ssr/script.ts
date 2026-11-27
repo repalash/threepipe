@@ -20,6 +20,7 @@ import {BloomPlugin, SSReflectionPlugin, TemporalAAPlugin} from '@threepipe/webg
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [
@@ -84,7 +85,7 @@ async function init() {
         },
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(PickingPlugin)
     ui.setupPluginUi(BaseGroundPlugin)
     ui.setupPluginUi(SSReflectionPlugin)

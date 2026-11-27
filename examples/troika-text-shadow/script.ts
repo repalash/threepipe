@@ -25,6 +25,7 @@ import {Text} from 'troika-three-text'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         plugins: [LoadingScreenPlugin, GeometryGeneratorPlugin, PickingPlugin, BaseGroundPlugin],
     })
@@ -74,7 +75,7 @@ async function init() {
     light.shadowFrustum = 7
     light.castShadow = true
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.appendChild(light.uiConfig)
     ui.setupPluginUi(PickingPlugin)
 

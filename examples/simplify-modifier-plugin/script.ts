@@ -11,7 +11,7 @@ import {
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {SimplifyModifier} from 'three/examples/jsm/modifiers/SimplifyModifier.js'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 class SimplifyModifierPluginImpl extends SimplifyModifierPlugin {
     protected _simplify(geometry: IGeometry, count: number) {
@@ -24,6 +24,7 @@ class SimplifyModifierPluginImpl extends SimplifyModifierPlugin {
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [PickingPlugin, LoadingScreenPlugin],
@@ -31,7 +32,7 @@ async function init() {
 
     const simplify = viewer.addPluginSync(SimplifyModifierPluginImpl)
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
         setBackground: true,
@@ -50,10 +51,13 @@ async function init() {
         })
     })
 
-    createSimpleButtons({
-        ['Simplify']: async(_: HTMLButtonElement) => {
-            await simplify.simplifyAll(result, {factor: 0.5})
-        },
+    createExampleCard(viewer, {
+        description: 'Reduces the triangles of the model with the three.js SimplifyModifier (SimplifyModifierPlugin). Each Simplify halves them.',
+        actions: [
+            {type: 'button', label: 'Simplify', icon: 'triangle', value: async() => {
+                await simplify.simplifyAll(result, {factor: 0.5})
+            }},
+        ],
     })
 
     ui.setupPluginUi(SimplifyModifierPluginImpl)

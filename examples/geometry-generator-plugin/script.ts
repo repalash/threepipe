@@ -19,6 +19,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [PickingPlugin, Object3DGeneratorPlugin, LoadingScreenPlugin, AnimationObjectPlugin],
@@ -91,7 +92,7 @@ async function init() {
     viewer.renderManager.addEventListener('resize', refreshFov)
 
     // ── UI ──
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(AnimationObjectPlugin)
     ui.setupPluginUi(GeometryGeneratorPlugin)
     ui.setupPluginUi(PickingPlugin)

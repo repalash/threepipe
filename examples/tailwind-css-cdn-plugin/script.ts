@@ -8,6 +8,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
     })
@@ -36,7 +37,7 @@ async function init() {
     viewer.container.appendChild(panel)
 
     // Add Tweakpane UI for plugin settings
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(TailwindCSSCDNPlugin)
 
 }

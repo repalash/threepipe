@@ -1,7 +1,7 @@
 ---
 prev: 
-    text: 'GeometryUVPreviewPlugin'
-    link: './GeometryUVPreviewPlugin'
+    text: 'PerfPanelPlugin'
+    link: './PerfPanelPlugin'
 
 next:
     text: 'AAssetManagerProcessStatePlugin'

@@ -116,8 +116,7 @@ export class NormalBufferPlugin
             if (object.customNormalMaterial) {
                 const mat = object.customNormalMaterial
                 mat.allowOverride = false
-                // todo save the current forcedOverrideMaterial to restore it later?
-                object.forcedOverrideMaterial = mat
+                pass.forceObjectMaterial(object, mat)
                 return undefined
             }
             // return preprocessObject(object)
@@ -126,9 +125,7 @@ export class NormalBufferPlugin
 
         // const postprocessObject = pass.postprocessObject
         pass.postprocessObject = (object: IObject3D) => {
-            if (object.customNormalMaterial) {
-                delete object.forcedOverrideMaterial
-            }
+            pass.restoreObjectMaterial(object)
             // postprocessObject(object)
         }
 

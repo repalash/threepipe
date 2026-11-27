@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
-        "baseUrl": "./src",
+        "strict": false,
+        "types": ["*"],
         "rootDir": "./src",
         "allowJs": true,
         "checkJs": false,
@@ -19,7 +20,7 @@
         "noUnusedParameters": true,
         "removeComments": false,
         "preserveConstEnums": true,
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "emitDecoratorMetadata": false,
         "sourceMap": true,
         "target": "ES2021",

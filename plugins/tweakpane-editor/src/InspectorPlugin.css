@@ -1,0 +1,98 @@
+/* InspectorPlugin: the colours, the font and the lines of the Tweakpane theme of the page (the tpTheme-* body class) */
+/* one column that scrolls as a whole: in a short area the head, the preview and the settings stay reachable */
+.isp-root {
+    display: flex; flex-direction: column; box-sizing: border-box; min-height: 0; height: 100%; overflow-y: auto; overscroll-behavior: contain;
+    color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-base-background-color, #fff);
+    /* the font of the Layers panel (LayersPanelPlugin.css), so the two panels look the same next to each other */
+    font: 400 var(--lay-font-size, 12px)/1.2 var(--tp-font-family, Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+    -webkit-font-smoothing: antialiased;
+}
+.isp-root button, .isp-root select { font: inherit; color: inherit; }
+.isp-title { font-weight: 600; padding: 10px 12px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
+.isp-root:not(.isp-has-selection) .isp-title { opacity: .6; font-weight: 500; }
+/* the tab bar and the search field are the ones of the Layers panel (.lyp-tabs, .lyp-tab, .lyp-search in
+   LayersPanelPlugin.css): the same sizes, with the colours of the Tweakpane theme */
+.isp-tabs { display: flex; margin: 0 8px 6px; padding: 2px; border-radius: 6px; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); flex: none; }
+.isp-tab {
+    flex: 1 1 auto; min-width: 0; border: 0; background: transparent; color: var(--tp-label-foreground-color, #8a8f98); padding: 4px 0; border-radius: 4px;
+    font: inherit; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.isp-tab:hover { color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-button-background-color-hover, rgba(0, 0, 0, .05)); }
+.isp-tab.isp-on { color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-base-background-color, #ffffff); box-shadow: 0 0 0 1px var(--tp-container-border-color, #ececec), 0 1px 2px rgba(0, 0, 0, .06); font-weight: 600; }
+/* the material cards of the Object tab: a small preview, the name and the type; a click opens the Material tab */
+.isp-cards { display: flex; flex-direction: column; gap: 2px; margin: 0 8px 6px; flex: none; }
+.isp-card {
+    display: grid; grid-template-columns: 32px 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
+    border: 0; border-radius: 6px; padding: 4px; text-align: left; cursor: pointer; background: transparent;
+}
+.isp-card:hover { background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); }
+.isp-card:focus-visible { outline: 2px solid var(--tp-label-foreground-color, #0d99ff); outline-offset: -2px; }
+.isp-card-preview {
+    grid-row: span 2; width: 32px; height: 32px; border-radius: 6px;
+    background: repeating-conic-gradient(rgba(127, 127, 127, .18) 0 25%, transparent 0 50%) 0 0 / 8px 8px;
+}
+.isp-card-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.isp-card-type { font-size: 11px; opacity: .6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* a material with no name shows its type as the name, on one line */
+.isp-card-plain .isp-card-type { display: none; }
+.isp-card-plain .isp-card-name { grid-row: span 2; }
+.isp-materials {
+    margin: 0 8px 6px; padding: 4px 6px; border-radius: 4px; flex: none;
+    border: 1px solid var(--tp-container-border-color, #e6e6e6); background: var(--tp-input-background-color, transparent);
+}
+.isp-preview { padding: 0 8px 8px; flex: none; }
+/* the head of the preview folds it, with a chevron like the folders of the settings */
+.isp-preview-head {
+    display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: transparent; cursor: pointer;
+    padding: 4px 4px; margin: 0 0 4px; border-radius: 4px; text-align: left; font-weight: 500; opacity: .8;
+}
+.isp-preview-head:hover { opacity: 1; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); }
+.isp-preview-head:focus-visible { outline: 2px solid var(--tp-label-foreground-color, #0d99ff); outline-offset: -2px; }
+.isp-preview-head::before {
+    content: ''; width: 5px; height: 5px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg) translate(-1px, -1px);
+    transition: transform .15s;
+}
+.isp-preview-head[aria-expanded="false"]::before { transform: rotate(-45deg); }
+.isp-preview-head[aria-expanded="false"] { margin-bottom: 0; }
+/* a finger on the preview turns it (touch-action: none), it does not scroll the panel */
+.isp-preview-canvas {
+    width: 100%; max-width: 220px; aspect-ratio: 1; display: block; margin: 0 auto; cursor: grab; touch-action: none; border-radius: 8px;
+    background: repeating-conic-gradient(rgba(127, 127, 127, .18) 0 25%, transparent 0 50%) 0 0 / 16px 16px;
+}
+.isp-preview-canvas:active { cursor: grabbing; }
+/* as wide as the buttons of the settings below it */
+.isp-shapes { display: flex; gap: 2px; margin: 6px 0 0; }
+.isp-shape { flex: 1; border: 0; border-radius: 4px; padding: 4px 0; font-size: 11px; cursor: pointer; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); }
+.isp-shape.isp-on { box-shadow: inset 0 0 0 1px var(--tp-label-foreground-color, #0d99ff); font-weight: 600; }
+.isp-body { flex: none; }
+.isp-root:not(.isp-has-selection) .isp-body, .isp-root:not(.isp-has-selection) .isp-search { display: none; }
+/* the search of the settings: the rows that do not match hide, and the folders open (Tweakpane sets their height inline,
+   and a closed folder has display: none) */
+.isp-search {
+    display: flex; align-items: center; gap: 6px; margin: 0 8px 6px; padding: 0 8px; height: 26px; flex: none;
+    border-radius: 5px; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); color: var(--tp-label-foreground-color, #8a8f98);
+}
+.isp-search-icon { display: flex; }
+.isp-search-input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--tp-container-foreground-color, #1e1e1e); font: inherit; padding: 0; }
+/* the clear button of the Layers search; the field is type=search (a search key on a phone keyboard): no native one too */
+.isp-search-clear {
+    display: flex; align-items: center; justify-content: center; flex: none; width: 22px; height: 22px; margin-right: -5px; padding: 0;
+    border: 0; border-radius: 4px; background: transparent; color: var(--tp-label-foreground-color, #8a8f98); cursor: pointer;
+}
+.isp-search-clear:hover { color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-button-background-color-hover, rgba(0, 0, 0, .05)); }
+.isp-search-input:placeholder-shown + .isp-search-clear { display: none; }
+.isp-search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
+.isp-searching .isp-miss { display: none !important; }
+.isp-searching .tp-fldv_c { display: block !important; height: auto !important; opacity: 1 !important; overflow: visible !important; }
+.isp-empty { padding: 4px 12px 14px; opacity: .6; }
+
+/* the Tweakpane UI of the inspector: no box and no "Configuration" title (the head of the inspector names the selection),
+   and the folder of the open tab has no title of its own (the tab names it) */
+.isp-ui .tp-rotv { box-shadow: none !important; border-radius: 0 !important; background: transparent !important; }
+.isp-ui .tp-rotv_b { display: none !important; }
+.isp-ui .tp-rotv_c { padding-top: 0 !important; }
+.isp-ui .tp-rotv_c > .tp-fldv { margin: 0 !important; border-radius: 0 !important; }
+.isp-ui .tp-rotv_c > .tp-fldv > .tp-fldv_b { display: none !important; }
+/* a gap between the actions of the tab (Focus, Remove Material(s)) and the line above the settings below them. The
+   buttons are in label views (.tp-lblv), and the hidden ones (New ... Material) can come between */
+.isp-ui .tp-rotv_c > .tp-lblv ~ .tp-fldv { margin-top: 8px !important; }
