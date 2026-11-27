@@ -222,7 +222,7 @@ export * from 'three/src/constants.js'
 export type {ColorRepresentation, HSL, RGB} from 'three'
 export type {ShaderMaterialParameters} from 'three'
 
-export type {MaterialEventMap, BufferGeometryEventMap, Object3DEventMap, BaseEvent, AnimationMixerEventMap, TextureEventMap, InstancedMeshEventMap, WebXRManagerEventMap, WebXRSpaceEventMap, XRControllerEventType} from 'three'
+export type {MaterialEventMap, BufferGeometryEventMap, Object3DEventMap, BaseEvent, AnimationMixerEventMap, TextureEventMap, WebXRManagerEventMap, WebXRSpaceEventMap, XRControllerEventType} from 'three'
 export type {Event, EventListener, EventListener2, Event2} from 'three'
 export type {MeshPhysicalMaterialParameters, MeshBasicMaterialParameters, MaterialParameters} from 'three'
 export type {TypedArray, WebXRArrayCamera} from 'three'
