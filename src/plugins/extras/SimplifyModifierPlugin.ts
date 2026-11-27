@@ -59,7 +59,7 @@ export abstract class SimplifyModifierPlugin extends AViewerPluginSync {
     @uiSlider('Simplify Factor', [0, 1])
         simplifyFactor = 0.5
 
-    simplifyGeometries(geometry?: ValOrArr<IGeometry>, options?: SimplifyOptions) {
+    async simplifyGeometries(geometry?: ValOrArr<IGeometry>, options?: SimplifyOptions): Promise<IGeometry[]|undefined> {
         if (!geometry) {
             const selected = this._pickingPlugin?.getSelectedObject<IObject3D>()
             if (!selected?.isObject3D) return
@@ -73,17 +73,17 @@ export abstract class SimplifyModifierPlugin extends AViewerPluginSync {
         if (!Array.isArray(geometry)) geometry = [geometry]
         const res: IGeometry[] = []
         for (const g of geometry) {
-            res.push(this.simplifyGeometry(g, options)!)
+            res.push((await this.simplifyGeometry(g, options))!)
         }
         return res
     }
 
-    simplifyGeometry(geometry?: IGeometry, {
+    async simplifyGeometry(geometry?: IGeometry, {
         factor,
         count,
         replace = true,
         disposeOnReplace = false,
-    }: SimplifyOptions = {}): IGeometry|undefined {
+    }: SimplifyOptions = {}): Promise<IGeometry|undefined> {
         if (!geometry) {
             const selected = this._pickingPlugin?.getSelectedObject<IObject3D>()
             geometry = selected?.geometry
@@ -96,7 +96,7 @@ export abstract class SimplifyModifierPlugin extends AViewerPluginSync {
         factor = factor || this.simplifyFactor
         count = count || geometry.attributes.position.count * factor
         if (!geometry.boundingBox) geometry.computeBoundingBox()
-        const simplified = this._simplify(geometry, count)
+        const simplified = await this._simplify(geometry, count)
         simplified.computeBoundingBox()
         simplified.computeBoundingSphere()
         simplified.computeVertexNormals()
@@ -137,18 +137,19 @@ export abstract class SimplifyModifierPlugin extends AViewerPluginSync {
     }
 
     /**
-     * Sample for three.js addons SimplifyModifier:
+     * Returns the simplified geometry, or a promise of it.
+     * Sample for three.js addons SimplifyModifier (its `modify` is async since three.js r186):
      * `
      *     import {SimplifyModifier} from 'three/examples/jsm/modifiers/SimplifyModifier'
-     *     protected _simplify(geometry: IGeometry, count: number): IGeometry {
+     *     protected async _simplify(geometry: IGeometry, count: number): Promise<IGeometry> {
      *         const modifier = new SimplifyModifier()
-     *         return modifier.modify(geometry, count) as IGeometry
+     *         return await modifier.modify(geometry, count) as IGeometry
      *     }
      * `
      * @param geometry
      * @param count
      */
-    protected abstract _simplify(geometry: IGeometry, count: number): IGeometry
+    protected abstract _simplify(geometry: IGeometry, count: number): IGeometry|Promise<IGeometry>
 
     @uiButton('Simplify All', {sendArgs: false})
     async simplifyAll(root?: IObject3D, options?: SimplifyOptions) {
@@ -198,9 +199,9 @@ export abstract class SimplifyModifierPlugin extends AViewerPluginSync {
             if (resp) doAll = true
         }
         if (doAll) {
-            this.simplifyGeometries()
+            await this.simplifyGeometries()
         } else {
-            this.simplifyGeometry(selected.geometry)
+            await this.simplifyGeometry(selected.geometry)
         }
     }
 

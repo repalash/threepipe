@@ -14,8 +14,8 @@ import {SimplifyModifier} from 'three/examples/jsm/modifiers/SimplifyModifier.js
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 class SimplifyModifierPluginImpl extends SimplifyModifierPlugin {
-    protected _simplify(geometry: IGeometry, count: number) {
-        const res = new SimplifyModifier().modify(geometry, count) as IGeometry
+    protected async _simplify(geometry: IGeometry, count: number) {
+        const res = await new SimplifyModifier().modify(geometry, count) as IGeometry
         res.computeVertexNormals()
         return res
     }

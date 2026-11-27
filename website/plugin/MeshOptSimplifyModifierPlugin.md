@@ -22,5 +22,5 @@ Note: It does not guarantee that the geometry will be simplified to the exact ta
 const simplifyModifier = viewer.addPluginSync(new MeshOptSimplifyModifierPlugin())
 
 const root = await viewer.load('file.glb')
-simplifyModifier.simplifyAll(root, {factor: 0.75})
+await simplifyModifier.simplifyAll(root, {factor: 0.75})
 ```
