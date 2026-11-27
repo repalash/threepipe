@@ -418,6 +418,11 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             else
                 this._logger('AssetImporter: downloaded', path)
 
+            // A file in the database is loaded from its object url, so itemEnd says done for that url, not for this path
+            // (processRaw clears the path too, but it does not run with `processRaw: false`)
+            if (file || this._fileDatabase.has(path.replace(/\?.*$/, '')))
+                this.dispatchEvent({type: 'importFile', path, state: 'done'})
+
             if (file)
                 this.unregisterFile(path)
 
@@ -461,6 +466,9 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             }
             const f = file || this._fileDatabase.get(path)
             if (f) res.__rootBlob = f
+            // A texture from a file (in a zip, dropped): TextureLoader (three.js fork) sets userData.rootPath to the path it
+            // loaded, here the name of the file in the database, not a url. Saved, it would be fetched again on load (a 404).
+            if (isInternal && res.isTexture && res.userData?.rootPath === path) delete res.userData.rootPath
         }
         return res
     }
@@ -494,7 +502,9 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             this._fileDatabase.set(path, file)
         }
 
-        return loader || this._getLoader(path, ext, mime) || this._createLoader(path, ext, mime)
+        // A given extension (`fileExtension` in the options) picks the loader by that extension only: the path is not
+        // matched, else a url ending in .zip loaded with `fileExtension: 'acgzip'` gets the zip loader once one exists.
+        return loader || this._getLoader(extension ? undefined : path, ext, mime) || this._createLoader(path, ext, mime)
     }
 
     /**

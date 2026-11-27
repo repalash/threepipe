@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [Unreleased]
+
+### Fixed
+
+- `fileExtension` in the import options picks the loader also for a url that ends in the extension of another loader that already exists (a `.gltf` url with `fileExtension: 'phmatgltf'` after a glTF was loaded got the glTF loader, a `.zip` url with `'acgzip'` the zip loader)
+- A texture loaded from a file (in a zip, a dropped file) no longer keeps the file name as `userData.rootPath`: a saved material or scene with it fetched that name relative to the page on load (a 404 and errors, then the saved image was used)
+- The import of a file in a zip, or of a dropped file, says done for its path (`importFile` event, the loading screen) also with `processRaw: false`; it stayed at 'downloading'
+
 ## [0.6.1] - 2026-11-15
 
 ### Fixed
