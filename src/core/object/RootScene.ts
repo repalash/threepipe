@@ -534,7 +534,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
 
         // todo: dispose more stuff?
         this.disposeTextures(clear)
-        return
+        super.dispose() // dispatches the dispose event (three.js r186)
     }
 
     /**

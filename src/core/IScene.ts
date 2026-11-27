@@ -232,6 +232,7 @@ export interface IScene<TE extends ISceneEventMap = ISceneEventMap>
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936
 
+    dispose(clear?: boolean): void
     traverse(callback: (object: IObject3D) => void): void
     traverseVisible(callback: (object: IObject3D) => void): void
     traverseAncestors(callback: (object: IObject3D) => void): void

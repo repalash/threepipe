@@ -29,7 +29,7 @@ export interface IObject3DEventMap extends Object3DEventMap{
     dispose: {
         // object: IObject3D
         // todo
-        bubbleToParent: false
+        bubbleToParent?: false // Object3D.dispose() of three.js (r186) dispatches it without
     }
     materialUpdate: {
         // object: IObject3D
@@ -463,9 +463,11 @@ export interface IObject3D<
     // __disposed?: boolean
 
     /**
+     * Dispatches the dispose event, disposes the children, and removes the object from its parent.
+     * Every Object3D has a dispose() since three.js r186.
      * @param removeFromParent - remove from parent. Default true
      */
-    dispose?(removeFromParent?: boolean): any;
+    dispose(removeFromParent?: boolean): void;
 
     /**
      * A promise can be set by the object to indicate that the object is loading.

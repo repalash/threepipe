@@ -556,7 +556,17 @@ export const iObjectCommons = {
                 delete this.parentRoot
             }
 
-            this.dispatchEvent({type: 'dispose', bubbleToParent: false})
+            // Since three.js r186, Object3D.dispose() dispatches the dispose event, and a subclass's dispose() calls
+            // super.dispose(). The event is dispatched here only when the object's own dispose() did not reach it (a
+            // class written for an older three.js), so it is dispatched once either way.
+            let dispatched = false
+            const onDispose = () => {
+                dispatched = true
+            }
+            this.addEventListener('dispose', onDispose)
+            superDispose && superDispose.call(this)
+            this.removeEventListener('dispose', onDispose)
+            if (!dispatched) this.dispatchEvent({type: 'dispose', bubbleToParent: false})
 
             // if (this.__disposed) {
             //     console.warn('Object already disposed', this)
@@ -569,7 +579,6 @@ export const iObjectCommons = {
 
             // this.uiConfig?.dispose?.() // todo: make uiConfig.dispose
 
-            superDispose && superDispose.call(this)
             return this
         },
 

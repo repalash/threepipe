@@ -42,7 +42,7 @@ export class InstancedMesh2<
     declare getObjectByProperty: (name: string, value: string) => IObject3D | undefined
     declare parent: IObject3D | null
     declare children: IObject3D[]
-    dispose: (removeFromParent?: boolean) => this
+    declare dispose: (removeFromParent?: boolean) => this
 
     // endregion
 

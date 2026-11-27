@@ -46,7 +46,7 @@ export class MeshLine<
     declare getObjectByProperty: (name: string, value: string) => IObject3D | undefined
     declare parent: IObject3D | null
     declare children: IObject3D[]
-    dispose: (removeFromParent?: boolean) => void
+    declare dispose: (removeFromParent?: boolean) => void
 
     // endregion
 

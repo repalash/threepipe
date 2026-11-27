@@ -399,7 +399,8 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     dispose(): void {
         this._disposeCameraControls()
         // todo: anything else?
-        // iObjectCommons.dispose and dispatch event dispose is called automatically because of updateObject3d
+        // iObjectCommons.dispose (set up in upgradeObject3D) calls this, removes the camera from its parent and disposes the children
+        super.dispose() // dispatches the dispose event (three.js r186)
     }
 
     setCanvas(canvas: HTMLCanvasElement|undefined, refresh = true) {

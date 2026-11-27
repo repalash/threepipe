@@ -27,10 +27,6 @@ export class Group2<TE extends IObject3DEventMap = IObject3DEventMap,
         iObjectCommons.upgradeObject3D.call(this)
     }
 
-    dispose() {
-        // Override in subclasses
-    }
-
     declare userData: IObject3DUserData
 
     // region inherited type fixes
