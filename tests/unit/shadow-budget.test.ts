@@ -102,6 +102,16 @@ describe('RenderManager.maxShadowMaps', () => {
         warn.mockRestore()
     })
 
+    it('CascadedShadowsPlugin turns its cascade shader off while the budget has dropped its cascades', () => {
+        const cascadesCastShadow = (tp.CascadedShadowsPlugin.prototype as any)._cascadesCastShadow
+        const cascade = {castShadow: true}
+        const plugin = {light: {}, isDisabled: () => false, lights: [cascade, {castShadow: true}]}
+        expect(cascadesCastShadow.call(plugin)).toBe(true)
+        cascade.castShadow = false // as during a render with the group over the budget
+        expect(cascadesCastShadow.call(plugin)).toBe(false)
+        expect(cascadesCastShadow.call({...plugin, lights: [{castShadow: true}], isDisabled: () => true})).toBe(false)
+    })
+
     it('asks for new shadow maps when the lights in the budget change, not otherwise', () => {
         const {scene, points} = sceneWithLights(4)
         const rm = standIn(32, 3)
