@@ -4,7 +4,7 @@ import {glsl} from './scripts/vite-utils.mjs'
 
 export default defineConfig({
     plugins: [
-        glsl({include: 'src/**/*.glsl'}),
+        glsl({include: ['src/**/*.glsl', 'plugins/*/src/**/*.glsl']}),
     ],
     resolve: {
         alias: {

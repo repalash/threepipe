@@ -3,6 +3,7 @@ import {DataUtils, FloatType, HalfFloatType, UnsignedByteType} from 'three'
 import {NRRDLoader} from 'three/examples/jsm/loaders/NRRDLoader.js'
 import {TransferFunction} from '../../plugins/volume/src/TransferFunction'
 import {VolumeData} from '../../plugins/volume/src/VolumeData'
+import {VolumeMaterial} from '../../plugins/volume/src/VolumeMaterial'
 import {colorMaps, volumePresets, volViewPresets} from '../../plugins/volume/src/library'
 import {DerivedField, DerivedFieldPass} from '../../plugins/volume/src/derived/DerivedField'
 
@@ -227,5 +228,49 @@ describe('DerivedField', () => {
         const f = new TestField()
         f.update(null as any, 1)
         expect(f.runs).toEqual([[0, 1]])
+    })
+})
+
+describe('VolumeMaterial', () => {
+    test('an explicit absolute preset in the constructor sets its range, and a field set later keeps it', () => {
+        const m = new VolumeMaterial({preset: 'CT-Bone'})
+        expect(m.range.toArray()).toEqual([-3024, 3071])
+        m.field = new VolumeData({data: new Int16Array([0, 100]), size: [2, 1, 1]})
+        expect(m.range.toArray()).toEqual([-3024, 3071])
+        // the default preset stretches over the field
+        const d = new VolumeMaterial({field: new VolumeData({data: new Int16Array([0, 100]), size: [2, 1, 1]})})
+        expect(d.range.toArray()).toEqual([0, 100])
+    })
+
+    test('clone keeps the volume settings and the field', () => {
+        const field = new VolumeData({data: new Uint8Array(8), size: [2, 2, 2]})
+        const m = new VolumeMaterial({field, mode: 'iso'})
+        m.setPreset('colormap:viridis')
+        m.range.set(10, 200)
+        m.density = 3
+        m.cropMax.set(0.5, 1, 1)
+        m.transferFunction.opacityPoints = [[0, 0], [0.3, 0.7], [1, 1]]
+        m.transferFunction.setDirty()
+        const c = m.clone()
+        expect(c).not.toBe(m)
+        expect(c.mode).toBe('iso')
+        expect(c.range.toArray()).toEqual([10, 200])
+        expect(c.density).toBe(3)
+        expect(c.cropMax.toArray()).toEqual([0.5, 1, 1])
+        expect(c.preset).toBe('colormap:viridis')
+        expect(c.transferFunction.opacityPoints).toEqual([[0, 0], [0.3, 0.7], [1, 1]])
+        expect(c.transferFunction).not.toBe(m.transferFunction)
+        expect(c.field).toBe(field)
+    })
+
+    test('copy keeps edited transfer function points instead of applying the preset again', () => {
+        const a = new VolumeMaterial({preset: 'CT-Bone'})
+        a.transferFunction.colorPoints = [[0, 1, 0, 0], [1, 0, 0, 1]]
+        a.range.set(-500, 500)
+        const b = new VolumeMaterial()
+        b.copy(a)
+        expect(b.preset).toBe('CT-Bone')
+        expect(b.transferFunction.colorPoints).toEqual([[0, 1, 0, 0], [1, 0, 0, 1]])
+        expect(b.range.toArray()).toEqual([-500, 500])
     })
 })

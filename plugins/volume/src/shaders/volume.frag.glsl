@@ -18,7 +18,8 @@ varying vec3 vDirectionView;
 uniform sampler3D volumeMap;       // the field
 uniform sampler2D transferMap;     // RGBA lookup over 0..1
 uniform vec3 uBoxSize;             // size of the box in object units
-uniform vec3 uVolumeSize;          // voxel counts
+uniform vec3 uVolumeSize;          // texel counts of the texture
+uniform vec3 uDataSize;            // voxel counts of the data (larger than uVolumeSize when downsampled)
 uniform vec2 uValueMap;            // transfer function coordinate = texture value * x + y
 uniform float uSamplingRate;       // samples per voxel along the ray
 uniform float uOpacityExponent;    // density / samplingRate, for opacity correction
@@ -164,9 +165,14 @@ void main() {
     // texture space ray: sample k is at base + stepTex * k, for k from 0 to steps - 1
     vec3 dirTex = vDirection / uBoxSize;
     float voxelsPerUnit = length(dirTex * uVolumeSize); // voxels crossed per unit of t'
-    float dt = 1.0 / (max(uSamplingRate, 1e-3) * voxelsPerUnit);
+    float dtRate = 1.0 / (max(uSamplingRate, 1e-3) * voxelsPerUnit);
+    // a ray longer than VOLUME_MAX_STEPS samples takes longer steps, so it still reaches the end
+    float dt = max(dtRate, (bounds.y - bounds.x) / float(VOLUME_MAX_STEPS));
     int steps = int(min(ceil((bounds.y - bounds.x) / dt), float(VOLUME_MAX_STEPS)));
     float fsteps = float(steps);
+    // opacity correction for the step actually taken (uOpacityExponent is for the sampling rate), in voxels of the
+    // data: a downsampled texture has fewer, larger texels (uDataSize is the voxel count of the data)
+    float opacityExp = uOpacityExponent * dt / dtRate * length(dirTex * uDataSize) / voxelsPerUnit;
     vec3 startTex = (vOrigin + vDirection * bounds.x) / uBoxSize + 0.5;
     vec3 stepTex = dirTex * dt;
     float offset = uJitter > 0.5 ? volNoise(gl_FragCoord.xy) : 0.5;
@@ -209,7 +215,7 @@ void main() {
         vec4 s = volClassify(volValue(uvw), uvw);
         #if VOLUME_MODE == 0
         if (s.a > 0.0) {
-            s.a = 1.0 - pow(max(1.0 - s.a, 0.0), uOpacityExponent);
+            s.a = 1.0 - pow(max(1.0 - s.a, 0.0), opacityExp);
             s.rgb = volShade(s.rgb, uvw, dirN) * s.a;
             volBlend(acc, s);
             if (acc.a > 0.99) break;
@@ -220,7 +226,7 @@ void main() {
         k += 1.0;
     }
     #if VOLUME_MODE == 5 // summed absorption, grey
-    float a = 1.0 - exp(-tau * uOpacityExponent);
+    float a = 1.0 - exp(-tau * opacityExp);
     vec4 s = volClassify(1.0, uvw);
     acc = vec4(s.rgb * a, a);
     #endif

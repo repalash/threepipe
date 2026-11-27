@@ -103,7 +103,14 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this.transferFunction.dispose()
         return iMaterialCommons.dispose(super.dispose).call(this)
     }
-    clone(track = false): this {return iMaterialCommons.clone(super.clone).call(this, track)}
+    /**
+     * A copy with the same settings and field ({@link setValues} copies the volume settings).
+     */
+    clone(track = false): this {
+        const m = iMaterialCommons.clone(super.clone).call(this, track) as this
+        m.field = this._field
+        return m
+    }
 
     materialExtensions: MaterialExtension[] = []
     extraUniformsToUpload: Record<string, IUniform> = {}
@@ -125,11 +132,13 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     }
 
     /**
-     * Sets three.js material properties (side, blending, ...) from a material or a parameters object.
-     * The volume settings are set with {@link fromJSON} or {@link copy}.
+     * Sets three.js material properties (side, blending, ...) from a material or a parameters object. From another
+     * volume material it also copies the volume settings (not the field), as {@link copy}; `clone` goes through here.
      */
-    setValues(parameters: Material | (ShaderMaterialParameters & IMaterialParameters)): this {
-        return iMaterialCommons.setValues(super.setValues).call(this, parameters)
+    setValues(parameters: Material | (ShaderMaterialParameters & IMaterialParameters), ...args: any[]): this {
+        const res = (iMaterialCommons.setValues(super.setValues) as any).call(this, parameters, ...args)
+        if ((parameters as any)?.isVolumeMaterial && parameters !== this) this._copySettings(parameters as unknown as VolumeMaterial)
+        return res
     }
 
     /**
@@ -275,6 +284,7 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
                 transferMap: {value: null},
                 uBoxSize: {value: new Vector3(1, 1, 1)},
                 uVolumeSize: {value: new Vector3(1, 1, 1)},
+                uDataSize: {value: new Vector3(1, 1, 1)},
                 uValueMap: {value: new Vector2(1, 0)},
                 uSamplingRate: {value: 1},
                 uOpacityExponent: {value: 1},
@@ -313,7 +323,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this.transferFunction.addEventListener('update', this._tfUpdate)
         if (parameters?.mode) this.mode = parameters.mode
         if (parameters?.field) this.field = parameters.field
-        this.setPreset(parameters?.preset ?? defaultVolumePresetName, false)
+        // an explicit preset also sets its range (the CT presets are in HU); the default one stretches over the field
+        this.setPreset(parameters?.preset ?? defaultVolumePresetName, !!parameters?.preset)
         this._constructed = true
         this._definesChanged()
     }
@@ -403,6 +414,16 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         return {minMax, emptySpace: this._emptySpace}
     }
 
+    // what counts as empty for the current settings; the map is invalidated when it changes
+    private _setEmptySpaceParams(field: VolumeData, emptySpace: EmptySpaceMap) {
+        emptySpace.setParams({
+            mode: this.mode === 'iso' ? 'iso' : 'transfer',
+            valueMap: this._valueMap(field),
+            iso: (this.isoValue - this.range.x) / (this.range.y - this.range.x || 1),
+            transferTexture: this.transferFunction.texture,
+        })
+    }
+
     /**
      * Builds the GPU maps the march uses ({@link emptySpaceSkipping}, {@link gradientTexture}), spending at most
      * `budget` texture reads; called by {@link VolumePlugin} before each frame. Returns the reads spent.
@@ -415,13 +436,7 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
             const {minMax, emptySpace} = this._blocks(field)
             spent += minMax.update(renderer, budget - spent)
             if (this._usesEmptySpaceMap() && minMax.ready) {
-                const valueMap = this._valueMap(field)
-                emptySpace.setParams({
-                    mode: this.mode === 'iso' ? 'iso' : 'transfer',
-                    valueMap,
-                    iso: (this.isoValue - this.range.x) / (this.range.y - this.range.x || 1),
-                    transferTexture: this.transferFunction.texture,
-                })
+                this._setEmptySpaceParams(field, emptySpace)
                 if (budget - spent > 0) spent += emptySpace.update(renderer, budget - spent)
             }
         }
@@ -492,6 +507,7 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
             u.volumeMap.value = tex
             const [sx, sy, sz] = field.textureSize
             u.uVolumeSize.value.set(sx, sy, sz)
+            u.uDataSize.value.set(field.xLength, field.yLength, field.zLength)
             // texture value t -> data value d -> transfer function coordinate
             const [vx, vy] = this._valueMap(field)
             u.uValueMap.value.set(vx, vy)
@@ -506,6 +522,9 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
                     u.uMinMaxMap.value = minMax.texture
                     u.uMinMaxReady.value = 1
                 }
+                // the settings may have changed since the plugin last built the map (its budget may have run out
+                // before this material): check them here, so a stale map is never used
+                if (this._usesEmptySpaceMap()) this._setEmptySpaceParams(field, emptySpace)
                 if (this._usesEmptySpaceMap() && emptySpace.ready) {
                     u.uSkipMap.value = emptySpace.texture
                     u.uSkipReady.value = 1
@@ -588,13 +607,17 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      * Copies the settings (not the field) from another volume material.
      */
     copy(source: Material | any): this {
-        if (!source?.isVolumeMaterial) return this.setValues(source)
-        // three.js material properties only; uniforms and shaders stay this material's own
-        iMaterialCommons.setValues(super.setValues).call(this, source)
+        return this.setValues(source)
+    }
+
+    private _copySettings(source: VolumeMaterial) {
         this.mode = source.mode
         this.range.copy(source.range)
         this.transferFunction.copy(source.transferFunction)
+        // keep the copied transfer function and range: set the name without applying the preset
+        this._skipPresetChange = true
         this.preset = source.preset
+        this._skipPresetChange = false
         this.density = source.density
         this.samplingRate = source.samplingRate
         this.interactiveSamplingRate = source.interactiveSamplingRate
@@ -607,7 +630,7 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this.skipBlockSize = source.skipBlockSize
         this.gradientTexture = source.gradientTexture
         this._rangeSet = true
-        return this
+        this.setDirty({change: 'copy'})
     }
 
     // endregion
