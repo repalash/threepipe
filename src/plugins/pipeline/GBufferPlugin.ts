@@ -206,6 +206,9 @@ export class GBufferPlugin
         if (!this.material) throw new Error('GBufferPlugin: material not created')
         this.material.userData.isGBufferMaterial = true
         const pass = new GBufferRenderPass(this.passId, ()=>this.target, this.material, new Color(1, 1, 1), 1)
+        // materials with userData.renderToFlags that are not drawn into the GBuffer write only their flags
+        pass.renderFlagsOnly = !!this.flagsTexture
+        this.material.flagsOnlyMaterials = pass.flagsOnlyMaterials
         const preprocessMaterial = pass.preprocessMaterial
         pass.preprocessMaterial = (m) => preprocessMaterial(m, m.userData.renderToDepth) // if renderToDepth is undefined then renderToGbuffer is taken internally
 
@@ -215,16 +218,24 @@ export class GBufferPlugin
             if (object.customGBufferMaterial) {
                 const mat = object.customGBufferMaterial
                 mat.allowOverride = false
-                // todo save the current forcedOverrideMaterial to restore it later?
                 const current = object.material
-                object.forcedOverrideMaterial = mat
+                pass.forceObjectMaterial(object, mat)
                 const current0 = Array.isArray(current) ? current[0] : current
                 if (current0) {
                     mat.userData.renderToGBuffer = current0.userData.renderToGBuffer
                     mat.userData.renderToDepth = current0.userData.renderToDepth
+                    mat.userData.renderToFlags = current0.userData.renderToFlags
                     mat.userData.pluginsDisabled = current0.userData.pluginsDisabled
                     // todo other plugin userData
                     mat.side = current0.side
+                    // a hidden or faded-out line draws nothing (no depth, no normal, no flags), as in the colour pass
+                    mat.visible = current0.visible
+                    mat.opacity = current0.opacity
+                }
+                // the flags of the object come from the updaters of the plugins, as for the other objects
+                if (mat instanceof GBufferMaterial && this.material) {
+                    mat.flagUpdaters = this.material.flagUpdaters
+                    mat.flagsOnlyMaterials = pass.flagsOnlyMaterials
                 }
                 return mat as IMaterial
             }
@@ -234,9 +245,7 @@ export class GBufferPlugin
 
         // const postprocessObject = pass.postprocessObject
         pass.postprocessObject = (object: IObject3D) => {
-            if (object.customGBufferMaterial) {
-                delete object.forcedOverrideMaterial
-            }
+            pass.restoreObjectMaterial(object)
             // postprocessObject(object)
         }
 

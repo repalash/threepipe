@@ -18,6 +18,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         dropzone: {
@@ -62,7 +63,7 @@ async function init() {
     const rt = viewer.addPluginSync(RenderTargetPreviewPlugin)
     rt.addTarget(()=>light.shadow.map || undefined, 'shadow', true, true, true)
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.appendChild(light.uiConfig, {expanded: true})
 }
 

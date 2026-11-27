@@ -12,6 +12,7 @@ import {AWSClientPlugin} from '@threepipe/plugin-network'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [SceneUiConfigPlugin, LoadingScreenPlugin],
@@ -34,7 +35,7 @@ async function init() {
     // this will upload to s3 if the plugin parameters are set up correctly
     // await viewer.exportBlob(blob, 'file.glb')
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
         setBackground: true,

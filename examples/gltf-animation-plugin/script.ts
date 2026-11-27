@@ -4,6 +4,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         dropzone: {
@@ -20,7 +21,7 @@ async function init() {
     gltfAnimation.autoplayOnLoad = true
 
     const ui = viewer.addPluginSync(TweakpaneUiPlugin)
-    ui.setupPluginUi(GLTFAnimationPlugin)
+    ui.setupPluginUi(GLTFAnimationPlugin, {expanded: true})
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     const result = await viewer.load('https://samples.threepipe.org/minimal/Horse.glb', {

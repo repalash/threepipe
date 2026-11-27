@@ -10,7 +10,6 @@ import {
 import {ACameraHelperWidget} from './ACameraHelperWidget'
 import {LineSegments2} from 'three/examples/jsm/lines/LineSegments2.js'
 import {LineSegmentsGeometry} from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
-import {LineMaterial2} from '../../core'
 import {uiToggle} from 'uiconfig.js'
 import {onChange2} from 'ts-browser-helpers'
 
@@ -28,12 +27,8 @@ export class CameraHelper2 extends ACameraHelperWidget {
     line: LineSegments2
     pointMap: Record<string, number[]>
 
-    // Store original colors for reapplication
-    private _colorFrustum = new Color(0xffaa00)
-    private _colorCone = new Color(0xff0000)
-    private _colorUp = new Color(0x00aaff)
-    private _colorTarget = new Color(0xffffff)
-    private _colorCross = new Color(0x333333)
+    private _color = new Color()
+    private _colorCross = new Color()
 
     @uiToggle()
     @onChange2(CameraHelper2.prototype.update)
@@ -43,24 +38,7 @@ export class CameraHelper2 extends ACameraHelperWidget {
         super(camera)
 
         const geometry = new LineSegmentsGeometry()
-        const material = new LineMaterial2({
-            color: 0xffffff,
-            linewidth: 3, // in world units with size attenuation, pixels otherwise
-            vertexColors: true,
-            worldUnits: false,
-
-            dashed: false,
-            alphaToCoverage: true,
-
-            toneMapped: false,
-            transparent: true,
-            depthTest: true,
-            depthWrite: false,
-
-            allowOverride: false,
-        })
-        material.userData.renderToGBuffer = false
-        material.userData.renderToDepth = false
+        const material = this._createLineMaterial(true)
 
         const {vertices, colors, pointMap} = generateVertices()
 
@@ -74,10 +52,6 @@ export class CameraHelper2 extends ACameraHelperWidget {
         this.pointMap = pointMap
 
         this.update()
-
-        // colors
-
-        this.setColors(this._colorFrustum, this._colorCone, this._colorUp, this._colorTarget, this._colorCross)
 
     }
 
@@ -210,8 +184,10 @@ export class CameraHelper2 extends ACameraHelperWidget {
         geometry.computeBoundingBox()
         geometry.computeBoundingSphere()
 
-        // Update colors to reflect showFar state
-        this.setColors(this._colorFrustum, this._colorCone, this._colorUp, this._colorTarget, this._colorCross)
+        // one colour for the lines (the colour of the kind, or color), the cross on the near and far planes darker
+        this._color.set(this._lineColor)
+        this._colorCross.copy(this._color).multiplyScalar(0.5)
+        this.setColors(this._color, this._color, this._color, this._color, this._colorCross)
 
         this.line.geometry.instanceCount = this.showFar ? Infinity : 15
 

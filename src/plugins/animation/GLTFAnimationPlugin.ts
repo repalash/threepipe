@@ -455,6 +455,13 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
             const time = now() / 1000.0
             if (this._lastFrameTime < 1) this._lastFrameTime = time - 1.0 / 30.0
             let delta = time - this._lastFrameTime
+
+            // a converge-mode recording steps by its frame time instead of the wall time; the speed below applies to it
+            const d = this._viewer.getPlugin<ProgressivePlugin>('Progressive')?.postFrameConvergedRecordingDelta()
+            if (d && d > 0) delta = d
+            if (d === 0) delta = 0 // not converged yet.
+            // if d < 0: not recording, do nothing
+
             delta *= this.animationSpeed
 
             this._lastFrameTime = time
@@ -465,11 +472,6 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
             else if (dragAnimate) delta *= this._dragAnimationState
 
             // if (Math.abs(delta) < 0.0001) return
-
-            const d = this._viewer.getPlugin<ProgressivePlugin>('Progressive')?.postFrameConvergedRecordingDelta()
-            if (d && d > 0) delta = d
-            if (d === 0) delta = 0 // not converged yet.
-            // if d < 0: not recording, do nothing
 
             const ts = Math.abs(this.timeScale)
             this._animationTime += delta * (ts > 0 ? ts : 1)
@@ -645,14 +647,17 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
         const clips: AnimationClip[] = obj.animations
         if (clips.length < 1) return false
 
-        const animation = this._animations.find(a => a.object === obj) || {
+        const known = this._animations.find(a => a.object === obj)
+        // every scene update (an object move too) comes here: nothing to do when the clips did not change
+        if (known && known.clips.length === clips.length && known.clips.every((c, i) => c === clips[i])) return false
+        const animation = known || {
             object: obj,
             mixer: new AnimationMixer(root),
             clips: [],
             actions: [],
             duration: 0,
         }
-        animation.clips = clips
+        animation.clips = [...clips]
 
         animation.duration = Math.max(...clips.map(an => an.duration))
 
@@ -696,7 +701,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
 
         animation.actions.forEach(ac => ac.clampWhenFinished = true)
 
-        this._animations.push(animation)
+        if (!known) this._animations.push(animation)
         this.uiConfig?.uiRefresh?.(true, 'postFrame')
         this.dispatchEvent({type: 'addAnimation', animation})
         // todo remove on object dispose/remove

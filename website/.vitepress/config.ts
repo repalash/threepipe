@@ -4,6 +4,9 @@ import {defineConfig} from 'vitepress'
 export default defineConfig({
   title: "Threepipe",
   description: "Effortlessly create 3D web experiences, from quick demos to advanced applications, with Three.js",
+  sitemap: {
+    hostname: 'https://threepipe.org',
+  },
   themeConfig: {
     logo: {src: '/logo-filled.png', height: '80px', style: {height: '40px', marginRight: '4px'}},
     outline: 'deep',
@@ -27,6 +30,7 @@ export default defineConfig({
           {text: 'Viewer API', link: 'guide/viewer-api'},
           {text: 'Core Plugins', link: 'guide/core-plugins'},
           {text: '@threepipe Packages', link: 'guide/threepipe-packages'},
+          {text: 'FAQ', link: 'guide/faq'},
         ]
       },
       {
@@ -34,6 +38,7 @@ export default defineConfig({
         items: [
           {text: '3D Assets', link: 'guide/3d-assets'},
           {text: 'Loading Files', link: 'guide/loading-files'},
+          {text: 'Sample Asset Catalog', link: 'guide/asset-catalog'},
           {text: 'Materials', link: 'guide/materials'},
           {text: 'Exporting Files', link: 'guide/exporting-files'},
           {text: 'Render Pipeline', link: 'guide/render-pipeline'},
@@ -58,6 +63,9 @@ export default defineConfig({
           {text: 'Dynamically Loaded Files', link: 'notes/dynamically-loaded-files'},
           {text: 'Widget Handle Picking', link: 'notes/widget-handle-picking'},
           {text: 'Widgets, Helpers & Gizmos', link: 'notes/widgets-and-helpers'},
+          {text: 'Material Previews', link: 'notes/material-previews'},
+          {text: 'Frame Updates: last, debounce, throttle', link: 'notes/frame-updates'},
+          {text: 'Shadows: Shadow Side and Bias', link: 'notes/shadows'},
         ]
       },
       {
@@ -95,6 +103,7 @@ export default defineConfig({
               {text: 'SSAOPlugin (Screen Space Ambient Occlusion)', link: 'plugin/SSAOPlugin'},
               {text: 'CascadedShadowsPlugin (CSM)', link: 'plugin/CascadedShadowsPlugin'},
               {text: 'FrameFadePlugin', link: 'plugin/FrameFadePlugin'},
+              {text: 'ViewOverridesPlugin', link: 'plugin/ViewOverridesPlugin'},
             ],
           },
           {
@@ -119,6 +128,8 @@ export default defineConfig({
             items: [
               {text: 'DropzonePlugin', link: 'plugin/DropzonePlugin'},
               {text: 'PickingPlugin', link: 'plugin/PickingPlugin'},
+              {text: 'BVHPlugin', link: 'plugin/BVHPlugin'},
+              {text: 'GPUPickingPlugin', link: 'plugin/GPUPickingPlugin'},
               {text: 'LoadingScreenPlugin', link: 'plugin/LoadingScreenPlugin'},
               {text: 'FullScreenPlugin', link: 'plugin/FullScreenPlugin'},
               {text: 'InteractionPromptPlugin', link: 'plugin/InteractionPromptPlugin'},
@@ -157,6 +168,7 @@ export default defineConfig({
             text: 'Export', collapsed: true,
             items: [
               {text: 'CanvasSnapshotPlugin', link: 'plugin/CanvasSnapshotPlugin'},
+              {text: 'CanvasRecorderPlugin', link: 'plugin/CanvasRecorderPlugin'},
               {text: 'AssetExporterPlugin', link: 'plugin/AssetExporterPlugin'},
               {text: 'FileTransferPlugin', link: 'plugin/FileTransferPlugin'},
             ],
@@ -188,6 +200,7 @@ export default defineConfig({
             items: [
               {text: 'RenderTargetPreviewPlugin', link: 'plugin/RenderTargetPreviewPlugin'},
               {text: 'GeometryUVPreviewPlugin', link: 'plugin/GeometryUVPreviewPlugin'},
+              {text: 'PerfPanelPlugin', link: 'plugin/PerfPanelPlugin'},
               {text: 'TailwindCSSCDNPlugin', link: 'plugin/TailwindCSSCDNPlugin'},
               // {text: 'SceneUiConfigPlugin', link: 'plugin/SceneUiConfigPlugin'},
               // {text: 'ViewerUiConfigPlugin', link: 'plugin/ViewerUiConfigPlugin'},
@@ -218,6 +231,7 @@ export default defineConfig({
           {text: 'glTF Transform Plugin', link: 'package/plugin-gltf-transform'},
           {text: 'Extra Importers Plugins', link: 'package/plugins-extra-importers'},
           {text: 'Network Plugin', link: 'package/plugin-network'},
+          {text: 'Cloud Plugin (feedback, sign-in, drive)', link: 'package/plugin-cloud'},
           {text: 'Blend Importer Plugin', link: 'package/plugin-blend-importer'},
           {text: 'Gaussian Splatting Plugin', link: 'package/plugin-gaussian-splatting'},
           {text: 'svg-renderer Plugin', link: 'package/plugin-svg-renderer'},
@@ -227,6 +241,7 @@ export default defineConfig({
           {text: 'Timeline UI Plugin', link: 'package/plugin-timeline-ui'},
           {text: 'React Three Fiber (r3f)', link: 'package/plugin-r3f'},
           {text: 'Troika Text Plugin (2D)', link: 'package/plugin-troika-text'},
+          {text: 'Annotations Plugin', link: 'package/plugin-annotations'},
         ]
       },
     ],

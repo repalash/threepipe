@@ -8,10 +8,9 @@ const excludedExamples = new Set([
     // Framework samples — esm.sh redirect stubs break CDN cache (see extras.spec.ts comment)
     'r3f-diamond-caustics-demo', 'r3f-drei-text-html', 'r3f-drei-transform-controls',
     'r3f-js-sample', 'r3f-jsx-sample', 'r3f-jsx-webgi', 'r3f-pivot-controls',
-    'r3f-router-transitions-demo', 'r3f-spline-glass-demo', 'r3f-ssr-demo',
+    'r3f-router-transitions-demo', 'r3f-ssr-demo',
     'r3f-tsx-sample', 'r3f-tsx-webgi', 'react-js-sample', 'react-jsx-sample',
     'react-tsx-sample', 'vue-html-sample', 'vue-sfc-sample', 'svelte-sample',
-    'r3f-spline-glass-demo', // broken: WebGLMultipleRenderTargets removed from three.js fork
     'flickity-ecommerce-pdp', // no index.html
     'aws-client-plugin', 'transfr-share-plugin',
     'ogc-tiles-google-maps', 'ogc-tiles-google-maps-3d', 'ogc-tiles-mars', 'slippy-map-tiles',

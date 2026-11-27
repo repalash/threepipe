@@ -15,7 +15,9 @@ import {
 import {Euler, MathUtils, Object3D, Vector3} from 'three'
 import type {UndoManagerPlugin} from './UndoManagerPlugin'
 import {MultiSelectHelper} from './MultiSelectHelper'
-import {handleGizmoKeyDown} from '../../three/controls/gizmoKeyboardHandler'
+import {gizmoActions, type GizmoActionTarget, withShift} from '../../three/controls/gizmoKeyboardHandler'
+import type {ViewerAction} from '../../viewer/ViewerActions'
+import {isTextTarget} from '../../utils/shortcuts'
 
 @uiFolderContainer('Transform Controls')
 export class TransformControlsPlugin extends AViewerPluginSync {
@@ -82,11 +84,14 @@ export class TransformControlsPlugin extends AViewerPluginSync {
     selectionFilterTest: ((obj: IObject3D)=>IObject3D|null)|undefined = undefined
 
     private _multi = new MultiSelectHelper()
+    /** Removes the actions of the gizmo from the viewer */
+    private _unregisterActions?: () => void
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         this.setDirty()
         this.transformControls = new TransformControls2(viewer.scene.mainCamera, viewer.canvas)
+        this._unregisterActions = viewer.actions.register(this.transformControls.actions)
         this._mainCameraChange = this._mainCameraChange.bind(this)
         viewer.scene.addEventListener('mainCameraChange', this._mainCameraChange)
         this.transformControls.addEventListener('dragging-changed', (event) => {
@@ -190,6 +195,8 @@ export class TransformControlsPlugin extends AViewerPluginSync {
     onRemove(viewer: ThreeViewer) {
         viewer.scene.removeEventListener('mainCameraChange', this._mainCameraChange)
         this._multi.clear(viewer)
+        this._unregisterActions?.()
+        this._unregisterActions = undefined
         if (this.transformControls) {
             this.transformControls.detach()
             viewer.scene.remove(this.transformControls)
@@ -220,11 +227,22 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
     lockProps: string[] | undefined = undefined // list of properties to lock.
 
     declare object: IObject3D | undefined
-    private _keyDownListener(event: KeyboardEvent) {
-        if (!this.enabled || !this.object) return
 
-        // Shared gizmo shortcuts (Q, +/-, X/Y/Z, Space)
-        const handled = handleGizmoKeyDown(event, {
+    /**
+     * The keys of the gizmo, as actions: Q (local or world space), + and - (the size), X, Y, Z (an axis), Space (on or
+     * off), and W, E, R (move, rotate, scale), while it is enabled and attached; also with Shift held down, which snaps
+     * the values (a key listener of the gizmo). With a pivot gizmo on too, the gizmo pressed last takes the keys they share
+     * (else this one). The `TransformControlsPlugin` registers them in `viewer.actions`; without the plugin, register them
+     * yourself (`viewer.actions.register(controls.actions)`).
+     */
+    readonly actions: ViewerAction[] = [
+        ...gizmoActions('transformControls', 'Transform', {
+            // a press on a handle makes it the gizmo of the shared keys; before one, it is the transform gizmo
+            events: this as unknown as GizmoActionTarget['events'],
+            scope: () => this.domElement,
+            preferred: true,
+            active: () => this.enabled && !!this.object,
+            attached: () => !!this.object,
             toggleSpace: () => { this.space = this.space === 'local' ? 'world' : 'local' },
             adjustSize: (d) => { this.size = Math.max(this.size + d, 0.1) },
             toggleAxis: (a) => {
@@ -233,26 +251,25 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
                 else this.showZ = !this.showZ
             },
             toggleEnabled: () => { this.enabled = !this.enabled },
-        })
+            changed: () => this.setDirty({refreshScene: true, frameFade: true}),
+        }),
+        ...(['translate', 'rotate', 'scale'] as const).map((mode, i): ViewerAction => ({
+            id: 'transformControls.' + mode, label: ['Move', 'Rotate', 'Scale'][i], group: 'Transform', shortcut: withShift([['KeyW', 'KeyE', 'KeyR'][i]]),
+            enabled: () => this.enabled && !!this.object,
+            run: () => {
+                this.mode = mode
+                this.setDirty({refreshScene: true, frameFade: true})
+            },
+        })),
+    ]
 
-        if (!handled) {
-            if (event.metaKey || event.ctrlKey) return
-            if ((event.target as any)?.tagName === 'TEXTAREA' || (event.target as any)?.tagName === 'INPUT') return
-            // TransformControls-specific shortcuts
-            switch (event.code) {
-            case 'ShiftLeft':
-            case 'ShiftRight':
-                this.translationSnap = 0.5
-                this.rotationSnap = MathUtils.degToRad(15)
-                this.scaleSnap = 0.25
-                break
-            case 'KeyW': this.mode = 'translate'; break
-            case 'KeyE': this.mode = 'rotate'; break
-            case 'KeyR': this.mode = 'scale'; break
-            default: return
-            }
-        }
-
+    /** Shift, held down, snaps the values */
+    private _keyDownListener(event: KeyboardEvent) {
+        if (!this.enabled || !this.object || isTextTarget(event.target)) return
+        if (event.code !== 'ShiftLeft' && event.code !== 'ShiftRight') return
+        this.translationSnap = 0.5
+        this.rotationSnap = MathUtils.degToRad(15)
+        this.scaleSnap = 0.25
         this.setDirty({refreshScene: true, frameFade: true})
     }
 

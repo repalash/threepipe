@@ -2,7 +2,7 @@ import {Event, Matrix4, Mesh, Vector3} from 'three'
 import {IMaterial} from '../IMaterial'
 import {IEvent, objectHasOwn} from 'ts-browser-helpers'
 import {IObject3D, IObject3DEventMap, IObjectSetDirtyOptions} from '../IObject'
-import {copyObject3DUserData} from '../../utils/serialization'
+import {copyObject3DUserData, copyUserData} from '../../utils/serialization'
 import {getPropDesc} from '../../utils/browser-helpers'
 import {IGeometry, IGeometryEventMap} from '../IGeometry'
 import {Box3B, checkTexMapReference} from '../../three'
@@ -473,7 +473,7 @@ export const iObjectCommons = {
             this.userData = {} // super calls JSON.stringify
             const clone: IObject3D = superClone.call(this, recursive, ...rest)
             this.userData = userData
-            copyObject3DUserData(clone.userData, userData) // this will deep copy/clone todo: do same for this.toJSON()
+            copyObject3DUserData(clone.userData, userData) // this will deep copy/clone. For toJSON see iObjectCommons.toJSON
             iObjectCommons.upgradeObject3D.call(clone)
             clone.userData.cloneParent = this.uuid // todo should this be serialized? add to userdata types?
             if (this._sChildren) {
@@ -508,7 +508,7 @@ export const iObjectCommons = {
             this.userData = selfUserData
 
             source.userData = userData
-            copyObject3DUserData(this.userData, source.userData) // todo: do same for object.toJSON()
+            copyObject3DUserData(this.userData, source.userData) // for toJSON see iObjectCommons.toJSON
 
             if (lightTarget && (this as ILight).target) { // For eg DirectionalLight2
                 lightTarget.position.copy((this as ILight).target!.position)
@@ -517,6 +517,26 @@ export const iObjectCommons = {
             }
 
             return this
+        },
+    /**
+     * Wraps `toJSON` so that the userData keys that start with `__` (runtime state, like `__isMainCamera`) are not
+     * saved, at every depth, like on clone. The keys that start with `_` are saved in JSON (they are left out only in
+     * glTF, see `GLTFWriter2`). See {@link IObject3D.userData}.
+     *
+     * During the original `toJSON`, `userData` is replaced with the copy from {@link copyUserData}, so every part of
+     * the output that comes from `userData` has no `__` keys: `object.userData` from three.js `Object3D.toJSON`, and
+     * `userData` from `@serialize` (like in `PerspectiveCamera2`). Children are saved through their own `toJSON`.
+     * The object keeps its `userData` object.
+     */
+    toJSON: (superToJSON: IObject3D['toJSON']): IObject3D['toJSON'] =>
+        function(this: IObject3D, ...args): any {
+            const userData = this.userData
+            this.userData = copyUserData({}, userData)
+            try {
+                return superToJSON.call(this, ...args)
+            } finally {
+                this.userData = userData
+            }
         },
     /** @ignore */
     add: (superAdd: IObject3D['add']): IObject3D['add'] =>
@@ -731,7 +751,8 @@ function upgradeObject3D(this: IObject3D, parent?: IObject3D|undefined/* , objec
     this.dispatchEvent = iObjectCommons.dispatchEvent(this.dispatchEvent)
     this.dispose = iObjectCommons.dispose(this.dispose)
     this.clone = iObjectCommons.clone(this.clone)
-    this.copy = iObjectCommons.copy(this.copy) // todo: do same for object.toJSON()
+    this.copy = iObjectCommons.copy(this.copy)
+    this.toJSON = iObjectCommons.toJSON(this.toJSON)
     this.add = iObjectCommons.add(this.add)
 
     if (!this.setDirty) this.setDirty = iObjectCommons.setDirty

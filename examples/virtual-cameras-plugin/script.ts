@@ -16,6 +16,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         debug: true,
         plugins: [new ProgressivePlugin(16), SSAAPlugin, LoadingScreenPlugin],
@@ -40,7 +41,7 @@ async function init() {
 
     const rt = viewer.addPluginSync(RenderTargetPreviewPlugin)
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.appendChild(viewer.scene.mainCamera.uiConfig)
 
     for (const [view, name] of views) {

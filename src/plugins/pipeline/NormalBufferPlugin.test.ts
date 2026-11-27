@@ -70,6 +70,9 @@ describe('NormalBufferPlugin.renderTransparent', {timeout}, () => {
         expect(rendered(pass, opaque({renderToDepth: false}))).toBe(false)
         // a transparent material that draws as opaque (no maps, opacity 1) stays in, as in the GBuffer
         expect(rendered(pass, Object.assign(new tp.PhysicalMaterial({transparent: true, opacity: 1}), {userData: {}}))).toBe(true)
+        // but not when it is set to stay out
+        expect(rendered(pass, Object.assign(new tp.PhysicalMaterial({transparent: true, opacity: 1}), {userData: {renderToDepth: false}}))).toBe(false)
+        expect(rendered(pass, Object.assign(new tp.PhysicalMaterial({transparent: true, opacity: 1}), {userData: {renderToGBuffer: false}}))).toBe(false)
     })
 
     test('takes effect on the next render, without recreating the pass, and asks for one', () => {

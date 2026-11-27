@@ -1,0 +1,8 @@
+# threepipe
+
+> A 3D web framework built on three.js. Load a model, add plugins, render.
+
+- Examples, their source and how to use threepipe: https://threepipe.org/examples/llms.txt
+- Guide: https://threepipe.org/guide/getting-started.html
+- API reference: https://threepipe.org/docs/
+- Source: https://github.com/repalash/threepipe

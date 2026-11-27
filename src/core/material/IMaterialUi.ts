@@ -1,6 +1,7 @@
 import {IMaterial} from '../IMaterial'
 import {UiObjectConfig} from 'uiconfig.js'
 import {makeSamplerUi} from '../../ui/image-ui'
+import {UiTags} from '../../ui/uiconfig'
 import {
     AdditiveBlending,
     AlwaysDepth,
@@ -57,6 +58,7 @@ export const iMaterialUI = {
         {
             type: 'input',
             property: [material, 'name'],
+            tags: [UiTags.Basic],
         },
         // {
         //     type: 'monitor',
@@ -73,6 +75,7 @@ export const iMaterialUI = {
         {
             type: 'color',
             property: [material, 'color'],
+            tags: [UiTags.Basic],
         },
         material.flatShading !== undefined ? {
             type: 'checkbox',
@@ -81,6 +84,7 @@ export const iMaterialUI = {
         {
             type: 'image',
             property: [material, 'map'],
+            tags: [UiTags.Basic],
         },
         makeSamplerUi(material, 'map'),
     ],
@@ -93,10 +97,12 @@ export const iMaterialUI = {
                     type: 'slider',
                     bounds: [0, 1],
                     property: [material, 'opacity'],
+                    tags: [UiTags.Basic],
                 },
                 {
                     type: 'checkbox',
                     property: [material, 'transparent'],
+                    tags: [UiTags.Basic],
                     onChange: (ev)=>material.setDirty({uiChangeEvent: ev, change: 'transparent'}),
                 },
                 {
@@ -423,6 +429,26 @@ export const iMaterialUI = {
             })),
         },
         {
+            // the faces drawn into the shadow maps. Auto (null) is the three.js default: the side opposite to Side,
+            // so a front-sided material casts from its back faces. See the Shadows note on the website.
+            type: 'dropdown',
+            label: 'Shadow Side',
+            children: ([
+                ['Auto', -1],
+                ['Front', FrontSide],
+                ['Back', BackSide],
+                ['Double', DoubleSide],
+            ] as [string, number][]).map(value => ({
+                label: value[0],
+                value: value[1],
+            })),
+            getValue: ()=>material.shadowSide ?? -1,
+            setValue: (v: number)=>{
+                material.shadowSide = v < 0 ? null : v as Side
+            },
+            onChange: (ev)=>material.setDirty({uiChangeEvent: ev, change: 'shadowSide', needsUpdate: false}),
+        },
+        {
             type: 'input',
             label: 'Mesh count',
             getValue: ()=>material.appliedMeshes.size || 0,
@@ -461,11 +487,13 @@ export const iMaterialUI = {
                     type: 'slider',
                     bounds: [0, 1],
                     property: [material, 'roughness'],
+                    tags: [UiTags.Basic],
                 },
                 {
                     type: 'slider',
                     bounds: [0, 1],
                     property: [material, 'metalness'],
+                    tags: [UiTags.Basic],
                 },
                 {
                     type: 'image',
@@ -501,6 +529,7 @@ export const iMaterialUI = {
                 {
                     type: 'image',
                     property: [material, 'normalMap'],
+                    tags: [UiTags.Basic],
                 },
                 {
                     type: 'vec2',
@@ -541,11 +570,13 @@ export const iMaterialUI = {
                 {
                     type: 'color',
                     property: [material, 'emissive'],
+                    tags: [UiTags.Basic],
                 },
                 {
                     type: 'slider',
                     bounds: [0, 100],
                     property: [material, 'emissiveIntensity'],
+                    tags: [UiTags.Basic],
                 },
                 {
                     type: 'image',
@@ -569,17 +600,20 @@ export const iMaterialUI = {
                     type: 'slider',
                     bounds: [0, 4],
                     property: [material, 'ior'],
+                    tags: [UiTags.Basic],
                 },
                 {
                     type: 'slider',
                     bounds: [0, 1],
                     property: [material, 'transmission'],
+                    tags: [UiTags.Basic],
                 },
                 {
                     type: 'slider',
                     bounds: [0, 1],
                     stepSize: 0.001,
                     property: [material, 'thickness'],
+                    tags: [UiTags.Basic],
                 },
                 {
                     type: 'image',

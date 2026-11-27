@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Material Configurator Plugin</title>
+    <link rel="help" type="text/plain" href="../llms.txt" title="For agents: about threepipe, the source of this example and how to use it">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Import maps polyfill -->
     <!-- Remove this when import maps will be widely supported -->
@@ -14,7 +15,7 @@
           "threepipe": "./../../dist/index.mjs",
           "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs",
           "@threepipe/plugin-configurator": "./../../plugins/configurator/dist/index.mjs",
-          "@threepipe/webgi-plugins": "https://unpkg.com/@threepipe/webgi-plugins@0.6.4/dist/index.mjs"
+          "@threepipe/webgi-plugins": "./../../plugins/webgi-plugins/dist/index.mjs"
         }
     }
 
@@ -34,10 +35,10 @@
         }
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
-    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
     <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
 </head>
 <body>
+<noscript>This threepipe example needs JavaScript. Its source and instructions for agents: <a href="../llms.txt">llms.txt</a></noscript>
 <div id="canvas-container">
     <canvas id="mcanvas"></canvas>
 </div>

@@ -14,6 +14,7 @@ import {ThreeSVGRendererPlugin} from '@threepipe/plugin-svg-renderer'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: false,
         rgbm: false,
@@ -82,7 +83,7 @@ async function init() {
     // waiting because we need to render pipeline once to autoscale
     await viewer.doOnce('postFrame')
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPlugins(ThreeSVGRendererPlugin)
     ui.setupPlugins(GeometryGeneratorPlugin)
     ui.setupPlugins(PickingPlugin)

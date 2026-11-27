@@ -15,6 +15,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 async function init() {
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [LoadingScreenPlugin, PickingPlugin, AssetExporterPlugin],
@@ -50,7 +51,7 @@ async function init() {
 
     viewer.scene.addObject(line)
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(PickingPlugin)
     ui.appendChild({
         type: 'folder',

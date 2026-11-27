@@ -18,6 +18,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [LoadingScreenPlugin, EntityComponentPlugin],
@@ -42,7 +43,7 @@ async function init() {
     ecs.addComponent(helmet, SampleBodyComponent.ComponentType)
 
     // Setup a basic UI for development
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(EntityComponentPlugin, {expanded: true})
     ui.appendChild(helmet.uiConfig)
 

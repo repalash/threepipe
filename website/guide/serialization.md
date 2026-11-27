@@ -235,3 +235,63 @@ Serialization.RegisterSerializer({
 })
 ```
 
+
+## Resources and the meta object
+
+Large and shared resources are not saved inline in the JSON. `toJSON` and `ThreeSerialization.Serialize` take a `meta` object ([SerializationMetaType](https://threepipe.org/docs/interfaces/SerializationMetaType.html), see `getEmptyMeta()`), which has a map, keyed by uuid, for each kind of resource: `geometries`, `materials`, `textures`, `images`, `shapes`, `skeletons`, `animations`, `nodes`, `extras` and `typed`, and a `_context` with the asset importer, render manager, viewer etc., which is never saved.
+
+The built-in serializers add the resource to its map (once per uuid) and return a reference to it:
+- A texture is saved in `meta.textures` and referenced as `{uuid, resource: 'textures'}`. Its image data goes in `meta.images`, the texture refers to it by uuid, like in three.js `Texture.toJSON`. A texture with a remote `userData.rootPath` is saved without the image (unless `userData.embedUrlImagePreviews` is set) and loaded from the url again on import. Render target textures are not serialized.
+- A material is saved in `meta.materials` and referenced as `{uuid, resource: 'materials'}`.
+- Others are saved in `meta.extras` and referenced as `{uuid, resource: 'extras'}`, like render targets (size and options, not the pixels), and textures loaded from files like LUTs and KTX2 (`serializeTextureInExtras`), whose `url` is either the `rootPath` or the file contents as `{data, type, path}`.
+- `typed` holds other objects saved by reference, like items of the `ReferenceManager`.
+
+On deserialize, a `{uuid, resource}` reference is replaced with the loaded object from the same map.
+
+### The resources section
+
+The viewer (`viewer.toJSON()`, `viewer.exportConfig()`) and plugin configs (`viewer.exportPluginConfig()`, `viewer.exportPluginsConfig()`) serialize everything with a single meta, and then save it as the top-level `resources` of the file, with `metaToResources(meta)` (a copy without `_context`).
+
+When the file is saved as JSON (`exportConfig()`, `exportPluginsConfig()`, or `toJSON(false)`), binary buffers in the resources (the `url.data` of items, typed arrays or `ArrayBuffer`) are first converted to base64 `data:application/octet-stream;base64,...` URIs with `convertArrayBufferToStringsInMeta`. `toJSON()` is binary by default; this is used for the viewer config in glTF/GLB exports, where `GLTFViewerConfigExtension` stores the buffers in the glTF buffers instead.
+
+```json
+{
+  "type": "ThreeViewer",
+  "version": "0.6.0",
+  "metadata": {"generator": "ThreePipe", "version": 2},
+  "scene": {"environment": {"uuid": "6a1f...", "resource": "textures"}},
+  "plugins": [...],
+  "resources": {
+    "textures": {"6a1f...": {...}},
+    "images": {...},
+    "materials": {},
+    "extras": {}
+  }
+}
+```
+
+### Importing resources
+
+`viewer.importConfig(json)` first loads the `resources` with `viewer.loadConfigResources`, which calls `MetaImporter.ImportMeta`. It converts the base64 data URIs back to buffers and creates the objects in this order, so that each step can use the ones before it: `animations`, `shapes`, `geometries`, `images`, `textures` (also loading the `rootPath` textures with the asset importer), `materials`, `object` (and `skeletons`), `extras` (deserialized, or imported from their `url` when set), and `typed`.
+
+The result is a new meta marked as loaded (`__isLoadedResources: true`), which is then passed to `fromJSON`. `viewer.fromJSON(json, meta)` expects such a meta (or `json.resources` already loaded), otherwise it logs an error and returns `null`. So use `viewer.importConfig` (or `viewer.importPluginConfig`) for a file, or load the resources first.
+
+```typescript
+const meta = await viewer.loadConfigResources(json.resources || {})
+viewer.fromJSON(json, meta)
+// same as
+await viewer.importConfig(json)
+```
+
+## Versioning
+
+A viewer config saves two versions:
+- `version`: the threepipe version that saved it, `ThreeViewer.VERSION`.
+- `metadata.version`: the config format version, currently `2`.
+
+There is no general migration system that upgrades files between versions. Files from older versions are handled with targeted fixes where the format changed, for example:
+- `ThreeViewer.fromJSON` moves the old top-level `background` and `backgroundIntensity` to the scene, and drops `useLegacyLights`.
+- `RootScene.fromJSON` moves the environment rotation saved in the texture to `environmentRotation` for `ViewerApp` configs with `metadata.version` below 2.
+- `iMaterialCommons` (material `setValues`) handles old color management and bump map scale using the `metadata.version` of the material JSON.
+
+When changing what a custom class or plugin saves, keep reading the old properties in its `fromJSON`, as these do.
