@@ -57,7 +57,7 @@ vec3 BRDF_GGX_Anisotropy( const in vec3 lightDir, const in vec3 viewDir, const i
 
     float V = V_GGX_SmithCorrelated_Anisotropic( at, ab, dotTV, dotBV, dotTL, dotBL, dotNV, dotNL );
 
-    float D = D_GGX_Anisotropic( at, ab, dotTH, dotBH, dotNH );
+    float D = D_GGX_Anisotropic( at, ab, dotNH, dotTH, dotBH ); // three.js order (Filament has dotTH, dotBH, dotNH)
 
     return F * ( V * D );
 

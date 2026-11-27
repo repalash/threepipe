@@ -129,6 +129,7 @@ An app that installs the release candidate pins `three` and `@types/three` to th
 
 ### Fixed
 
+- `AnisotropyPlugin` (webgi-plugins): the anisotropic lobe passes its dot products to three.js's `D_GGX_Anisotropic( alphaT, alphaB, dotNH, dotTH, dotBH )` in that order; it passed them in Filament's order (`dotTH, dotBH, dotNH`), so the distribution of the direct light used the wrong angles. Anisotropic highlights look different
 - EXR files load as half float on devices without float render targets: `getTextureDataType()` gives `UnsignedByteType` there, which `EXRLoader` does not decode (it only outputs half or full float)
 - `ViewOverridesPlugin` linear depth view with three.js r179 and later: the patch now replaces every `fragCoordZ` declaration of the depth shader (r179 has one for the reversed depth buffer and one for the normal one, and changed the spacing the old patch matched)
 - `tweakpane` image input: downloading a Float/HalfFloat `DataTexture` as EXR threw `EXRExporter.parse: Unsupported first parameter`
