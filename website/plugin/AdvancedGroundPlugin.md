@@ -29,7 +29,7 @@ The AdvancedGroundPlugin builds upon the basic ground plane functionality by add
 - **Automatic Shadow Updates**: Shadows update automatically when scene changes
 - **Customizable Shadow Light**: Randomized directional light with adjustable parameters
 - **Auto Frustum Sizing**: Shadow map frustum automatically matches ground size
-- **Multiple Shadow Types**: Basic, PCF, PCFSoft, and VSM shadow map types
+- **Own Depth Pass**: Renders the shadow casters into its own depth target, without the shadow maps or shadow settings of the renderer
 - **Alpha Vignette**: Fade shadows at edges for transparent ground planes
 - **Shadow Smoothing**: Optional blur filter for even softer shadows
 - **Render Target Preview**: Debug shadow maps and baked shadow textures
@@ -133,13 +133,19 @@ ground.autoBakeShadows = false // Manual control
 // Manually trigger shadow bake (when autoBakeShadows is false)
 ground.bakeShadows()
 
-// Shadow accumulation frames
-ground.shadowBaker.maxFrameNumber = 64  // Default, 64 frames
-ground.shadowBaker.maxFrameNumber = 128 // Higher quality, slower
-ground.shadowBaker.maxFrameNumber = 32  // Faster, less smooth
+// The number of randomized light positions in the baked shadow
+ground.shadowBaker.maxFrameNumber = 400 // Default
+ground.shadowBaker.maxFrameNumber = 800 // Smoother, takes longer
+ground.shadowBaker.maxFrameNumber = 100 // Faster, less smooth
+
+// The number of light positions rendered on each frame
+ground.shadowBaker.lightsPerFrame = 4 // Default
+ground.shadowBaker.lightsPerFrame = 1 // Less work on each frame, 4 times the frames
 ```
 
-Baked shadows accumulate over multiple frames with a randomized light position, creating extremely soft and realistic shadows without the typical shadow map artifacts.
+Baked shadows accumulate over multiple frames, each with a few randomized light positions, creating extremely soft and realistic shadows without the typical shadow map artifacts. The baked shadow at the end is the same for any `lightsPerFrame`: it is made of the same `maxFrameNumber` light positions.
+
+The baker renders the depth of the shadow casters (meshes, lines and points with `castShadow`) from each light position into its own render target (`shadowBaker.depthTarget`), as three.js renders a shadow map: with the side of the material for shadows, its alpha test, skinning, morph targets and instancing. It does not use the shadow maps of three.js and does not change any shadow setting of the renderer, so baking does not affect the real-time shadows of the scene. The baked shadow is in `shadowBaker.target` (RGBA8, the lit fraction packed with `packDepthToRGBA`, in the uv space of the ground).
 
 ### Shadow Light Configuration
 
@@ -170,11 +176,6 @@ randomParams.distanceScale = 5   // Closer light, harder shadows
 randomParams.direction.set(0.5, -1, 0.3)
 randomParams.normalDirection.set(0, -1, 0)
 
-// Shadow radius: penumbra size
-shadowBaker.light.shadowParams.radius = 1  // Default
-shadowBaker.light.shadowParams.radius = 3  // Softer edges
-shadowBaker.light.shadowParams.radius = 0  // Sharp edges
-
 // Shadow bias: prevents self-shadowing artifacts
 shadowBaker.light.shadowParams.bias = -0.0001 // Default
 shadowBaker.light.shadowParams.bias = -0.001  // More bias if artifacts appear
@@ -182,25 +183,15 @@ shadowBaker.light.shadowParams.bias = -0.001  // More bias if artifacts appear
 
 These parameters control the randomized light that creates soft shadows through multi-frame accumulation.
 
-### Shadow Map Type
-
-Choose the shadow map algorithm:
+### Smoothing
 
 ```typescript
-import {BasicShadowMap, PCFShadowMap, PCFSoftShadowMap, VSMShadowMap} from 'threepipe'
-
-// Set shadow map type
-ground.shadowBaker.shadowMapType = PCFSoftShadowMap // Default, best quality
-ground.shadowBaker.shadowMapType = PCFShadowMap      // Good quality, faster
-ground.shadowBaker.shadowMapType = VSMShadowMap      // Variance shadow maps
-ground.shadowBaker.shadowMapType = BasicShadowMap    // Fastest, hard shadows
-
-// Smooth the final baked shadow
-ground.shadowBaker.smoothShadow = true  // Default, applies blur
-ground.shadowBaker.smoothShadow = false // No additional smoothing
+// Smooth the baked shadow on each frame
+ground.shadowBaker.smoothShadow = true  // Applies a small blur
+ground.shadowBaker.smoothShadow = false // Default, no additional smoothing
 ```
 
-PCFSoftShadowMap provides the best quality when combined with the multi-frame accumulation.
+Each light position gives a hard shadow (a depth test, as `BasicShadowMap` of three.js); the softness comes from the many light positions. `shadowBaker.shadowMapType` is deprecated and has no effect: it is not saved, and a value saved in older files is ignored. `shadowParams.radius` has no effect on the baked shadow.
 
 ### Auto Frustum Sizing
 
@@ -286,8 +277,6 @@ The ground uses a standard PhysicalMaterial, so all PBR properties are available
 Create a professional studio environment:
 
 ```typescript
-import {PCFSoftShadowMap} from 'threepipe'
-
 const viewer = new ThreeViewer({
     canvas: document.getElementById('canvas'),
     msaa: true,
@@ -305,8 +294,7 @@ ground.material.metalness = 0.2
 
 // Configure soft shadows
 ground.bakedShadows = true
-ground.shadowBaker.shadowMapType = PCFSoftShadowMap
-ground.shadowBaker.maxFrameNumber = 128 // High quality
+ground.shadowBaker.maxFrameNumber = 800 // High quality
 ground.shadowBaker.light.randomParams.focus = 0.6
 ground.shadowBaker.light.randomParams.spread = 0.7
 
@@ -579,23 +567,20 @@ The AdvancedGroundPlugin is ideal for:
 
 **Shadows not appearing:**
 - Ensure `bakedShadows` is true
-- Wait for accumulation (64 frames by default)
+- Wait for accumulation (400 light positions by default, 4 on each frame)
 - Check that objects are casting shadows (`castShadow = true`)
 - Verify shadow light parameters are reasonable
 - Look for shadow frustum size issues (enable `autoFrustumSize`)
 
 **Shadows too hard/soft:**
 - Adjust `focus` and `spread` in `randomParams`
-- Modify `radius` in shadow parameters
 - Change `maxFrameNumber` (higher = softer)
-- Try different `shadowMapType` (PCFSoftShadowMap is softest)
 - Enable `smoothShadow` for additional blur
 
 **Performance issues:**
 - Disable reflections with `groundReflection = false`
-- Reduce shadow `maxFrameNumber` (try 32 instead of 64)
+- Reduce shadow `maxFrameNumber` (try 100 instead of 400), or `lightsPerFrame` for less work on each frame
 - Lower reflection texture resolution (modify source code)
-- Use `BasicShadowMap` instead of `PCFSoftShadowMap`
 - Disable `autoBakeShadows` and bake manually only when needed
 
 **Reflection artifacts:**

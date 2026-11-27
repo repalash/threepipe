@@ -48,7 +48,11 @@ async function init() {
     viewer.renderManager.renderer.shadowMap.type = PCFShadowMap
 
     const rt = viewer.addPluginSync(RenderTargetPreviewPlugin)
-    rt.addTarget(()=>ground.shadowBaker?.light.shadow.map, 'shadow', false, false, true, (s)=>s + ' = vec4(' + s + '.r/2.);')
+    // the light space depth of the light positions of the last bake frame, one tile for each
+    rt.addTarget(()=>{
+        const depth = ground.shadowBaker?.depthTarget?.depthTexture
+        return depth ? {texture: depth} : undefined
+    }, 'shadow depth', false, false, true, (s)=>s + ' = vec4(' + s + '.rrr, 1.);')
     rt.addTarget(()=>ground.shadowBaker?.target, 'baked shadow', false, false, true)
 
 }
