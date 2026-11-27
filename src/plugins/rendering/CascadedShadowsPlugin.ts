@@ -968,6 +968,10 @@ export class CSMFrustum {
 
         target.length = breaks.length
 
+        // breaks are fractions of the far distance, the vertices are lerped from the near plane (three.js r185, #33510)
+        const near = this.vertices.near[ 0 ].z
+        const far = this.vertices.far[ 0 ].z
+
         for (let i = 0; i < breaks.length; i++) {
 
             const cascade = target[ i ]
@@ -982,9 +986,11 @@ export class CSMFrustum {
 
             } else {
 
+                const alpha = (breaks[ i - 1 ] * far - near) / (far - near)
+
                 for (let j = 0; j < 4; j++) {
 
-                    cascade.vertices.near[ j ].lerpVectors(this.vertices.near[ j ], this.vertices.far[ j ], breaks[ i - 1 ])
+                    cascade.vertices.near[ j ].lerpVectors(this.vertices.near[ j ], this.vertices.far[ j ], alpha)
 
                 }
 
@@ -1000,9 +1006,11 @@ export class CSMFrustum {
 
             } else {
 
+                const alpha = (breaks[ i ] * far - near) / (far - near)
+
                 for (let j = 0; j < 4; j++) {
 
-                    cascade.vertices.far[ j ].lerpVectors(this.vertices.near[ j ], this.vertices.far[ j ], breaks[ i ])
+                    cascade.vertices.far[ j ].lerpVectors(this.vertices.near[ j ], this.vertices.far[ j ], alpha)
 
                 }
 
