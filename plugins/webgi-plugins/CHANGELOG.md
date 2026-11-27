@@ -24,6 +24,8 @@ Release candidate of the three.js r182 upgrade lane, under the npm dist-tag `thr
 ### Fixed
 
 - `SSContactShadowsPlugin` with three.js r182: the contact shadow is added to each `getShadow` (r182 has one for each shadow map type, PCF with a `sampler2DShadow`). The plugin changed the first one only, now the VSM one, so with the default `PCFShadowMap` the materials did not compile
+- `SSContactShadowsPlugin` with `CascadedShadowsPlugin`: every directional and spot `getShadow` call gets the light direction, also the four that `CascadedShadowsPlugin` adds; with both plugins a material did not compile
+- `AdvancedGroundPlugin`: a saved `PCFSoftShadowMap` baked shadow type is `PCFShadowMap` (three.js r182 deprecates it and warned on every frame of a bake)
 - `SSContactShadowsPlugin` and the inline ray trace of `SSReflectionPlugin` include `<packing>`, which three.js r182 removed from the material shaders; `ShadowMapBaker` (`AdvancedGroundPlugin`) includes it for its baked map, and `FSShadowMaterial` for `ShadowMaterial`
 
 ## [0.7.0] - 2026-10-24

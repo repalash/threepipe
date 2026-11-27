@@ -12,7 +12,7 @@ Release candidate of the three.js r182 upgrade lane, under the npm dist-tag `thr
 
 ### Changed
 
-- `VOXLoadPlugin` uses the `VOXLoader` result of three.js r182 (#32488): it adds the scene of the file (scaled as the meshes were), so the models keep the positions and rotations the file gives them; a file without a scene graph gets a mesh of each chunk from `buildMesh()`, as before. `VOXMesh` and the result as an array of chunks are deprecated in r182
+- `VOXLoadPlugin` uses the `VOXLoader` result of three.js r182 (#32488): it adds the scene of the file, with the scale of the meshes (0.0015) on the root of the model, so the models keep the positions and rotations the file gives them; a file without a scene graph gets a mesh of each chunk from `buildMesh()`, as before. `VOXMesh` and the result as an array of chunks are deprecated in r182
 
 ### Removed
 
