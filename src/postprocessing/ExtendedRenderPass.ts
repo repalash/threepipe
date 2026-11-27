@@ -29,6 +29,7 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
     blurTransmissionTarget = true
     preserveTransparentTarget = false
     private _transparentTarget?: IRenderTarget
+    private readonly _transparentClearColor = new Color(0, 0, 0)
 
     /**
      * A render target to render transparent, transmissive objects to.
@@ -260,8 +261,14 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
             {
                 const curClear = this.clear
                 const curClearDepth = renderer.autoClearDepth
+                const curClearColor = this.clearColor
+                const curClearAlpha = this.clearAlpha
                 renderer.autoClearDepth = false
                 this.clear = true
+                // the layer is composited as premultiplied colour, so pixels without objects must be (0, 0, 0, 0)
+                // whatever the clear colour of the pass or the renderer
+                this.clearColor = this._transparentClearColor
+                this.clearAlpha = 0
 
                 renderer.renderWithModes({
                     shadowMapRender: false,
@@ -272,6 +279,8 @@ export class ExtendedRenderPass extends RenderPass implements IPipelinePass<'ren
                 }, renderFn) // render to transparentTarget
 
                 this.clear = curClear
+                this.clearColor = curClearColor
+                this.clearAlpha = curClearAlpha
                 renderer.autoClearDepth = curClearDepth
             }
 
