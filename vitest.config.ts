@@ -7,10 +7,13 @@ export default defineConfig({
         glsl({include: 'src/**/*.glsl'}),
     ],
     resolve: {
-        alias: {
-            'threepipe': path.resolve(import.meta.dirname, './src/index.ts'),
-            'three': path.resolve(import.meta.dirname, './node_modules/three/'),
-        },
+        alias: [
+            {find: 'threepipe', replacement: path.resolve(import.meta.dirname, './src/index.ts')},
+            // the ES module: since three.js r186 the package's main (build/three.cjs) is a deprecated CommonJS stub that
+            // re-exports it with require(esm), and an alias to the package folder resolved to main
+            {find: /^three$/, replacement: path.resolve(import.meta.dirname, './node_modules/three/build/three.module.js')},
+            {find: /^three\//, replacement: path.resolve(import.meta.dirname, './node_modules/three') + '/'},
+        ],
     },
     test: {
         environment: 'node',
