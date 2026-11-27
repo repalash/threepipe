@@ -4,7 +4,8 @@ import {glsl} from './scripts/vite-utils.mjs'
 
 export default defineConfig({
     plugins: [
-        glsl({include: 'src/**/*.glsl'}),
+        // the shaders of the plugins that unit tests import (tests/unit/shadow-map-baker.test.ts)
+        glsl({include: ['src/**/*.glsl', 'plugins/webgi-plugins/src/**/*.glsl']}),
     ],
     resolve: {
         alias: {

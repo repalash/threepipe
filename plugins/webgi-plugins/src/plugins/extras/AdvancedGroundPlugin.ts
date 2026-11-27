@@ -1,6 +1,5 @@
 import {
     BaseGroundPlugin,
-    BasicShadowMap,
     bindToValue,
     Event,
     generateUiConfig,
@@ -13,7 +12,6 @@ import {
     Mesh2,
     NoColorSpace,
     onChange,
-    PCFShadowMap,
     PlaneGeometry,
     RGBAFormat,
     serialize,
@@ -21,7 +19,6 @@ import {
     UiObjectConfig,
     uiToggle,
     UnsignedByteType,
-    VSMShadowMap,
     WebGLRenderTarget,
 } from 'threepipe'
 import {SSReflectionPlugin} from '../postprocessing/SSReflectionPlugin'
@@ -257,6 +254,15 @@ export class AdvancedGroundPlugin extends BaseGroundPlugin {
                 property: ()=>[this._shadowBaker, 'maxFrameNumber'],
             },
             {
+                label: 'Lights per Frame',
+                type: 'input',
+                hidden: ()=> !this._shadowBaker,
+                stepSize: 1,
+                bounds: [1, 16],
+                property: ()=>[this._shadowBaker, 'lightsPerFrame'],
+                limitedUi: true,
+            },
+            {
                 label: 'Alpha Vignette',
                 type: 'checkbox',
                 hidden: ()=> !this._material || (this._material.transmission || 0) < 0.0001 && !this._material.transparent,
@@ -288,13 +294,6 @@ export class AdvancedGroundPlugin extends BaseGroundPlugin {
                 label: 'Smooth Shadow',
                 type: 'checkbox',
                 property: ()=>[this._shadowBaker, 'smoothShadow'],
-            },
-            {
-                label: 'Baked shadow type',
-                type: 'dropdown',
-                children: [['Basic', BasicShadowMap], ['PCF', PCFShadowMap], ['VSM', VSMShadowMap]] // PCFSoftShadowMap is deprecated in three.js r182, PCFShadowMap is soft
-                    .map((v) => ({label: v[0].toString(), value: v[1]})),
-                property: ()=>[this._shadowBaker, 'shadowMapType'],
             },
             {
                 type: 'folder',
