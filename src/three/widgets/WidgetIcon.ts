@@ -192,5 +192,6 @@ export class WidgetIcon extends Mesh<PlaneGeometry, MeshBasicMaterial> {
         this.material.dispose()
         this.dot.material.dispose()
         this.geometry.dispose()
+        super.dispose()
     }
 }

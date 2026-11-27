@@ -50,6 +50,18 @@ describe('dispose event', () => {
         }
     })
 
+    test('dispatched by threepipe\'s controls and widget icons, which are not upgraded objects', () => {
+        // only what the controls use of the canvas
+        const domElement: any = {style: {}, addEventListener: () => {}, removeEventListener: () => {}}
+        const camera = new tp.PerspectiveCamera2()
+        // ViewHelper2 makes a WebGLRenderer, which Node does not have
+        for (const o of [new tp.TransformControls(camera, domElement), new tp.PivotControls(camera, domElement), new tp.WidgetIcon('pointLight')]) {
+            const c = countDispose(o as any)
+            o.dispose()
+            expect(c.n, o.constructor.name).toBe(1)
+        }
+    })
+
     test('children are disposed once each and stay in the hierarchy', () => {
         const root = new tp.Group2()
         const child = new tp.Mesh2()
