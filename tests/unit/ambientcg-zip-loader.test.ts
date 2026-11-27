@@ -1,13 +1,15 @@
 /**
- * Unit tests for AmbientCGZipLoader (Node): the file names in an ambientCG zip, the map slots, the material and the HDRI.
+ * Unit tests for AmbientCGZipLoader and PolyhavenMaterialGLTFLoader of @threepipe/plugins-extra-importers (Node): the file names in an ambientCG zip, the map slots, the material and the HDRI.
  * The file lists are from real 1K-JPG material zips and 1K HDRI zips (Nov 2026).
  */
 import {beforeAll, describe, expect, it} from 'vitest'
 import {DataTexture, EquirectangularReflectionMapping, NoColorSpace, RepeatWrapping, SRGBColorSpace, Texture} from 'three'
 
 let tp: typeof import('threepipe')
+let ei: typeof import('../../plugins/extra-importers/src/index')
 beforeAll(async() => {
     tp = await import('threepipe')
+    ei = await import('../../plugins/extra-importers/src/index')
 })
 
 const fabric087 = [ // has Opacity
@@ -36,30 +38,30 @@ const night011 = [ // an HDRI
 
 describe('findAmbientCGHDRIFile', () => {
     it('finds the HDR image of an HDRI zip', () => {
-        expect(tp.findAmbientCGHDRIFile(night011)).toBe('NightEnvironmentHDRI011_1K_HDR.exr')
-        expect(tp.findAmbientCGHDRIFile(['a/DaySkyHDRI072B_4K_HDR.hdr'])).toBe('a/DaySkyHDRI072B_4K_HDR.hdr')
+        expect(ei.findAmbientCGHDRIFile(night011)).toBe('NightEnvironmentHDRI011_1K_HDR.exr')
+        expect(ei.findAmbientCGHDRIFile(['a/DaySkyHDRI072B_4K_HDR.hdr'])).toBe('a/DaySkyHDRI072B_4K_HDR.hdr')
     })
     it('is undefined for a material zip', () => {
-        for (const z of [fabric087, metal032, lava004, sponge001]) expect(tp.findAmbientCGHDRIFile(z)).toBeUndefined()
-        expect(tp.findAmbientCGHDRIFile(['__MACOSX/._NightEnvironmentHDRI011_1K_HDR.exr'])).toBeUndefined()
+        for (const z of [fabric087, metal032, lava004, sponge001]) expect(ei.findAmbientCGHDRIFile(z)).toBeUndefined()
+        expect(ei.findAmbientCGHDRIFile(['__MACOSX/._NightEnvironmentHDRI011_1K_HDR.exr'])).toBeUndefined()
     })
 })
 
 describe('parseAmbientCGFileName', () => {
     it('parses the map files', () => {
-        expect(tp.parseAmbientCGFileName('Fabric087_1K-JPG_NormalGL.jpg')).toEqual({assetId: 'Fabric087', variant: '1K-JPG', map: 'NormalGL', ext: 'jpg'})
-        expect(tp.parseAmbientCGFileName('Fabric087_1K-PNG_Color.PNG')).toEqual({assetId: 'Fabric087', variant: '1K-PNG', map: 'Color', ext: 'png'})
-        expect(tp.parseAmbientCGFileName('folder/Planks023B_2K-JPG_Roughness.jpg')).toEqual({assetId: 'Planks023B', variant: '2K-JPG', map: 'Roughness', ext: 'jpg'})
+        expect(ei.parseAmbientCGFileName('Fabric087_1K-JPG_NormalGL.jpg')).toEqual({assetId: 'Fabric087', variant: '1K-JPG', map: 'NormalGL', ext: 'jpg'})
+        expect(ei.parseAmbientCGFileName('Fabric087_1K-PNG_Color.PNG')).toEqual({assetId: 'Fabric087', variant: '1K-PNG', map: 'Color', ext: 'png'})
+        expect(ei.parseAmbientCGFileName('folder/Planks023B_2K-JPG_Roughness.jpg')).toEqual({assetId: 'Planks023B', variant: '2K-JPG', map: 'Roughness', ext: 'jpg'})
     })
     it('ignores the other files', () => {
         for (const f of ['Fabric087_1K-JPG.usdc', 'Fabric087_1K-JPG.mtlx', 'Fabric087_1K-JPG.blend', 'Fabric087_1K-JPG.tres', 'Fabric087.png'])
-            expect(tp.parseAmbientCGFileName(f)).toBeUndefined()
+            expect(ei.parseAmbientCGFileName(f)).toBeUndefined()
     })
 })
 
 describe('pickAmbientCGMapFiles', () => {
     it('picks NormalGL over NormalDX and skips the preview', () => {
-        const {files, assetId, unknown} = tp.pickAmbientCGMapFiles(fabric087)
+        const {files, assetId, unknown} = ei.pickAmbientCGMapFiles(fabric087)
         expect(assetId).toBe('Fabric087')
         expect(unknown).toEqual([])
         expect(files).toEqual({
@@ -71,30 +73,30 @@ describe('pickAmbientCGMapFiles', () => {
         })
     })
     it('uses NormalDX when there is no NormalGL', () => {
-        const {files} = tp.pickAmbientCGMapFiles(metal032.filter(f => !f.includes('NormalGL')))
+        const {files} = ei.pickAmbientCGMapFiles(metal032.filter(f => !f.includes('NormalGL')))
         expect(files.NormalDX).toBe('Metal032_1K-JPG_NormalDX.jpg')
         expect(files.NormalGL).toBeUndefined()
     })
     it('lists the maps with no slot', () => {
-        const {files, unknown} = tp.pickAmbientCGMapFiles(sponge001)
+        const {files, unknown} = ei.pickAmbientCGMapFiles(sponge001)
         expect(unknown).toEqual(['Scattering'])
         expect(Object.keys(files).sort()).toEqual(['AmbientOcclusion', 'Color', 'Displacement', 'NormalGL', 'Roughness'])
     })
     it('skips macOS metadata files', () => {
-        const {files} = tp.pickAmbientCGMapFiles(['__MACOSX/._Metal032_1K-JPG_Color.jpg', 'x/._Metal032_1K-JPG_Color.jpg'])
+        const {files} = ei.pickAmbientCGMapFiles(['__MACOSX/._Metal032_1K-JPG_Color.jpg', 'x/._Metal032_1K-JPG_Color.jpg'])
         expect(files).toEqual({})
     })
 })
 
 function texturesFor(names: string[]) {
-    const {files} = tp.pickAmbientCGMapFiles(names)
+    const {files} = ei.pickAmbientCGMapFiles(names)
     return Object.fromEntries(Object.keys(files).map(m => [m, new Texture() as any]))
 }
 
 describe('ambientCGMaterialParameters', () => {
     it('sets the slots, colour spaces and wrapping', () => {
         const t = texturesFor([...metal032, 'Metal032_1K-JPG_AmbientOcclusion.jpg'])
-        const p = tp.ambientCGMaterialParameters(t) as any
+        const p = ei.ambientCGMaterialParameters(t) as any
         expect(p.map).toBe(t.Color)
         expect(p.normalMap).toBe(t.NormalGL)
         expect(p.roughnessMap).toBe(t.Roughness)
@@ -115,27 +117,27 @@ describe('ambientCGMaterialParameters', () => {
         }
     })
     it('is not metallic without a Metalness map', () => {
-        const p = tp.ambientCGMaterialParameters(texturesFor(fabric087)) as any
+        const p = ei.ambientCGMaterialParameters(texturesFor(fabric087)) as any
         expect(p.metalness).toBe(0)
         expect(p.metalnessMap).toBeUndefined()
     })
     it('uses Opacity as alphaMap and makes the material transparent', () => {
         const t = texturesFor(fabric087)
-        const p = tp.ambientCGMaterialParameters(t) as any
+        const p = ei.ambientCGMaterialParameters(t) as any
         expect(p.alphaMap).toBe(t.Opacity)
         expect(p.transparent).toBe(true)
         expect(t.Opacity.colorSpace).toBe(NoColorSpace)
     })
     it('uses Emission as emissiveMap in sRGB with a white emissive', () => {
         const t = texturesFor(lava004)
-        const p = tp.ambientCGMaterialParameters(t) as any
+        const p = ei.ambientCGMaterialParameters(t) as any
         expect(p.emissiveMap).toBe(t.Emission)
         expect(p.emissive).toBe(0xffffff)
         expect(t.Emission.colorSpace).toBe(SRGBColorSpace)
     })
     it('flips the green channel of a NormalDX map', () => {
         const t = texturesFor(metal032.filter(f => !f.includes('NormalGL')))
-        const p = tp.ambientCGMaterialParameters(t) as any
+        const p = ei.ambientCGMaterialParameters(t) as any
         expect(p.normalMap).toBe(t.NormalDX)
         expect(p.normalScale.x).toBe(1)
         expect(p.normalScale.y).toBe(-1)
@@ -158,7 +160,7 @@ describe('AmbientCGZipLoader.transform', () => {
     }
 
     it('loads the maps in the zip and returns a PhysicalMaterial', async() => {
-        const loader = new tp.AmbientCGZipLoader()
+        const loader = new ei.AmbientCGZipLoader()
         const {importer, calls} = stubImporter()
         loader.importer = importer as any
         const mat = await loader.transform(zip(metal032) as any, {fileExtension: 'acgzip'})
@@ -187,7 +189,7 @@ describe('AmbientCGZipLoader.transform', () => {
     })
 
     it('returns the HDR texture of an HDRI zip, equirectangular and not processed yet', async() => {
-        const loader = new tp.AmbientCGZipLoader()
+        const loader = new ei.AmbientCGZipLoader()
         const {importer, calls} = stubImporter()
         loader.importer = importer as any
         const tex = await loader.transform(zip(night011) as any, {fileExtension: 'acgzip'}) as any
@@ -200,7 +202,7 @@ describe('AmbientCGZipLoader.transform', () => {
     })
 
     it('returns undefined for a zip without ambientCG maps', async() => {
-        const loader = new tp.AmbientCGZipLoader()
+        const loader = new ei.AmbientCGZipLoader()
         const {importer, calls} = stubImporter()
         loader.importer = importer as any
         const err = console.error
@@ -214,7 +216,7 @@ describe('AmbientCGZipLoader.transform', () => {
     })
 
     it('needs the importer', async() => {
-        const loader = new tp.AmbientCGZipLoader()
+        const loader = new ei.AmbientCGZipLoader()
         await expect(loader.transform(zip(metal032) as any, {})).rejects.toThrow('importer')
     })
 })
@@ -222,14 +224,14 @@ describe('AmbientCGZipLoader.transform', () => {
 describe('PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl', () => {
     const folder = 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/worn_planks/'
     it('maps a texture of a glTF on the Poly Haven CDN to where the CDN keeps it', () => {
-        expect(tp.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl(folder, 'textures/worn_planks_diff_1k.jpg'))
+        expect(ei.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl(folder, 'textures/worn_planks_diff_1k.jpg'))
             .toBe('https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/worn_planks/worn_planks_diff_1k.jpg')
-        expect(tp.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl(folder.replace('/1k/', '/4k/'), 'textures/worn_planks_nor_gl_4k.png'))
+        expect(ei.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl(folder.replace('/1k/', '/4k/'), 'textures/worn_planks_nor_gl_4k.png'))
             .toBe('https://dl.polyhaven.org/file/ph-assets/Textures/png/4k/worn_planks/worn_planks_nor_gl_4k.png')
     })
     it('leaves other hosts, other folders and the buffer alone', () => {
-        expect(tp.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl('https://example.com/worn_planks/', 'textures/worn_planks_diff_1k.jpg')).toBeUndefined()
-        expect(tp.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl('https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/chair/', 'textures/chair_diff_1k.jpg')).toBeUndefined()
-        expect(tp.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl(folder, 'worn_planks.bin')).toBeUndefined()
+        expect(ei.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl('https://example.com/worn_planks/', 'textures/worn_planks_diff_1k.jpg')).toBeUndefined()
+        expect(ei.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl('https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/chair/', 'textures/chair_diff_1k.jpg')).toBeUndefined()
+        expect(ei.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl(folder, 'worn_planks.bin')).toBeUndefined()
     })
 })

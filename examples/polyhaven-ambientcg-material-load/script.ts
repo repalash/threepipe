@@ -7,10 +7,12 @@ import {
     SphereGeometry,
     ThreeViewer,
 } from 'threepipe'
+import {AmbientCGLoadPlugin, PolyhavenMaterialLoadPlugin} from '@threepipe/plugins-extra-importers'
 import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({renderScale: 'auto', canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true,
-    plugins: [LoadingScreenPlugin],
+    // the loaders of ambientCG zips (acgzip) and Poly Haven material glTFs (phmatgltf)
+    plugins: [LoadingScreenPlugin, AmbientCGLoadPlugin, PolyhavenMaterialLoadPlugin],
 })
 
 async function init() {

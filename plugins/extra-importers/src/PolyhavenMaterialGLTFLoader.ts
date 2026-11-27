@@ -1,8 +1,6 @@
 import {type GLTF, GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
-import {ILoader} from '../IImporter'
 import {LoadingManager} from 'three'
-import {ImportAddOptions} from '../AssetManager'
-import {PhysicalMaterial, UnlitLineMaterial, UnlitMaterial} from '../../core'
+import {type ILoader, type ImportAddOptions, PhysicalMaterial, UnlitLineMaterial, UnlitMaterial} from 'threepipe'
 
 export class PolyhavenMaterialGLTFLoader extends GLTFLoader implements ILoader<GLTF, PhysicalMaterial|undefined> {
 

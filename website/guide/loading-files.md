@@ -113,9 +113,12 @@ TODO: add examples for material load and copy
 
 ### Poly Haven and ambientCG materials
 
-Materials from [Poly Haven](https://polyhaven.com/textures) (glTF) and [ambientCG](https://ambientcg.com) (zip) load as a [PhysicalMaterial](https://threepipe.org/docs/classes/PhysicalMaterial) with its maps set. Their files have the usual extensions (`.gltf`, `.zip`), so pass `fileExtension` to pick the loader:
+Materials from [Poly Haven](https://polyhaven.com/textures) (glTF) and [ambientCG](https://ambientcg.com) (zip) load as a [PhysicalMaterial](https://threepipe.org/docs/classes/PhysicalMaterial) with its maps set, with the `AmbientCGLoadPlugin` and `PolyhavenMaterialLoadPlugin` of [@threepipe/plugins-extra-importers](../package/plugins-extra-importers). Their files have the usual extensions (`.gltf`, `.zip`), so pass `fileExtension` to pick the loader:
 
 ```typescript
+import {AmbientCGLoadPlugin, PolyhavenMaterialLoadPlugin} from '@threepipe/plugins-extra-importers'
+viewer.addPluginsSync([AmbientCGLoadPlugin, PolyhavenMaterialLoadPlugin])
+
 // Poly Haven: a material glTF, the result is the first material in it
 const planks = await viewer.load<PhysicalMaterial>('https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/worn_planks/worn_planks_1k.gltf', {fileExtension: 'phmatgltf'})
 
@@ -253,7 +256,7 @@ await viewer.setEnvironmentMap('https://example.com/file.hdr', {setBackground: t
 
 Check the HDR Load example to see it in action: https://threepipe.org/examples/#hdr-load/
 
-An [ambientCG](https://ambientcg.com/list?type=hdri) HDRI zip (like `NightEnvironmentHDRI011_1K.zip`) is loaded with `fileExtension: 'acgzip'`: the result is the HDR image in it (the `_HDR.exr` file, an equirectangular texture). Use the download url of the zip (see [Poly Haven and ambientCG materials](#poly-haven-and-ambientcg-materials)).
+An [ambientCG](https://ambientcg.com/list?type=hdri) HDRI zip (like `NightEnvironmentHDRI011_1K.zip`) is loaded with `AmbientCGLoadPlugin` and `fileExtension: 'acgzip'`: the result is the HDR image in it (the `_HDR.exr` file, an equirectangular texture). Use the download url of the zip (see [Poly Haven and ambientCG materials](#poly-haven-and-ambientcg-materials)).
 ```typescript
 await viewer.setEnvironmentMap('https://acg-download.struffelproductions.com/file/ambientCG-Web/download/NightEnvironmentHDRI011_avlc9BKw/NightEnvironmentHDRI011_1K.zip', {fileExtension: 'acgzip', setBackground: true})
 // or, also sets the environment (like a .hdr or .exr file)

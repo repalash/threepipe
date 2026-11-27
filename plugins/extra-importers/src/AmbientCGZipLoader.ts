@@ -1,10 +1,5 @@
 import {EquirectangularReflectionMapping, MeshPhysicalMaterialParameters, NoColorSpace, RepeatWrapping, SRGBColorSpace, Vector2} from 'three'
-import {ZipLoader} from './ZipLoader'
-import {ILoader} from '../IImporter'
-import type {IAssetImporter} from '../IAssetImporter'
-import type {ImportAddOptions} from '../AssetManager'
-import type {IFile} from '../IAsset'
-import {ITexture, PhysicalMaterial} from '../../core'
+import {type IAssetImporter, type IFile, type ILoader, type ImportAddOptions, type ITexture, PhysicalMaterial, ZipLoader} from 'threepipe'
 
 /**
  * A map file in an ambientCG material zip, see {@link parseAmbientCGFileName}.
