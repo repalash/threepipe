@@ -1,4 +1,5 @@
 import {
+    bakeNormalScaleSign,
     CustomContextMenu,
     DataTexture,
     EXRExporter2,
@@ -145,8 +146,29 @@ const setterTex = (v1: any, config: UiObjectConfig, renderer: TweakpaneUiPlugin)
         }
     }
     config.__proxy.value_ = v1
-    renderer.methods.setValue(config, v1, {last: true}, false, true)
+    const setValue = renderer.methods.setValue(config, v1, {last: true}, false, true)
+    const [target, key] = renderer.methods.getBinding(config)
+    if (key === 'normalMap' && target?.isMaterial && v1?.isTexture) {
+        setValue.then(async()=>renderer.methods.performAction(undefined, bakeNormalMap, [target], config))
+            .catch((e: any)=>console.error('bakeNormalScaleSign', e))
+    }
     config.uiRefresh?.(false, 'postFrame')
+}
+
+// A normal map set from the UI is baked into standard glTF form (see bakeNormalScaleSign), as its own undo step.
+const bakeNormalMap = (material: any)=>{
+    if (!material.normalScale) return undefined
+    const map = material.normalMap
+    const scale = material.normalScale.clone()
+    if (!bakeNormalScaleSign(material)) return undefined
+    const baked = material.normalMap
+    const bakedScale = material.normalScale.clone()
+    const set = (m: any, s: any)=>{
+        material.normalMap = m
+        material.normalScale.copy(s)
+        material.setDirty?.()
+    }
+    return {undo: ()=>set(map, scale), redo: ()=>set(baked, bakedScale)}
 }
 
 function setterFile(viewer: ThreeViewer, file: File, path: string | undefined, config: UiObjectConfig, renderer: TweakpaneUiPlugin) {

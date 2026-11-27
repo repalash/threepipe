@@ -63,6 +63,7 @@ export class AssetExporterPlugin extends AViewerPluginSync {
         encryptKey: '',
         ignoreInvalidMorphTargetTracks: true,
         ignoreEmptyTextures: true,
+        bakeNormalScale: false,
     }
 
     async exportScene(options?: ExportAssetOptions): Promise<BlobExt | undefined> {
@@ -134,6 +135,11 @@ export class AssetExporterPlugin extends AViewerPluginSync {
                     //     label: 'Convert to indexed',
                     //     property: [this.exportOptions, 'convertMeshToIndexed'],
                     // },
+                    {
+                        type: 'checkbox',
+                        label: 'Bake normal map sign',
+                        property: [this.exportOptions, 'bakeNormalScale'],
+                    },
                     {
                         type: 'checkbox',
                         label: 'Ignore invalid animations',

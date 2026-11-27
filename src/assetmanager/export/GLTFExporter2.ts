@@ -47,6 +47,12 @@ export interface GLTFExporter2Options {
      */
     encodeUint16Rgbe?: boolean
     /**
+     * Bake the sign of `normalScale` into a PNG copy of each normal map, as three.js's `GLTFExporter` does (r185), so
+     * other glTF viewers show it as threepipe does. Not needed after {@link bakeNormalScaleSign}.
+     * @default false
+     */
+    bakeNormalScale?: boolean,
+    /**
      * Number of spaces to use when exporting to json
      * @default 2
      */

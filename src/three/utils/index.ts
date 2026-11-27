@@ -4,6 +4,7 @@ export {dataTextureFromColor, dataTextureFromVec4, halfFloatToRgbe} from './conv
 export {uniform, matDefine, matDefineBool, bindToValue} from './decorators'
 export {getTexelDecoding, getTexelDecodingFunction} from './encoding'
 export {generateUUID, toIndexedGeometry, isInScene, localToWorldQuaternion, worldToLocalQuaternion, checkTexMapReference} from './misc'
+export {bakeNormalScaleSign} from './normalMap'
 export {getTextureDataType, textureToCanvas, textureDataToImageData, textureToDataUrl, textureToBlob, texImageToCanvas, isPixelFormat} from './texture'
 export {threeConstMappings} from './const-mappings'
 export {whiteImageData, whiteTexture} from './constants'

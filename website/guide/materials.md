@@ -196,6 +196,17 @@ const mesh = new Mesh(geometry, material)
 viewer.scene.addObject(mesh)
 ```
 
+### Normal maps
+
+Other glTF viewers (Blender, Babylon.js, …) show a normal map set from an image with its bumps inverted. Call `bakeNormalScaleSign` after setting one; the material looks the same.
+
+```typescript
+material.normalMap = await viewer.load<ITexture>('normal.png')
+bakeNormalScaleSign(material) // inverts the green channel of a copy, sets normalScale.y negative
+```
+
+`TweakpaneUiPlugin` does this in its UI; editors with their own texture inputs should call it too. Maps loaded from glTF need nothing. See also the `bakeNormalScale` [export option](./exporting-files#exporting-3d-models).
+
 ### Loading from Files
 
 Materials are automatically created when loading 3D files:

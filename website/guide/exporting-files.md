@@ -46,6 +46,8 @@ const glb: Blob = await viewer.export(object, {
 downloadBlob(glb, 'object.glb')
 ```
 
+`bakeNormalScale: true` (default `false`) bakes the sign of `normalScale` into a PNG copy of each normal map, so other glTF viewers show them as threepipe does. Not needed after [`bakeNormalScaleSign`](./materials#normal-maps).
+
 Check the examples [glb-export](https://threepipe.org/examples/#glb-export/), [gltf-export](https://threepipe.org/examples/#gltf-export/) to see a demo.
 
 ::: tip DRACO compression

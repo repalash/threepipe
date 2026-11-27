@@ -4,6 +4,7 @@ import {blobToDataURL} from 'ts-browser-helpers'
 import type {GLTFExporter2Options} from './GLTFExporter2'
 import {getEmptyMeta, isNonRelativeUrl, ThreeSerialization} from '../../utils'
 import {IMaterial} from '../../core'
+import {GLTFMaterialExtrasExtension} from '../gltf/GLTFMaterialExtrasExtension'
 
 export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
 
@@ -132,17 +133,18 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
     protected _defaultMaterial = new MeshStandardMaterial()
 
     /**
-     * three.js r185 (#33837) bakes the sign of `normalScale`, and the green flip of meshes without tangents, into a copy
-     * of the normal map, which `GLTFLoader` undoes by negating `normalScale.y` on import. threepipe writes the
-     * `normalScale` of every material with a normal map in its material extras (`WEBGI_material_extras`), and
-     * three-modded's `GLTFLoader` does not negate `normalScale.y` for a material with the extras, so a baked copy would
-     * load inverted. The normal map is written as it is, as before r185.
+     * Bakes the sign of `normalScale` into a copy of the normal map (three.js r185) only with the `bakeNormalScale`
+     * option; {@link processMaterialAsync} writes the matching `normalScale` in the material extras.
      * @param normalMap - the material's normal map
-     * @param _flipX - whether three.js would invert the red channel
-     * @param _flipY - whether three.js would invert the green channel
+     * @param flipX - whether to invert the red channel
+     * @param flipY - whether to invert the green channel
      */
-    async buildNormalMapTextureAsync(normalMap: Texture, _flipX: boolean, _flipY: boolean): Promise<Texture> {
-        return normalMap
+    async buildNormalMapTextureAsync(normalMap: Texture, flipX: boolean, flipY: boolean): Promise<Texture> {
+        if (!this.options.exporterOptions?.bakeNormalScale) return normalMap
+        // @ts-expect-error three-types-modded 0.187.10001-rc.2 does not declare buildNormalMapTextureAsync
+        const baked: Texture = await super.buildNormalMapTextureAsync(normalMap, flipX, flipY)
+        delete baked.userData.rootPath // embedded, the image is no longer the file at that url
+        return baked
     }
 
     /**
@@ -165,6 +167,15 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         if (defIndex === null) {
             console.error('GLTFWriter2: Unexpected error: Failed to process material', material)
             return null
+        }
+
+        // bakeNormalScale: the extras get the normalScale of the baked map
+        const extras = this.json.materials[defIndex].extensions?.[GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension]
+        if (this.options.exporterOptions?.bakeNormalScale && mat.normalMap && mat.normalScale && extras?.normalScale) {
+            const hasTangent = geometry !== undefined && geometry.hasAttribute('tangent')
+            const {x, y} = mat.normalScale
+            const flipY = hasTangent ? y < 0 : y > 0 // as GLTFExporter.processMaterialAsync
+            extras.normalScale = [x < 0 ? -x : x, flipY ? -y : y]
         }
 
         // when not a shader material
