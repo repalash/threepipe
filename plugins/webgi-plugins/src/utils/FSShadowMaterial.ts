@@ -52,7 +52,7 @@ gl_FragColor = packDepthToRGBA(mix(last, shadow, opacity));
     toJSON(): any {
         throw new Error('Method not supported for this material.')
     }
-    fromJSON(): this | null {
+    fromJSON(): this {
         throw new Error('Method not supported for this material.')
     }
 
