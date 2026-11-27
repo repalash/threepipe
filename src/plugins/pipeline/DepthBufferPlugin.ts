@@ -94,9 +94,13 @@ export class DepthBufferPlugin
         shaderExtender: (shader)=>{
             const includes = ['depth_buffer_unpack', 'gbuffer_unpack', 'packing'] as const
             const include = includes.find(i=>shader.fragmentShader.includes(`#include <${i}>`))
-            shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
+            // the material shaders of three.js do not include <packing> since r182: then the snippet goes after <common>,
+            // with <packing> once (packingOnce)
+            shader.fragmentShader = include ? shaderReplaceString(shader.fragmentShader,
                 `#include <${include}>`,
-                '\n' + DepthBufferUnpack + '\n', {append: include === 'packing'})
+                '\n' + DepthBufferUnpack + '\n', {append: include === 'packing'}) : shaderReplaceString(shader.fragmentShader,
+                '#include <common>',
+                '\n#include <packingOnce>\n' + DepthBufferUnpack + '\n', {append: true})
         },
         extraUniforms: {
             tDepthBuffer: ()=>({value: this.target?.texture}),

@@ -133,7 +133,6 @@ export class SSContactShadowsPlugin extends AViewerPluginSync {
     uniform float sscsRadius;
     uniform float sscsTolerance;
 
-    #define THREE_PACKING_INCLUDED // by threejs
     #include <cameraHelpers>
     #include <randomHelpers>
     ${ssrtShader}

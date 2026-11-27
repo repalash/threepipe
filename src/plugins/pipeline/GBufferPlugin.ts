@@ -101,9 +101,13 @@ export class GBufferPlugin
         shaderExtender: (shader)=>{
             const includes = ['gbuffer_unpack', 'packing'] as const
             const include = includes.find(i=>shader.fragmentShader.includes(`#include <${i}>`))
-            shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
+            // the material shaders of three.js do not include <packing> since r182: then the snippet goes after <common>,
+            // with <packing> once (packingOnce)
+            shader.fragmentShader = include ? shaderReplaceString(shader.fragmentShader,
                 `#include <${include}>`,
-                '\n' + GBufferUnpack + '\n', {append: include === 'packing'})
+                '\n' + GBufferUnpack + '\n', {append: include === 'packing'}) : shaderReplaceString(shader.fragmentShader,
+                '#include <common>',
+                '\n#include <packingOnce>\n' + GBufferUnpack + '\n', {append: true})
         },
         extraUniforms: {
             tNormalDepth: ()=>({value: this.normalDepthTexture}),

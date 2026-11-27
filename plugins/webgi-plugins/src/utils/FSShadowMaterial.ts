@@ -26,6 +26,8 @@ void main() {
         shader.fragmentShader = shader.fragmentShader.replace('void main() {', `
 varying vec2 vUv;
 uniform sampler2D tLastThis;
+// ShadowMaterial does not include <packing> since three r182
+#include <packing>
 void main() {
         `)
         shader.fragmentShader = shader.fragmentShader.replace('gl_FragColor = vec4( color, opacity * ( 1.0 - getShadowMask() ) );', glsl`

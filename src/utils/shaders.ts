@@ -4,7 +4,8 @@ import randomHelpers from './shaders/randomHelpers.glsl'
 import defaultVertex from './shaders/defaultVertex.glsl'
 import defaultFragment from './shaders/defaultFragment.glsl'
 import voronoiNoise from './shaders/voronoiNoise.glsl'
+import packingOnce from './shaders/packingOnce.glsl'
 
 export const shaderUtils = {
-    simpleCameraHelpers, cameraHelpers, randomHelpers, defaultVertex, defaultFragment, voronoiNoise,
+    simpleCameraHelpers, cameraHelpers, randomHelpers, defaultVertex, defaultFragment, voronoiNoise, packingOnce,
 }

@@ -422,7 +422,9 @@ export class ShadowMapBaker extends SimpleEventDispatcher<'shadowBaking'|'shadow
     readonly materialExtension: MaterialExtension = {
 
         parsFragmentSnippet: (_renderer, _material)=> {
+            // unpackRGBAToDepth of the baked map (the material shaders do not include <packing> since three r182)
             return glsl`
+            #include <packingOnce>
             uniform float transitionOpacity;
             `
         },

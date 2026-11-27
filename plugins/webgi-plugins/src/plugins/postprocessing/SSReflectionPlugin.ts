@@ -467,7 +467,6 @@ ${ssrShaderMain}
             ${getTexelDecoding('tSSReflMap', getOrCall(this.target)?.texture.colorSpace)}
             ${getTexelDecoding('tLastFrame', this.material.uniforms!.tLastFrame.value?.colorSpace)}
             ${!this.inlineShaderRayTrace ? '' : `
-#define THREE_PACKING_INCLUDED // by threejs
 #include <cameraHelpers>
 #include <randomHelpers>
 ${samplePointHelpers}

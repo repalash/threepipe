@@ -6,10 +6,7 @@ uniform mat4 projection;
 uniform vec2 cameraNearFar;
 uniform vec3 cameraPositionWorld;
 
-#ifndef THREE_PACKING_INCLUDED
-#define THREE_PACKING_INCLUDED
-#include <packing>
-#endif
+#include <packingOnce>
 
 float linstep(float edge0, float edge1, float value) {
     return clamp((value-edge0)/(edge1-edge0), 0.0, 1.0);
