@@ -81,7 +81,9 @@ export function createLineGBufferMaterial(object: LineSegments2 & IObject3D, lin
 }
 
 export function createLineDepthMaterial(object: LineSegments2 & IObject3D, lineDepthMaterial: Material = new MeshDepthMaterial({
-    depthPacking: RGBADepthPacking, // this is required for three.js shadows
+    // the packing of the depth passes that draw the line with it (GBufferRenderPass); the shadow pass of three.js r182 uses
+    // only its depth buffer, not this output
+    depthPacking: RGBADepthPacking,
     blending: NoBlending,
     transparent: false,
 })) {
