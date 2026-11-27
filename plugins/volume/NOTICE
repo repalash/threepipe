@@ -24,3 +24,7 @@ src/shaders/volume.frag.glsl
 
 src/loaders/NRRDLoadPlugin.ts, src/VolumeData.ts
   Use three.js NRRDLoader and Volume (examples/jsm), https://github.com/mrdoob/three.js, MIT License.
+
+src/derived/EmptySpaceMap.ts, src/shaders/volume.frag.glsl
+  Empty space skipping with a Chebyshev distance map follows the method of L. J. Deakin and M. A. Knackstedt,
+  "Accelerated volume rendering with Chebyshev distance maps", SIGGRAPH Asia 2019 Technical Briefs (no code copied).

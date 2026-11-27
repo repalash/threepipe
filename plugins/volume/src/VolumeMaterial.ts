@@ -40,6 +40,9 @@ import {
 import {TransferFunction} from './TransferFunction'
 import type {VolumeData} from './VolumeData'
 import {defaultVolumePresetName, volumePresets} from './library'
+import {MinMaxBlocks} from './derived/MinMaxBlocks'
+import {EmptySpaceMap} from './derived/EmptySpaceMap'
+import {GradientField, gradientMaxLength} from './derived/GradientField'
 import vertexShader from './shaders/volume.vert.glsl'
 import fragmentShader from './shaders/volume.frag.glsl'
 
@@ -94,6 +97,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {
         this._field?.events.removeEventListener('update', this._fieldUpdate)
+        this._emptySpace?.dispose()
+        this._emptySpace = undefined
         this.transferFunction.removeEventListener('update', this._tfUpdate)
         this.transferFunction.dispose()
         return iMaterialCommons.dispose(super.dispose).call(this)
@@ -215,9 +220,49 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     @serialize() interpolate = true
 
     /**
+     * Skip the parts of the volume that add nothing to the image: blocks whose values all have zero opacity on the
+     * transfer function (composite and x-ray), that do not contain the iso value (iso), or that cannot change the
+     * maximum or minimum so far (MIP, MinIP). Rays jump over them using a Chebyshev distance map of the empty blocks
+     * ({@link EmptySpaceMap}); the image is the same as without it.
+     *
+     * The block maps are built on the GPU by {@link VolumePlugin}; without the plugin, or while they build, the rays
+     * march every sample. Off with a material extension that replaces `volSample` or `volClassify`.
+     */
+    @uiToggle('Skip Empty Space')
+    @onChange(VolumeMaterial.prototype._definesChanged)
+    @serialize() emptySpaceSkipping = true
+
+    /**
+     * Size of the blocks for {@link emptySpaceSkipping}, in voxels along each axis. Smaller blocks fit the shape of
+     * the data closer; larger ones mean fewer lookups and smaller maps.
+     */
+    @uiDropdown('Skip Block Size', [4, 8, 16].map(value => ({label: String(value), value})))
+    @onChange(VolumeMaterial.prototype._blockSizeChanged)
+    @serialize() skipBlockSize = 8
+
+    /**
+     * Read the gradient for shading from a precomputed texture ({@link GradientField}, 4 bytes per voxel) instead
+     * of six samples of the field. Worth it when every sample is shaded (lighting, in the next phase); in iso mode only
+     * one point per ray is.
+     */
+    @uiToggle('Gradient Texture')
+    @onChange(VolumeMaterial.prototype._definesChanged)
+    @serialize() gradientTexture = false
+
+    /**
+     * Show the work per pixel instead of the image: red is the samples read, green the loop iterations and blue the
+     * samples a ray would read without {@link emptySpaceSkipping}, each over 512. Not saved.
+     */
+    @uiToggle('Debug: Show Steps')
+    @onChange(VolumeMaterial.prototype._definesChanged)
+    debugSteps = false
+
+    /**
      * Set by {@link VolumePlugin} while the frame is not still, to use {@link interactiveSamplingRate}.
      */
     interactive = false
+
+    private _emptySpace?: EmptySpaceMap
 
     constructor(parameters?: {field?: VolumeData, mode?: VolumeRenderMode, preset?: string}) {
         super()
@@ -241,9 +286,19 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
                 cameraNearFar: {value: new Vector2(0.1, 1000)},
                 frameCount: {value: 0},
                 uJitter: {value: 1},
+                uSkipMap: {value: null},
+                uMinMaxMap: {value: null},
+                uSkipReady: {value: 0},
+                uMinMaxReady: {value: 0},
+                uBlockGrid: {value: new Vector3(1, 1, 1)},
+                uBlockSize: {value: 8},
+                uOpenEnds: {value: 0},
+                uGradientMap: {value: null},
+                uGradientReady: {value: 0},
             },
             defines: {
                 VOLUME_MODE: 0,
+                VOL_GRADIENT_MAX: gradientMaxLength.toFixed(7),
             },
             side: BackSide,
             transparent: true,
@@ -260,6 +315,7 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         if (parameters?.field) this.field = parameters.field
         this.setPreset(parameters?.preset ?? defaultVolumePresetName, false)
         this._constructed = true
+        this._definesChanged()
     }
 
     private _tfUpdate = () => this.setDirty({change: 'transferFunction'})
@@ -299,6 +355,110 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this.setDirty({change: 'mode'})
     }
 
+    private _definesChanged() {
+        if (!this._constructed) return
+        const d = this.defines
+        const set = (name: string, on: boolean) => {
+            if (!!d[name] === on) return
+            if (on) d[name] = 1
+            else delete d[name]
+            this.needsUpdate = true
+        }
+        set('VOL_SKIP', this.emptySpaceSkipping)
+        set('VOL_GRADIENT_MAP', this.gradientTexture)
+        set('VOL_DEBUG_STEPS', this.debugSteps)
+        this.setDirty({change: 'defines'})
+    }
+
+    private _blockSizeChanged() {
+        this._emptySpace?.dispose()
+        this._emptySpace = undefined
+        this.setDirty({change: 'skipBlockSize'})
+    }
+
+    /**
+     * Texture value to transfer function coordinate (`t * x + y`) for the field and {@link range}.
+     */
+    private _valueMap(field: VolumeData): [number, number] {
+        const [t0, t1] = field.textureRange
+        const span = this.range.y - this.range.x || 1
+        return [(t1 - t0) / span, (t0 - this.range.x) / span]
+    }
+
+    private _usesEmptySpaceMap() {
+        return this.mode === 'composite' || this.mode === 'xray' || this.mode === 'iso'
+    }
+
+    private _usesMinMax() {
+        return this.emptySpaceSkipping && this.mode !== 'average'
+    }
+
+    private _blocks(field: VolumeData) {
+        const minMax = MinMaxBlocks.of(field, this.skipBlockSize)
+        if (this._emptySpace && this._emptySpace.minMax !== minMax) {
+            this._emptySpace.dispose()
+            this._emptySpace = undefined
+        }
+        if (!this._emptySpace) this._emptySpace = new EmptySpaceMap(minMax)
+        return {minMax, emptySpace: this._emptySpace}
+    }
+
+    /**
+     * Builds the GPU maps the march uses ({@link emptySpaceSkipping}, {@link gradientTexture}), spending at most
+     * `budget` texture reads; called by {@link VolumePlugin} before each frame. Returns the reads spent.
+     */
+    updateDerived(renderer: WebGLRenderer, budget = Infinity): number {
+        const field = this._field
+        if (!field) return 0
+        let spent = 0
+        if (this._usesMinMax()) {
+            const {minMax, emptySpace} = this._blocks(field)
+            spent += minMax.update(renderer, budget - spent)
+            if (this._usesEmptySpaceMap() && minMax.ready) {
+                const valueMap = this._valueMap(field)
+                emptySpace.setParams({
+                    mode: this.mode === 'iso' ? 'iso' : 'transfer',
+                    valueMap,
+                    iso: (this.isoValue - this.range.x) / (this.range.y - this.range.x || 1),
+                    transferTexture: this.transferFunction.texture,
+                })
+                if (budget - spent > 0) spent += emptySpace.update(renderer, budget - spent)
+            }
+        }
+        if (this.gradientTexture && budget - spent > 0) spent += GradientField.of(field).update(renderer, budget - spent)
+        return spent
+    }
+
+    /**
+     * Rebuild the maps of {@link updateDerived}, including those cached on the field.
+     */
+    invalidateDerived() {
+        this._emptySpace?.invalidate()
+        this._field?.invalidateDerived()
+    }
+
+    /**
+     * Whether a map from {@link updateDerived} is still being built (the march then reads every sample).
+     */
+    get derivedPending(): boolean {
+        const field = this._field
+        if (!field) return false
+        if (this._usesMinMax()) {
+            const {minMax, emptySpace} = this._blocks(field)
+            if (!minMax.ready) return true
+            if (this._usesEmptySpaceMap() && !emptySpace.ready) return true
+        }
+        return this.gradientTexture && !GradientField.of(field).ready
+    }
+
+    /**
+     * Bytes on the GPU of the maps of this material ({@link EmptySpaceMap}); the field and the maps cached on it
+     * ({@link MinMaxBlocks}, {@link GradientField}) are counted by the field.
+     */
+    get derivedGpuBytes(): number {
+        return this._emptySpace?.gpuBytes ?? 0
+    }
+
     private _rangeChanged() {
         if (this._constructed) this._rangeSet = true
         this.setDirty({change: 'range'})
@@ -324,15 +484,40 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         iMaterialCommons.onBeforeRender.call(this, renderer, scene, camera, geometry, object, group)
         const u = this.uniforms as Record<string, IUniform>
         const field = this._field
+        u.uSkipReady.value = 0
+        u.uMinMaxReady.value = 0
+        u.uGradientReady.value = 0
         if (field) {
             const tex = field.texture
             u.volumeMap.value = tex
-            u.uVolumeSize.value.set(field.xLength, field.yLength, field.zLength)
+            const [sx, sy, sz] = field.textureSize
+            u.uVolumeSize.value.set(sx, sy, sz)
             // texture value t -> data value d -> transfer function coordinate
-            const [t0, t1] = field.textureRange
-            const span = this.range.y - this.range.x || 1
-            u.uValueMap.value.set((t1 - t0) / span, (t0 - this.range.x) / span)
-            u.uIsoValue.value = (this.isoValue - this.range.x) / span
+            const [vx, vy] = this._valueMap(field)
+            u.uValueMap.value.set(vx, vy)
+            u.uIsoValue.value = (this.isoValue - this.range.x) / (this.range.y - this.range.x || 1)
+            if (this._usesMinMax()) {
+                const {minMax, emptySpace} = this._blocks(field)
+                const [gx, gy, gz] = minMax.size
+                u.uBlockGrid.value.set(gx, gy, gz)
+                u.uBlockSize.value = minMax.blockSize
+                u.uOpenEnds.value = minMax.openEnds ? 1 : 0
+                if (minMax.ready) {
+                    u.uMinMaxMap.value = minMax.texture
+                    u.uMinMaxReady.value = 1
+                }
+                if (this._usesEmptySpaceMap() && emptySpace.ready) {
+                    u.uSkipMap.value = emptySpace.texture
+                    u.uSkipReady.value = 1
+                }
+            }
+            if (this.gradientTexture) {
+                const g = GradientField.of(field)
+                if (g.ready) {
+                    u.uGradientMap.value = g.texture
+                    u.uGradientReady.value = 1
+                }
+            }
         }
         u.transferMap.value = this.transferFunction.texture
         const box = (geometry as any)?.parameters
@@ -391,6 +576,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
             this._rangeSet = true
             this.transferFunction.setDirty()
             this._modeChanged()
+            this._definesChanged()
+            this._blockSizeChanged()
             return this
         }
         this.dispatchEvent({type: 'beforeDeserialize', data, meta, bubbleToObject: true, bubbleToParent: true} as any)
@@ -416,6 +603,9 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this.cropMin.copy(source.cropMin)
         this.cropMax.copy(source.cropMax)
         this.interpolate = source.interpolate
+        this.emptySpaceSkipping = source.emptySpaceSkipping
+        this.skipBlockSize = source.skipBlockSize
+        this.gradientTexture = source.gradientTexture
         this._rangeSet = true
         return this
     }

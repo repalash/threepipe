@@ -14,6 +14,7 @@ next:
 Volume rendering for [threepipe](https://threepipe.org): scans, microscopy, simulation data and effects as normal scene objects, with transfer functions and presets.
 
 [Example](https://threepipe.org/examples/#volume-plugin/) &mdash;
+[Benchmark](https://threepipe.org/examples/#volume-benchmark/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/plugins/volume/src/index.ts) &mdash;
 [API Reference](https://threepipe.org/plugins/volume/docs)
 
@@ -47,11 +48,13 @@ viewer.scene.addObject(new VolumeObject(data))
 | Class | What it is |
 | --- | --- |
 | `VolumeObject` | A volume in the scene: a three.js `BoxGeometry` mesh sized from the voxel count and spacing, with named fields (as a USD `UsdVolVolume`) and a `VolumeMaterial`. Move, select and dispose it like any mesh |
-| `VolumeData` | One field on a regular grid; extends three.js `Volume`, so `NRRDLoader` results and `VolumeSlice` work with it. Uploads as R8 (8-bit), R16F (default for everything else) or R32F |
-| `VolumeMaterial` | The ray march. Modes: composite, MIP, MinIP, average, isosurface, x-ray. Opacity corrected for the step length, jittered ray start that `ProgressivePlugin` averages, lower sampling rate while moving |
+| `VolumeData` | One field on a regular grid; extends three.js `Volume`, so `NRRDLoader` results and `VolumeSlice` work with it. Uploads as R8 (8-bit), R16F (default for everything else) or R32F, downsampled when it is over `maxGpuBytes` (512 MiB by default) or the GPU's 3D texture size |
+| `VolumeMaterial` | The ray march. Modes: composite, MIP, MinIP, average, isosurface, x-ray. Opacity corrected for the step length, jittered ray start that `ProgressivePlugin` averages, lower sampling rate while moving, empty space skipping |
 | `TransferFunction` | Value to colour and opacity, as control points; baked into a lookup texture |
 | `volumePresets` | The 30 VolView presets (CT, MR, ultrasound) and one preset per colour map (viridis, magma, inferno, plasma, grayscale, cool-warm, black-body, x-ray, jet) |
-| `VolumePlugin` | glTF saving and loading, the quality switch while moving |
+| `VolumePlugin` | glTF saving and loading, the quality switch while moving, building the derived fields before each frame |
+| `MinMaxBlocks`, `EmptySpaceMap`, `GradientField` | Derived fields, computed on the GPU and cached: the value range of each block of voxels, the distance from each block to the nearest one that shows (for skipping), the gradient |
+| `DerivedField`, `VolumeKernel` | Make your own: a GLSL function run once per voxel into a 3D render target, a few layers per frame |
 | `NRRDLoadPlugin` | `.nrrd` files through the three.js `NRRDLoader` |
 
 ### Notes
@@ -60,11 +63,14 @@ viewer.scene.addObject(new VolumeObject(data))
 - **Clip planes**: set `material.clippingPlanes` (three.js planes); as for any three.js material they apply only with `viewer.renderManager.webglRenderer.localClippingEnabled = true`. The planes shorten the rays. `material.cropMin` and `cropMax` crop the box in texture coordinates.
 - **Shader hooks**: the march calls `volSample`, `volClassify`, `volShade` and `volBlend`. A material extension replaces one by defining `VOL_CUSTOM_SAMPLE`, `VOL_CUSTOM_CLASSIFY`, `VOL_CUSTOM_SHADE` or `VOL_CUSTOM_BLEND` and the function in its `parsFragmentSnippet`. See `src/shaders/volume.frag.glsl`.
 - **Saving**: a volume is saved in a glb as a link to its data file (the `WEBGI_volume` node extension) with its material settings; the voxels are not embedded. A volume made in code has no file to link to, so only its box is saved.
-- **Transparency with rgbm**: with `rgbm: true` (the viewer default), transparent objects, volumes included, are blended with their opacity applied twice, which darkens faint parts (a known threepipe issue). `rgbm: false` gives the correct result.
+- **Empty space skipping** (`material.emptySpaceSkipping`, on by default): rays jump over blocks of voxels (`skipBlockSize`, 8³ by default) that add nothing: all their values have zero opacity on the transfer function (composite, x-ray), they do not contain the iso value (iso), or they cannot change the result so far (MIP, MinIP). The jumps use a Chebyshev distance map of the empty blocks (Deakin and Knackstedt 2019). Only samples that add nothing are left out, so the image is the same. The maps are built on the GPU by `VolumePlugin` and rebuilt when the transfer function, range, mode or data change; without the plugin every sample is read. It is off with a material extension that replaces `volSample` or `volClassify`. Gains depend on the data: sparse data gains the most, dense data with nothing to skip pays a small cost per block. See the benchmark example, and `material.debugSteps` for the samples per pixel.
+- **Memory**: a field larger than `VolumeData.maxGpuBytes` (default `VolumeData.defaultMaxGpuBytes`, 512 MiB) or the GPU's `MAX_3D_TEXTURE_SIZE` is uploaded downsampled, with a warning; `data.textureSize` gives the size on the GPU. `VolumePlugin` shows the GPU memory of the volumes and their derived fields.
+- **Gradient texture** (`material.gradientTexture`): shading reads a precomputed gradient (4 bytes per voxel) instead of six samples. For lighting every sample, which comes in the next phase.
+- **Transparency with rgbm**: with `rgbm: true` (the viewer default), threepipe up to 0.6.1 blends transparent objects, volumes included, with their opacity applied twice, which darkens faint parts. Fixed in the next threepipe release; `rgbm: false` gives the correct result before.
 
 ### Not yet
 
-Lighting from scene lights, empty-space skipping, more file formats (NIfTI, DICOM, TIFF), the transfer function editor, slice views. Planned in the next phases.
+Lighting from scene lights, more file formats (NIfTI, DICOM, TIFF), the transfer function editor, slice views. Planned in the next phases.
 
 ## License
 
