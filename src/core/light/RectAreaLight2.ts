@@ -49,9 +49,14 @@ export class RectAreaLight2 extends RectAreaLight implements ILight<undefined> {
     @uiNumber('Height', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare height: number
+    // three.js computes power from intensity (an accessor), and setting it sets intensity, which calls setDirty
     @uiNumber('Power')
-    @onChange3('setDirty')
-    declare power: number
+    get power(): number {
+        return super.power
+    }
+    set power(power: number) {
+        super.power = power
+    }
 
 
     constructor(color?: ColorRepresentation, intensity?: number, width?: number, height?: number) {
