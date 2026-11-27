@@ -200,6 +200,19 @@ function setUrls(row, dir) {
         return m ? [{url: url(name), width: parseInt(m[1]), height: parseInt(m[1]), size: fs.statSync(path.join(dir, name)).size}] : []
     })
     const metadata = JSON.parse(row.metadata ?? '{}')
+    // a format the catalog can't read: the counts of what the page loaded, kept in the marker of the render
+    const stats = row.measure && names.includes(DONE) ? JSON.parse(fs.readFileSync(path.join(dir, DONE), 'utf8')).stats : undefined
+    if (stats) {
+        row.triangles = stats.triangles
+        row.poly = stats.triangles < 50_000 ? 'low' : stats.triangles < 500_000 ? 'mid' : 'high' // as build-catalog's polyClass
+        for (const key of ['vertices', 'points', 'meshes', 'materials', 'textures']) if (stats[key]) metadata[key] = stats[key]
+        if (stats.animations?.length) metadata.animations = stats.animations
+        const tags = new Set(JSON.parse(row.tags))
+        if (stats.animations?.length) tags.add('animated')
+        if (stats.textures) tags.add('textured')
+        if (stats.points && !stats.triangles) tags.add('pointcloud')
+        row.tags = JSON.stringify([...tags].sort())
+    }
     if (videos.length) metadata.videos = videos
     if (thumbnails.length) metadata.thumbnails = thumbnails
     row.metadata = JSON.stringify(metadata)
@@ -237,7 +250,7 @@ page.on('console', m => {
     if (m.type() === 'error' || m.type() === 'warning') console.log(`  ${current}: ${m.type()}: ${m.text().slice(0, 200)}`)
 })
 for (const row of catalog.rows) {
-    if (row.kind !== 'model') continue
+    if (!['model', 'hdri', 'material'].includes(row.kind)) continue
     const dir = path.join(args.out, row.previews)
     const rendered = setUrls(row, dir) // for every row: a new catalog.json keeps what is rendered
     if (only && !only.includes(row.name)) continue
@@ -248,7 +261,9 @@ for (const row of catalog.rows) {
     const start = Date.now()
     try {
         // a file already in the bucket, or one in the folder to upload
-        const {views, animations, play} = JSON.parse(row.metadata ?? '{}')
+        const {views, animations, play, files} = JSON.parse(row.metadata ?? '{}')
+        // the extension to load it as, when its URL's own doesn't pick the loader
+        const loadAs = files?.[0]?.load_as ? `&format=${encodeURIComponent(files[0].load_as)}` : ''
         const view = views?.[0]
         const clips = play?.length ? `&play=${encodeURIComponent(JSON.stringify(play))}&playSeconds=${Math.max(...animations.filter(a => play.includes(a.name)).map(a => a.seconds))}` : ''
         // the render has twice the pixels of the largest video, and 2048 px for the stills
@@ -257,7 +272,7 @@ for (const row of catalog.rows) {
         fs.mkdirSync(frames, {recursive: true})
         // the uploaded file, or the one in --out (served with CORS) before an upload
         const model = row.linked || !args.models ? row.url : `${args.models}/samples/${row.url.slice(SAMPLES.length + 1)}`
-        await page.goto(`${args.page}/examples/_render-model/?m=${encodeURIComponent(model)}&size=${size}&video=${args.video}&stillScale=${stillScale}&videoScale=${videoScale}${view ? `&view=${encodeURIComponent(JSON.stringify(view))}` : ''}${clips}`, {timeout: 120_000})
+        await page.goto(`${args.page}/examples/_render-model/?m=${encodeURIComponent(model)}&size=${size}&video=${args.video}&stillScale=${stillScale}&videoScale=${videoScale}${view ? `&view=${encodeURIComponent(JSON.stringify(view))}` : ''}${clips}${loadAs}&kind=${row.kind}`, {timeout: 120_000})
         // a timeout of our own: older Playwright versions take no options here
         const result = await Promise.race([page.evaluate(() => window.__render), new Promise((_, reject) =>
             setTimeout(() => reject(new Error(`no result in ${args.timeout} s`)), parseInt(args.timeout) * 1000))])
@@ -277,7 +292,7 @@ for (const row of catalog.rows) {
         // videos: a stills-only run (--video 0) keeps them.
         const made = renderedNames(sizes, result.frames, result.hasBackground, !!args['hevc-host'])
         for (const name of staleFiles(dir, made, !!result.frames)) fs.rmSync(path.join(dir, name))
-        fs.writeFileSync(path.join(dir, DONE), JSON.stringify({sizes, hevc: !!args['hevc-host'], at: new Date().toISOString()}))
+        fs.writeFileSync(path.join(dir, DONE), JSON.stringify({sizes, hevc: !!args['hevc-host'], at: new Date().toISOString(), ...result.stats ? {stats: result.stats} : {}}))
         setUrls(row, dir)
         console.log(`${row.name}: render ${((renderedAt - start) / 1000).toFixed(1)} s, encode ${((Date.now() - renderedAt) / 1000).toFixed(1)} s, ${result.frames} frames${result.hasBackground ? ', own background' : ''}${result.hasView ? ', a set view' : ''}`)
         fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 2))

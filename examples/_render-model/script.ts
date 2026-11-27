@@ -2,6 +2,10 @@
 // loads: no ground and a transparent background, so a model that has its own ground or background keeps it.
 import {
     Box3,
+    Mesh,
+    Object3D,
+    PhysicalMaterial,
+    SphereGeometry,
     CanvasRecorderPlugin,
     ChromaticAberrationPlugin,
     ClearcoatTintPlugin,
@@ -15,6 +19,11 @@ import {
     GLTFAnimationPlugin,
     GLTFMeshOptDecodePlugin,
     KTX2LoadPlugin,
+    KTXLoadPlugin,
+    PLYLoadPlugin,
+    Rhino3dmLoadPlugin,
+    STLLoadPlugin,
+    USDZLoadPlugin,
     PopmotionPlugin,
     ProgressivePlugin,
     SSAAPlugin,
@@ -23,12 +32,22 @@ import {
     TonemapPlugin,
     Vector3,
 } from 'threepipe'
+import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
+import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
+import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
+import {B3DMLoadPlugin, CMPTLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin, TilesRendererPlugin} from '@threepipe/plugin-3d-tiles-renderer'
 import {AdvancedGroundPlugin, AnisotropyPlugin, BloomPlugin, DepthOfFieldPlugin, SSContactShadowsPlugin, SSGIPlugin, SSReflectionPlugin, TemporalAAPlugin, VelocityBufferPlugin} from '@threepipe/webgi-plugins'
 
 const query = new URLSearchParams(location.search)
 const url = query.get('m')!
 const size = parseInt(query.get('size') ?? '512')
 const videoSeconds = parseFloat(query.get('video') ?? '3') // 0: no video
+// the extension to load it as, when the URL's own doesn't pick the loader (metadata.files[].load_as in the catalog)
+const loadAs = query.get('format') ?? undefined
+// model, hdri (chrome and matte balls in front of it) or material (a sphere with it, under the studio HDRI)
+const kind = query.get('kind') ?? 'model'
+// where the camera looks from before it fits the view: a three-quarter view of a model, eye level for an HDRI
+const DIRECTIONS: Record<string, number[]> = {model: [1, 0.45, 1.5], hdri: [0, 0.12, 1], material: [0, 0.35, 1]}
 const ENVIRONMENT = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/brown_photostudio_02_1k.hdr' // CC0, Poly Haven
 const INSIDE_ARC = 8 // degrees
 const FIT = 1.5 // distance to the model, as in render3d-cli
@@ -55,6 +74,53 @@ const frames = async(viewer: ThreeViewer, count: number) => new Promise<void>(re
     viewer.addEventListener('postFrame', onFrame)
 })
 
+/**
+ * The counts of what loaded, for formats the catalog can't read itself (glTF is counted from the file). Not for a
+ * tileset: what is loaded depends on the view.
+ */
+function measure(root: any) {
+    let triangles = 0, vertices = 0, points = 0, meshes = 0
+    const materials = new Set<any>(), textures = new Set<any>(), clips = new Set<any>()
+    root.traverse((o: any) => {
+        for (const clip of o.animations ?? []) clips.add(clip)
+        const geometry = o.geometry
+        if (!geometry) return
+        const count = geometry.attributes?.position?.count ?? 0
+        const instances = o.isInstancedMesh ? o.count : 1
+        if (o.isPoints) points += count * instances
+        else if (o.isMesh) {
+            meshes++
+            triangles += Math.floor((geometry.index ? geometry.index.count : count) / 3) * instances
+        }
+        vertices += count * instances
+        for (const material of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) {
+            materials.add(material)
+            for (const value of Object.values(material)) if ((value as any)?.isTexture) textures.add(value)
+        }
+    })
+    return {triangles, vertices, points, meshes, materials: materials.size, textures: textures.size,
+        animations: [...clips].map((clip: any) => ({name: clip.name, seconds: Math.round(clip.duration * 100) / 100}))}
+}
+
+/** What an HDRI or a material is shown on: two balls (chrome, matte) or one sphere with the material. */
+function previewObjects(viewer: ThreeViewer, material?: any) {
+    const group = new Object3D()
+    group.name = kind + ' preview'
+    const sphere = (radius: number, m: any) => new Mesh(new SphereGeometry(radius, 128, 64), m)
+    if (kind === 'hdri') {
+        const chrome = sphere(0.5, new PhysicalMaterial({color: 0xffffff, metalness: 1, roughness: 0}))
+        const matte = sphere(0.5, new PhysicalMaterial({color: 0xcccccc, metalness: 0, roughness: 1}))
+        chrome.position.x = -0.55
+        matte.position.x = 0.55
+        group.add(chrome, matte)
+    } else {
+        if (!material?.isMaterial) throw new Error('no material loaded')
+        group.add(sphere(1, material))
+    }
+    viewer.scene.addObject(group)
+    return group
+}
+
 async function render() {
     const canvas = document.getElementById('mcanvas') as HTMLCanvasElement
     canvas.style.width = canvas.style.height = size + 'px'
@@ -63,7 +129,10 @@ async function render() {
         canvas, msaa: false, rgbm: false, renderScale: STILL_SCALE,
         plugins: [GLTFMeshOptDecodePlugin, KTX2LoadPlugin, ProgressivePlugin, PopmotionPlugin, GBufferPlugin, SSAOPlugin, SSAAPlugin, VelocityBufferPlugin, TemporalAAPlugin,
             SSReflectionPlugin, SSGIPlugin, SSContactShadowsPlugin, DepthOfFieldPlugin, BloomPlugin, ChromaticAberrationPlugin, VignettePlugin, FilmicGrainPlugin,
-            AnisotropyPlugin, ClearcoatTintPlugin, CustomBumpMapPlugin, NoiseBumpMaterialPlugin, ParallaxMappingPlugin, FragmentClippingExtensionPlugin],
+            AnisotropyPlugin, ClearcoatTintPlugin, CustomBumpMapPlugin, NoiseBumpMaterialPlugin, ParallaxMappingPlugin, FragmentClippingExtensionPlugin,
+            // every format the viewer opens, as in examples/model-viewer
+            KTXLoadPlugin, PLYLoadPlugin, STLLoadPlugin, USDZLoadPlugin, Rhino3dmLoadPlugin, BlendLoadPlugin, GaussianSplattingPlugin, ...extraImportPlugins,
+            B3DMLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin, CMPTLoadPlugin, TilesRendererPlugin],
     })
     viewer.renderManager.stableNoise = true
     // off unless a file's settings turn them on: they change how a model looks, or need settings made for it
@@ -80,13 +149,22 @@ async function render() {
     const ground = viewer.addPluginSync(AdvancedGroundPlugin)
     ground.visible = false
     ground.autoBakeShadows = false
-    await viewer.setEnvironmentMap(ENVIRONMENT)
+    if (kind === 'hdri') {
+        // the HDRI lights the balls and is the background, tone mapped like them
+        if (!await viewer.setEnvironmentMap(url, {fileExtension: loadAs, setBackground: true})) throw new Error('the HDRI did not load')
+        if (tonemap) tonemap.tonemapBackground = true
+    } else await viewer.setEnvironmentMap(ENVIRONMENT)
 
     // a view in the file's coordinates: the camera the file was saved with, the model's camera, or from inside a room
     const view = query.get('view') ? JSON.parse(query.get('view')!) as View : undefined
     // a saved file loads as it was saved; anything else is centered and scaled, or fitted below
-    const model = await viewer.load<any>(url, view?.saved ? {} : {autoCenter: true, autoScale: true, autoScaleRadius: 1})
-    if (!model) throw new Error('nothing loaded')
+    const loaded = kind === 'model' ? await viewer.load<any>(url, {...view?.saved ? {} : {autoCenter: true, autoScale: true, autoScaleRadius: 1}, fileExtension: loadAs}) :
+        previewObjects(viewer, kind === 'material' ? await viewer.load<any>(url, {fileExtension: loadAs}) : undefined)
+    // a zip gives what was in it, a list
+    const model = Array.isArray(loaded) ? loaded.length === 1 ? loaded[0] : viewer.scene.modelRoot : loaded
+    if (!model || Array.isArray(loaded) && !loaded.length) throw new Error('nothing loaded')
+    // a 3D tileset streams the tiles the camera sees: wait for them after the camera is set
+    const tiles = model.tilesRenderer as undefined | {loadProgress: number, addEventListener: (type: string, listener: () => void) => void, removeEventListener: (type: string, listener: () => void) => void}
 
     const camera = viewer.scene.mainCamera
     camera.controlsMode = '' // nobody orbits here; controls keep their own state and limits (minDistance) and move the camera
@@ -109,10 +187,27 @@ async function render() {
         camera.target.fromArray(view.target).applyMatrix4(model.matrixWorld)
         camera.setDirty()
     } else {
-        camera.position.set(1, 0.45, 1.5)
+        camera.position.fromArray(DIRECTIONS[kind] ?? DIRECTIONS.model)
         camera.target.set(0, 0, 0)
         camera.setDirty()
         await viewer.fitToView(undefined, FIT, 0.1)
+    }
+
+    if (tiles) {
+        await frames(viewer, 2) // the tiles renderer picks the tiles of this view on render
+        await new Promise<void>(resolve => {
+            const timeout = setTimeout(done, 60_000)
+            function done() {
+                clearTimeout(timeout)
+                tiles!.removeEventListener('tiles-load-end', check)
+                resolve()
+            }
+            function check() {
+                if (tiles!.loadProgress >= 1) done()
+            }
+            tiles.addEventListener('tiles-load-end', check)
+            check()
+        })
     }
 
     if (ground.visible) { // the model turned it on
@@ -156,7 +251,7 @@ async function render() {
     const gl = viewer.renderManager.webglRenderer.getContext()
     const info = gl.getExtension('WEBGL_debug_renderer_info')
     const renderer = info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)
-    return {still: await toDataUrl(still), frames: frameCount, hasBackground, hasView: !!view, animated, renderer}
+    return {still: await toDataUrl(still), frames: frameCount, hasBackground, hasView: !!view, animated, renderer, stats: tiles || kind !== 'model' ? undefined : measure(viewer.scene.modelRoot)}
 }
 
 (window as any).__render = render().catch(e => ({error: String(e?.stack ?? e)}))
