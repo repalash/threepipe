@@ -24,6 +24,7 @@ Currently working: meshes (Blender's triangulation, flat/smooth shading, Auto Sm
 [Example](https://threepipe.org/examples/#blend-load/) &mdash;
 [File Inspector](https://threepipe.org/examples/#blend-file-info/) &mdash;
 [Plain three.js Example](https://threepipe.org/examples/#blend-load-three/) &mdash;
+[Preview While Loading](https://threepipe.org/examples/#blend-preview/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/plugins/blend-importer/src/index.ts) &mdash;
 [API Reference](https://threepipe.org/plugins/blend-importer/docs)
 
@@ -73,6 +74,8 @@ if (thumbnail) {
 }
 const model = await viewer.load(url) // meanwhile, the full load
 ```
+
+The [preview example](https://threepipe.org/examples/#blend-preview/) does this with Blender's 66 MB Mr Elephant demo.
 
 `thumbnail` has the same shape as `blend.thumbnail` from a full load: `{width, height, data}`, RGBA8 packed per
 `Uint32`, rows bottom-up. The same functions are exported by `@threepipe/plugin-blend-importer/three`. A server that

@@ -59,6 +59,7 @@ test('basic-svg-renderer-plugin', async({page}) => expect(page).toHaveTitle('Bas
 test('blend-load', async({page}) => expect(page).toHaveTitle('Blend Load'))
 test('blend-load-three', async({page}) => expect(page).toHaveTitle('Blend Load (three.js)'))
 test('blend-file-info', async({page}) => expect(page).toHaveTitle('Blend File Inspector'))
+test('blend-preview', async({page}) => expect(page).toHaveTitle('Blend Preview While Loading'))
 test('bloom-plugin', async({page}) => expect(page).toHaveTitle('Bloom Plugin'))
 test('blueprintjs-ui-plugin', async({page}) => expect(page).toHaveTitle('BlueprintJs Ui Plugin'))
 test('bone-helper-widget', async({page}) => expect(page).toHaveTitle('Bone Helper Widget'))

@@ -35,6 +35,15 @@ export const blenderDemoFiles: BlenderDemoFile[] = [
     {id: 'atv-buggy', label: 'ATV Buggy', url: BASE + 'atv-buggy.blend', size: '0.2 MB', blender: '2.66', source: DEMO + 'test/AtvBuggy.zip'},
 ]
 
+/**
+ * Mr Elephant exactly as Blender published it (Blender 2.93, gzip, 66 MB; the `mr-elephant` above is the same
+ * scene re-saved with zstd). Big enough to watch a load: the preview example uses it.
+ */
+export const mrElephantOriginal: BlenderDemoFile = {
+    ...blenderDemoFiles.find(f => f.id === 'mr-elephant')!,
+    id: 'mr-elephant-original', label: 'Mr Elephant (original file)', url: BASE + 'mr-elephant-2.93-original.blend', size: '66 MB',
+}
+
 /** The demo file in `?file=<id>`, else the one with `fallbackId`. */
 export function demoFileFromQuery(fallbackId = blenderDemoFiles[0].id): BlenderDemoFile {
     const id = new URLSearchParams(location.search).get('file')
