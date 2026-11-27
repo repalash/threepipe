@@ -7,7 +7,7 @@ import {
     RenderTargetPreviewPlugin,
     ThreeViewer,
 } from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({
     renderScale: 'auto',
@@ -44,19 +44,20 @@ async function init() {
     const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
     targetPreview.addTarget(()=>depthTarget, 'depth')
 
-    createSimpleButtons({
-        ['Toggle Depth rendering']: () => {
-            viewer.renderManager.screenPass.overrideReadBuffer =
-                viewer.renderManager.screenPass.overrideReadBuffer ? null : depthTarget
-            viewer.setDirty()
-        },
-        ['Download snapshot']: async(btn: HTMLButtonElement) => {
-            btn.disabled = true
-            const blob = await viewer.getScreenshotBlob({mimeType: 'image/png'})
-            if (blob) downloadBlob(blob, 'file.png')
-            else console.error('Unable to get screenshot')
-            btn.disabled = false
-        },
+    createExampleCard(viewer, {
+        description: 'Renders the depth of the scene into a target (DepthBufferPlugin), shown in the preview at the bottom. Toggle to draw the depth on the canvas.',
+        actions: [
+            {type: 'button', label: 'Toggle Depth rendering', icon: 'layers', value: () => {
+                viewer.renderManager.screenPass.overrideReadBuffer =
+                    viewer.renderManager.screenPass.overrideReadBuffer ? null : depthTarget
+                viewer.setDirty()
+            }},
+            {type: 'button', label: 'Download snapshot', icon: 'camera', value: async() => {
+                const blob = await viewer.getScreenshotBlob({mimeType: 'image/png'})
+                if (blob) downloadBlob(blob, 'file.png')
+                else console.error('Unable to get screenshot')
+            }},
+        ],
     })
 
 }

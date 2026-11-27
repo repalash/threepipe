@@ -8,7 +8,7 @@ import {
     UnsignedByteType,
     WebGLRenderTarget,
 } from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({
     renderScale: 'auto',
@@ -37,34 +37,28 @@ async function init() {
         else alert('Unable to get screenshot')
     }
 
-    createSimpleButtons({
-        ['Download composer (EXR)']: async(btn: HTMLButtonElement) => {
-            btn.disabled = true
-            await downloadTarget(composerBuffer) // default for Float and HalfFloat buffers is EXR.
-            btn.disabled = false
-        },
-        // UnsignedByte targets can only be exported in webp, png, jpeg format.
-        ['Download depth (PNG)']: async(btn: HTMLButtonElement) => {
-            btn.disabled = true
-            await downloadTarget(depthBuffer) // default for UnsignedByte buffers is PNG.
-            btn.disabled = false
-        },
-        ['Download depth (JPEG)']: async(btn: HTMLButtonElement) => {
-            btn.disabled = true
-            await downloadTarget(depthBuffer, 'jpeg')
-            btn.disabled = false
-        },
-        // HalfFloat targets can also be exported in webp, png, jpeg format, but they will be clamped
-        ['Download composer (WEBP)']: async(btn: HTMLButtonElement) => {
-            btn.disabled = true
-            if (!isWebpExportSupported()) {
-                alert('WebP export is not supported in this browser, try the latest version of chrome, firefox or edge.')
-                btn.disabled = false
-                return
-            }
-            await downloadTarget(composerBuffer, 'webp')
-            btn.disabled = false
-        },
+    createExampleCard(viewer, {
+        description: 'Exports render targets as images: the composer target (half float) as EXR or WebP, the depth target (8 bit) as PNG or JPEG.',
+        actions: [
+            {type: 'button', label: 'Download composer (EXR)', icon: 'image', value: async() => {
+                await downloadTarget(composerBuffer) // default for Float and HalfFloat buffers is EXR.
+            }},
+            // UnsignedByte targets can only be exported in webp, png, jpeg format.
+            {type: 'button', label: 'Download depth (PNG)', icon: 'layers', value: async() => {
+                await downloadTarget(depthBuffer) // default for UnsignedByte buffers is PNG.
+            }},
+            {type: 'button', label: 'Download depth (JPEG)', icon: 'layers', value: async() => {
+                await downloadTarget(depthBuffer, 'jpeg')
+            }},
+            // HalfFloat targets can also be exported in webp, png, jpeg format, but they will be clamped
+            {type: 'button', label: 'Download composer (WEBP)', icon: 'image', value: async() => {
+                if (!isWebpExportSupported()) {
+                    alert('WebP export is not supported in this browser, try the latest version of chrome, firefox or edge.')
+                    return
+                }
+                await downloadTarget(composerBuffer, 'webp')
+            }},
+        ],
     })
 
 }

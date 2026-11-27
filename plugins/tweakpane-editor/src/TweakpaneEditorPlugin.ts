@@ -14,7 +14,7 @@ import {setupEditorCameraUi} from './editor-camera-ui'
 import type {EditorCameraPlugin} from './EditorCameraPlugin'
 import styles from './TweakpaneEditorPlugin.css?inline'
 import tippy from 'tippy.js'
-import {addTooltipStyles, EDITOR_TOOLTIP_PROPS, tooltipParent} from './tooltips'
+import {addTooltipStyles, EDITOR_TOOLTIP_PROPS, tooltipParent, useEditorTooltip} from './tooltips'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {UiObjectConfig} from 'uiconfig.js'
 import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameLayout, EditorFrameOptions, EditorFramePanelOptions, EditorPageLayout} from './frame/EditorFrame'
@@ -53,6 +53,8 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
             arrow: true,
             appendTo: tooltipParent, // above the frame; in the viewer container in full screen
         })
+        // the tooltips of every uiconfig renderer (Tweakpane folder headers, UiConfigForm bars) in the editor look
+        this._releaseTooltip = useEditorTooltip()
 
         setupFullscreenButton(viewer)
 
@@ -71,8 +73,13 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         this._removeFrame()
         this._undoInputZoom?.()
         this._undoInputZoom = undefined
+        this._releaseTooltip?.()
+        this._releaseTooltip = undefined
         super.onRemove(viewer)
     }
+
+    /** Releases the editor's tooltip hook of the renderers ({@link useEditorTooltip}) */
+    private _releaseTooltip?: () => void
 
     private _preventIosInputZoom = true
     private _undoInputZoom?: () => void
