@@ -37,6 +37,18 @@ export interface IRenderManagerEventMap {
         scene: IScene
         renderToScreen: boolean
     }
+    /**
+     * A shader failed to compile or link, so the objects using it aren't drawn. three.js logs the details to the console;
+     * this lets an app tell the user. `tooManyTextures`: the GPU's textures-per-shader limit was exceeded (see
+     * `RenderManager.maxShadowMaps`).
+     */
+    shaderError: {
+        materialName: string
+        programLog: string
+        fragmentLog: string
+        vertexLog: string
+        tooManyTextures: boolean
+    }
 }
 
 export interface RendererBlitOptions {

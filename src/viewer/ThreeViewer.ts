@@ -562,10 +562,14 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         this._scene.addEventListener('activateMain', this._setActiveCameraView)
         this._scene.addEventListener('materialUpdate', (e) => this._onMaterialUpdate(e))
         this._scene.addEventListener('materialChanged', (e) => this._onMaterialChanged(e))
-        this._scene.addEventListener('objectUpdate', (e) => this.setDirty(this._scene, e))
+        this._scene.addEventListener('objectUpdate', (e) => {
+            this.setDirty(this._scene, e)
+            if ((e as any).object?.isLight) this.renderManager?.shadowBudgetNeedsUpdate() // castShadow or intensity changed
+        })
         this._scene.addEventListener('textureUpdate', (e) => this.setDirty(this._scene, e))
         this._scene.addEventListener('sceneUpdate', (e) => {
             this.setDirty(this._scene, e)
+            this.renderManager?.shadowBudgetNeedsUpdate()
             if (e.geometryChanged === false) return
             this.renderManager.resetShadows()
         })
