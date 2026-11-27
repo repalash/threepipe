@@ -3,6 +3,7 @@ import {
     CameraView,
     CameraViewPlugin,
     CanvasRecorderPlugin,
+    DirectoryFrameSink,
     FileTransferPlugin,
     LoadingScreenPlugin,
     Mesh,
@@ -75,6 +76,21 @@ async function init() {
                 recorder.mimeType = 'video/mp4'
                 recorder.convergeMode = true
                 await cameraViews.recordAllViews() // prompts for the file name
+            }},
+            // a folder the user picks: only in Chromium, on a page that isn't sandboxed. Elsewhere (Safari, Firefox, this
+            // preview's sandboxed page) the recording fails, and the plugin's toast says why (recorder.toastErrors)
+            {type: 'button', label: 'Record PNG frames to a folder', icon: 'images', value: async() => {
+                const sink = recorder.frameSink
+                recorder.mimeType = 'image/png'
+                recorder.convergeMode = true
+                recorder.frameSink = new DirectoryFrameSink()
+                try {
+                    await recorder.record(async() => spin(1000))
+                } catch (e) {
+                    console.warn('Canvas recorder example: no recording', e)
+                } finally {
+                    recorder.frameSink = sink
+                }
             }},
         ],
     })

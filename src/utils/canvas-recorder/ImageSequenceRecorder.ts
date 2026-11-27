@@ -1,10 +1,11 @@
 import {ACanvasRecorder, type ICanvasFrameSink} from './ACanvasRecorder'
 import {DirectoryFrameSink} from './DirectoryFrameSink'
+import {ZipFrameSink} from './ZipFrameSink'
 
 /**
  * Records the canvas as an image sequence: one PNG, JPEG or WebP per frame. It captures the frames and gives them in
- * order to a sink ({@link CanvasRecorderOptions.frameSink}): a folder the user picks by default ({@link DirectoryFrameSink}),
- * a zip ({@link ZipFrameSink}), or your own. The next converged frame waits for the sink.
+ * order to a sink ({@link CanvasRecorderOptions.frameSink}): by default a folder the user picks ({@link DirectoryFrameSink}),
+ * or a zip download ({@link ZipFrameSink}) in a browser that can't pick a folder (Safari, Firefox); or your own. The next converged frame waits for the sink.
  */
 export class ImageSequenceRecorder extends ACanvasRecorder {
     /** Captures and writes not done yet; stop waits for them */
@@ -49,7 +50,7 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         this._writeError = undefined
         this._sinkQueue = Promise.resolve()
         const option = this.options.frameSink
-        const sink: ICanvasFrameSink = !option ? new DirectoryFrameSink() : typeof option === 'function' ? {write: option} : option
+        const sink: ICanvasFrameSink = !option ? defaultFrameSink() : typeof option === 'function' ? {write: option} : option
         this._sink = sink
 
         this.setState('starting')
@@ -58,7 +59,7 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         try {
             started = sink.start?.()
         } catch (e) {
-            this._onerror({detail: e})
+            this._onerror(e)
             return
         }
         // a sink that needs nothing starts at once; one that waits (a folder picker) starts when it is ready
@@ -72,7 +73,7 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
             this._frameCount = 0
             this.setState('recording')
         }, (e: unknown) => {
-            if (startId === this._startId) this._onerror({detail: e})
+            if (startId === this._startId) this._onerror(e)
         })
     }
 
@@ -161,7 +162,7 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         }, (e) => {
             // a write failed (disk full, folder access revoked): the caller's stop still settles, and the error is reported
             recordingCallback(undefined)
-            this._onerror({detail: e})
+            this._onerror(e)
             // disposed during the recording (the plugin removed): the sink is let go once the stop has ended
             if (this._disposed) this._releaseSink()
         })
@@ -174,8 +175,14 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         await this._sink?.finish?.()
     }
 
-    private _onerror: (event: any) => void = (event) => {
-        this.setState('error', {error: event})
-        this._console.error(event)
+    /** The recording failed: the error is the event's `error` */
+    private _onerror: (error: unknown) => void = (error) => {
+        this.setState('error', {error})
+        this._console.error(error)
     }
+}
+
+/** The sink when none is set: a folder the user picks where the browser can (Chromium), else one zip download */
+export function defaultFrameSink(): ICanvasFrameSink {
+    return DirectoryFrameSink.supported ? new DirectoryFrameSink() : new ZipFrameSink()
 }
