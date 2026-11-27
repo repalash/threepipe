@@ -22,8 +22,13 @@ import {
     TorusKnotGeometry,
     Vector2,
     Vector3,
+    addIcons,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {createExampleCard} from '../examples-utils/example-card.js'
+
+// the icon of the BVH toggle: Lucide `zap` (ISC License), not in the set of the form
+addIcons({zap: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z"/></svg>'})
 
 async function init() {
 
@@ -143,50 +148,39 @@ function makeField(): Field {
 interface Panel {
     addRaycast(ms: number, withBVH: boolean): void
     setHovered(name: string): void
-    update(): void
 }
 
-/** The on-page panel: the BVH toggle, the counts, the raycast times with and without the trees, the build time */
+/** The example card: the BVH toggle, the counts and the raycast and build times, read from the plugin each frame */
 function setupPanel(viewer: ThreeViewer, bvh: BVHPlugin, field: Field): Panel {
-    const $ = (id: string) => document.getElementById(id)!
-    const toggle = $('bvh-toggle') as HTMLInputElement
-    toggle.addEventListener('change', () => {
-        bvh.enabled = toggle.checked
-        update()
-    })
-    $('stat-objects').textContent = field.meshes.length.toLocaleString()
-    $('stat-triangles').textContent = (field.triangles / 1e6).toFixed(1) + ' M'
-
     // the last raycasts of each kind, for the averages
     const times = {bvh: [] as number[], plain: [] as number[]}
     const average = (list: number[]) => list.length ? list.reduce((a, b) => a + b, 0) / list.length : NaN
     const ms = (v: number) => isNaN(v) ? '–' : v < 1 ? v.toFixed(3) + ' ms' : v.toFixed(1) + ' ms'
+    let hovered = '–'
+    const row = (label: string, getValue: () => string) => ({type: 'monitor', label, getValue})
 
-    /** Shows the state of the plugin and the raycast times */
-    function update() {
-        // read from the plugin every time: the state can change from its own UI or from code
-        const state = bvhState(bvh, field)
-        toggle.checked = bvh.enabled
-        $('bvh-state').textContent = state.text
-        $('bvh-state').dataset.state = state.id
-        $('stat-trees').textContent = `${bvh.builtCount} · ${bvh.memoryMB} MB`
-        $('stat-build').textContent = bvh.builtCount ? bvh.buildMs.toLocaleString() + ' ms' : '–'
-        const withBVH = average(times.bvh), without = average(times.plain)
-        $('stat-ray-bvh').textContent = ms(withBVH)
-        $('stat-ray-plain').textContent = ms(without)
-        $('stat-speedup').textContent = withBVH > 0 && without > 0 ? `${Math.round(without / withBVH).toLocaleString()}× faster with the BVH` : ''
-    }
-
-    let last = 0
-    viewer.addEventListener('postFrame', () => {
-        const now = performance.now()
-        if (now - last < 200) return
-        last = now
-        update()
+    createExampleCard(viewer, {
+        description: 'BVHPlugin builds three-mesh-bvh trees for 2,000 objects and a torus knot of a million triangles, so a raycast tests a few triangles, not all. Hover the objects to time a raycast, and switch the BVH off to compare. Click to select.',
+        actions: [
+            {type: 'checkbox', label: 'BVH', icon: 'zap', property: [bvh, 'enabled']},
+            row('State', () => bvhState(bvh, field).text),
+            {type: 'folder', label: 'Scene', children: [
+                row('Objects', () => field.meshes.length.toLocaleString()),
+                row('Triangles', () => (field.triangles / 1e6).toFixed(1) + ' M'),
+                row('Trees · memory', () => `${bvh.builtCount} · ${bvh.memoryMB} MB`),
+                row('Tree build time', () => bvh.builtCount ? bvh.buildMs.toLocaleString() + ' ms' : '–'),
+            ]},
+            {type: 'folder', label: 'Raycast (average of the last 30)', children: [
+                row('With BVH', () => ms(average(times.bvh))),
+                row('Without', () => ms(average(times.plain))),
+                row('Speedup', () => {
+                    const withBVH = average(times.bvh), without = average(times.plain)
+                    return withBVH > 0 && without > 0 ? `${Math.round(without / withBVH).toLocaleString()}×` : '–'
+                }),
+                row('Hover', () => hovered),
+            ]},
+        ],
     })
-    bvh.addEventListener('bvhBuilt', update)
-    bvh.addEventListener('bvhDisposed', update)
-    update()
 
     return {
         addRaycast(t, withBVH) {
@@ -195,9 +189,8 @@ function setupPanel(viewer: ThreeViewer, bvh: BVHPlugin, field: Field): Panel {
             if (list.length > 30) list.shift()
         },
         setHovered(name) {
-            $('stat-hover').textContent = name
+            hovered = name
         },
-        update,
     }
 }
 
@@ -297,7 +290,6 @@ function setupHover(viewer: ThreeViewer, bvh: BVHPlugin, field: Field, panel: Pa
             panel.addRaycast(timed(true).ms, true)
             panel.addRaycast(timed(false).ms, false)
         }
-        panel.update()
     }
     let benchmarked = false
     bvh.addEventListener('bvhBuilt', () => {
