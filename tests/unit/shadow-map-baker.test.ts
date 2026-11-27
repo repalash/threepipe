@@ -35,7 +35,7 @@ beforeAll(async() => {
 
 interface DrawRecord {scene: unknown, materials: Map<unknown, Material | Material[]>, renderTarget: unknown}
 
-function setup() {
+function setup(maxTextureSize = 16384) {
     const scene = new Scene() as Scene & Record<string, any>
     scene.mainCamera = new PerspectiveCamera()
     scene.addObject = (o: any) => scene.add(o)
@@ -57,6 +57,7 @@ function setup() {
         getActiveMipmapLevel: () => 0,
         clear: vi.fn(),
         setScissorTest: vi.fn(),
+        capabilities: {maxTextureSize},
         state: {buffers: {depth: {setMask: vi.fn()}}},
     }
     const targets: WebGLRenderTarget[] = []
@@ -205,6 +206,36 @@ describe('ShadowMapBaker bake frame', () => {
         baker.updateShadow()
         baker.updateShadow()
         expect(spy.mock.calls).toEqual([[0, 1, 0], [0, 1, 0], [3], [4], [5], [6], [7], [8]])
+    })
+
+    test('the depth target fits in the largest texture size: fewer light positions per frame, tiles no larger', () => {
+        const {baker, scene, draws, renderer} = setup(2048)
+        baker.lightsPerFrame = 16
+        baker.updateShadow()
+        expect(baker.frameNumber).toBe(4) // 2 x 2 tiles of 1024
+        expect(draws.filter(d => d.scene === scene)).toHaveLength(4)
+        expect([baker.depthTarget!.width, baker.depthTarget!.height]).toEqual([2048, 2048])
+        expect(renderer.setScissorTest).not.toHaveBeenCalled() // the scissor of the canvas is not changed
+
+        baker.light.shadowParams = {width: 4096, height: 1024}
+        baker.reset()
+        baker.updateShadow()
+        expect(baker.frameNumber).toBe(2) // 1 x 2 tiles of 2048 x 1024
+        expect([baker.depthTarget!.width, baker.depthTarget!.height]).toEqual([2048, 2048])
+    })
+
+    test('the depth camera has the frustum and the view offset of the shadow camera of the light', () => {
+        const {baker} = setup()
+        const shadowCamera = baker.light.shadow.camera
+        shadowCamera.setViewOffset(1024, 1024, 0.25, -0.5, 1024, 1024)
+        baker.updateShadow()
+        const depthCamera = (baker as any)._depthCamera
+        expect(depthCamera.view).toMatchObject({enabled: true, offsetX: 0.25, offsetY: -0.5, fullWidth: 1024})
+        expect(depthCamera.projectionMatrix.elements).toEqual(shadowCamera.projectionMatrix.elements)
+        shadowCamera.clearViewOffset()
+        baker.updateShadow()
+        expect(depthCamera.view).toBeNull()
+        expect(depthCamera.projectionMatrix.elements).toEqual(shadowCamera.projectionMatrix.elements)
     })
 
     test('no depth render when the light does not cast shadows: the ground is lit', () => {

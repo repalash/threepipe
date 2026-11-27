@@ -106,13 +106,16 @@ export class ShadowMapBaker extends SimpleEventDispatcher<'shadowBaking'|'shadow
 
     /**
      * The light space depth of the last bake frame, in its `depthTexture`: one tile of `light.shadow.mapSize` for each of
-     * the {@link lightsPerFrame} light positions. Created on the first bake frame.
+     * the {@link lightsPerFrame} light positions (as many as fit in the largest texture size of the device). Created on
+     * the first bake frame.
      */
     get depthTarget(): WebGLRenderTarget | undefined {
         return this._depthTarget
     }
 
     private _depthTileColumns = 1
+    private _depthTileCount = 1
+    private readonly _depthTileSize = new Vector2(1024, 1024)
     private _depthTarget?: WebGLRenderTarget
 
     get light(): RandomizedDirectionalLight {
@@ -235,7 +238,8 @@ export class ShadowMapBaker extends SimpleEventDispatcher<'shadowBaking'|'shadow
     /**
      * The number of light positions rendered and added to the baked shadow on each frame. The baked shadow at the end
      * is the same for any value, as it is made of the same {@link maxFrameNumber} light positions: a larger value gets
-     * there in fewer frames, for a longer time spent on each frame.
+     * there in fewer frames, for a longer time spent on each frame. A frame renders fewer when the depth target of that
+     * many would be larger than the largest texture size of the device.
      */
     @onChange(ShadowMapBaker.prototype._lightsPerFrameChanged)
     @serialize() lightsPerFrame = 4
@@ -339,7 +343,6 @@ export class ShadowMapBaker extends SimpleEventDispatcher<'shadowBaking'|'shadow
         const mesh = this._attachedMesh
         if (!mesh) return false
         if (this._frameNumber >= this.maxFrameNumber) return false
-        const count = Math.min(this.lightsPerFrame, this.maxFrameNumber - this._frameNumber)
 
         const customSize = 1024
         const renderManager = this._viewer.renderManager
@@ -355,6 +358,7 @@ export class ShadowMapBaker extends SimpleEventDispatcher<'shadowBaking'|'shadow
             // this._target.texture.userData.serializableRenderTarget = true // not working properly and exported image size is high, see BaseRenderer
         }
         const depthTarget = this._getDepthTarget()
+        const count = Math.min(this._depthTileCount, this.maxFrameNumber - this._frameNumber)
 
         const renderer = renderManager.renderer
         const currentRt = renderer.getRenderTarget()
@@ -367,8 +371,7 @@ export class ShadowMapBaker extends SimpleEventDispatcher<'shadowBaking'|'shadow
         try {
             renderer.setRenderTarget(depthTarget)
             renderer.state.buffers.depth.setMask(true)
-            renderer.setScissorTest(false)
-            renderer.clear(false, true, false)
+            renderer.clear(false, true, false) // the whole target: its scissorTest is false here
             for (let i = 0; i < count; i++) {
                 const sample = this._frameNumber + i + 1
                 if (sample < 3)
@@ -378,7 +381,7 @@ export class ShadowMapBaker extends SimpleEventDispatcher<'shadowBaking'|'shadow
                 this._updateDepthCamera()
                 if (restoreCasters) {
                     // the tile of the shadowTiles uniform, in pixels
-                    const {x: w, y: h} = this._light.shadow.mapSize
+                    const {x: w, y: h} = this._depthTileSize
                     depthTarget.viewport.set(i % this._depthTileColumns * w, Math.floor(i / this._depthTileColumns) * h, w, h)
                     depthTarget.scissor.copy(depthTarget.viewport)
                     depthTarget.scissorTest = true
@@ -425,7 +428,7 @@ export class ShadowMapBaker extends SimpleEventDispatcher<'shadowBaking'|'shadow
         uniforms.bakeWeight.value = count / (this._frameNumber + count) // a running average of all the light positions
         uniforms.shadowDepth.value = depthTarget.depthTexture
         uniforms.shadowCount.value = count
-        uniforms.shadowTexelSize.value.set(1 / shadow.mapSize.x, 1 / shadow.mapSize.y)
+        uniforms.shadowTexelSize.value.set(1 / this._depthTileSize.x, 1 / this._depthTileSize.y)
         uniforms.shadowBias.value = shadow.bias
         uniforms.shadowNormalBias.value = shadow.normalBias
         uniforms.shadowIntensity.value = shadow.intensity
@@ -471,14 +474,22 @@ export class ShadowMapBaker extends SimpleEventDispatcher<'shadowBaking'|'shadow
     }
 
     /**
-     * The depth target: a tile of `light.shadow.mapSize` for each light position of a frame, in a grid.
+     * The depth target: a tile of `light.shadow.mapSize` for each light position of a frame, in a grid, with as many
+     * tiles as fit in the largest texture size of the device (and tiles no larger than it, as three.js limits the size of
+     * a shadow map).
      */
     private _getDepthTarget(): WebGLRenderTarget {
-        const n = this.lightsPerFrame
-        const cols = Math.ceil(Math.sqrt(n))
+        const maxSize = this._viewer.renderManager.renderer.capabilities.maxTextureSize
+        const w = Math.min(this._light.shadow.mapSize.x, maxSize)
+        const h = Math.min(this._light.shadow.mapSize.y, maxSize)
+        const maxCols = Math.floor(maxSize / w)
+        const maxRows = Math.floor(maxSize / h)
+        const n = Math.min(this.lightsPerFrame, maxCols * maxRows)
+        const cols = Math.min(maxCols, Math.max(Math.ceil(Math.sqrt(n)), Math.ceil(n / maxRows)))
         const rows = Math.ceil(n / cols)
+        this._depthTileCount = n
         this._depthTileColumns = cols
-        const {x: w, y: h} = this._light.shadow.mapSize
+        this._depthTileSize.set(w, h)
         const width = w * cols
         const height = h * rows
         if (!this._depthTarget) {
@@ -513,7 +524,8 @@ export class ShadowMapBaker extends SimpleEventDispatcher<'shadowBaking'|'shadow
 
     /**
      * The camera of the light at its current position, as three.js sets the shadow camera of a directional light
-     * (LightShadow.updateMatrices), with the frustum of `light.shadow.camera`, and the layers of the main camera.
+     * (LightShadow.updateMatrices), with the frustum and view offset of `light.shadow.camera`, and the layers of the main
+     * camera.
      */
     private _updateDepthCamera() {
         const light = this._light
@@ -526,6 +538,10 @@ export class ShadowMapBaker extends SimpleEventDispatcher<'shadowBaking'|'shadow
         cam.near = shadowCamera.near
         cam.far = shadowCamera.far
         cam.zoom = shadowCamera.zoom
+        // and its view offset, a part of the projection of the shadow camera of three.js (webgi's ProgressivePlugin
+        // jitters the shadow camera of each light by a part of a texel on each frame)
+        const view = shadowCamera.view
+        cam.view = view?.enabled ? Object.assign(cam.view ?? {}, view) : null
         cam.updateProjectionMatrix()
         cam.position.setFromMatrixPosition(light.matrixWorld)
         cam.lookAt(_lookTarget.setFromMatrixPosition(light.target.matrixWorld))
