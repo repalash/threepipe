@@ -1,6 +1,6 @@
 # `.blend` import loads every object of every scene, ignoring the active scene and hidden layers
 
-**Status**: fixed in blend-importer 0.4.0 (#40). The importer builds only what Blender shows: the active scene's collection tree (2.80+) or its bases on visible layers (2.7x), without collections excluded in the view layer and without objects or collections hidden in the viewport (or in renders, with `evaluationMode: 'render'`). Collection instances are expanded. `allObjects: true` imports everything as before. Checked against Blender 5.3 on 17 files in both modes. Still open from the proposal: an option to pick a named scene. bugatti.blend wasn't re-checked here (the file is private), but its active scene's 44 objects are all on visible layers, which this covers.
+**Status**: fixed in blend-importer 0.4.0 (#40). The importer builds only what Blender shows: the active scene's collection tree (2.80+) or its bases on visible layers (2.7x), without collections excluded in the view layer and without objects or collections hidden in the viewport (or in renders, with `evaluationMode: 'render'`). Collection instances are expanded. `allObjects: true` imports everything as before. Checked against Blender 5.3 on 17 files in both modes. Picking a named scene: the `scene` option (and `blendScenes(blend)` to list them), with the scene's Background Scene imported too, as Blender shows it. bugatti.blend wasn't re-checked here (the file is private), but its active scene's 44 objects are all on visible layers, which this covers.
 
 ## What happens
 

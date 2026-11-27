@@ -95,6 +95,20 @@ function imageMime(b: Uint8Array): string | null {
     if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45) return 'image/webp'
     return null
 }
+// The number of colour components in a JPEG's frame header (SOFn): 1 grey, 3 colour, 4 CMYK or YCCK; 0 if not found.
+export function jpegComponents(b: Uint8Array): number {
+    let i = 2
+    while (i + 9 < b.length) {
+        if (b[i] !== 0xff) return 0
+        const marker = b[i + 1]
+        if (marker === 0xff) { i++; continue } // fill byte
+        if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd8)) { i += 2; continue } // no length
+        if (marker === 0xda || marker === 0xd9) return 0 // scan data before any frame header
+        if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) return b[i + 9]
+        i += 2 + ((b[i + 2] << 8) | b[i + 3])
+    }
+    return 0
+}
 const imageName = (img: any): string => (typeof img?.aname === 'string' ? img.aname : '') || (typeof img?.name === 'string' ? img.name : '') || 'blendTexture'
 
 // ── Downsizing (Ctx.maxTextureSize) ───────────────────────────────
@@ -110,12 +124,14 @@ function makeCanvas(width: number, height: number): any {
 }
 
 // `image` (an <img>, canvas or ImageBitmap) drawn at most `max` pixels on its longest side, keeping its aspect
-// ratio, or undefined when it is small enough already (or there is no canvas to draw on).
-function downsized(image: any, max: number | undefined): any {
-    if (!max || !(max > 0)) return undefined
+// ratio, or undefined when it is small enough already (or there is no canvas to draw on). With `always`, drawn
+// even when it is small enough, at its own size.
+function downsized(image: any, max: number | undefined, always = false): any {
     const w = image.naturalWidth || image.width, h = image.naturalHeight || image.height
-    if (!(w > 0 && h > 0) || Math.max(w, h) <= max) return undefined
-    const scale = max / Math.max(w, h)
+    if (!(w > 0 && h > 0)) return undefined
+    const shrink = !!max && max > 0 && Math.max(w, h) > max
+    if (!shrink && !always) return undefined
+    const scale = shrink ? max! / Math.max(w, h) : 1
     const width = Math.max(1, Math.round(w * scale)), height = Math.max(1, Math.round(h * scale))
     const canvas = makeCanvas(width, height)
     const c2d = canvas && canvas.getContext('2d')
@@ -205,6 +221,9 @@ function decodePacked(img: any, srgb: boolean, ctx: Ctx, entry: PackedImage): Te
     if (block.__data_address__ + size > buf.byteLength) return null
     const bytes = new Uint8Array(buf, block.__data_address__, size).slice()
     const mime = imageMime(bytes)
+    // A CMYK JPEG decodes in an <img>, but WebKit refuses to upload one to WebGL ("texSubImage2D: bad image
+    // data"): it goes through a canvas, which holds RGBA.
+    const viaCanvas = mime === 'image/jpeg' && jpegComponents(bytes) === 4
     if (!mime) {
         const tga = /\.tga$/i.test(String(img.name ?? '')) || /\.tga$/i.test(imageName(img)) ? tgaTexture(bytes, img, srgb, ctx) : null
         if (!tga && ctx.onTextureIssue) ctx.onTextureIssue('packed-unsupported', imageName(img))
@@ -222,11 +241,10 @@ function decodePacked(img: any, srgb: boolean, ctx: Ctx, entry: PackedImage): Te
             URL.revokeObjectURL(url)
             // Shrunk to Ctx.maxTextureSize: the textures get the small canvas and the full-size <img> is let go.
             const small = downsized(el, ctx.maxTextureSize)
+            const drawn = small ?? (viaCanvas ? downsized(el, 0, true) : undefined)
             for (const t of entry.users) {
-                if (small) {
-                    t.image = small
-                    setDownsized(t, ctx)
-                }
+                if (drawn) t.image = drawn
+                if (small) setDownsized(t, ctx)
                 t.needsUpdate = true
             }
             entry.loaded = true

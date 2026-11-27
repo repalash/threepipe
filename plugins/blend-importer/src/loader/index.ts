@@ -3,6 +3,7 @@ import {createLight} from './light'
 import {createMesh} from './mesh'
 import type {EulerOrder, IObject3D, Matrix4, Object3D, Quaternion} from 'threepipe'
 import {Ctx} from './ctx'
+import {chosenScene, sceneRenderAspect, withBackgroundScenes} from './scene'
 
 // https://github.com/blender/blender/blob/99a4c93081cc2310a09a14f20a1493e8974c10d2/source/blender/makesdna/DNA_object_types.h#L445
 const blenderObjectTypes = {
@@ -10,24 +11,6 @@ const blenderObjectTypes = {
     mesh: 1,
     lamp: 10,
     camera: 11,
-}
-
-/**
- * Width / height of the active scene's render (`RenderData` resolution x pixel aspect), which Blender fits its
- * cameras to. The active scene is the one open when the file was saved (`FileGlobal.curscene`).
- */
-// The scene open when the file was saved (FileGlobal.curscene), else the first.
-function activeScene(file: any): any {
-    const scenes: any[] = file.objects.Scene ?? []
-    const current = file.objects.FileGlobal?.[0]?.curscene
-    return scenes.includes(current) ? current : scenes[0]
-}
-
-function sceneRenderAspect(file: any): number | undefined {
-    const r = activeScene(file)?.r
-    if (!r) return undefined
-    const w = (r.xsch || 0) * (r.xasp || 1), h = (r.ysch || 0) * (r.yasp || 1)
-    return w > 0 && h > 0 ? w / h : undefined
 }
 
 // Object.type names for the warning (DNA_object_types.h, ObjectType).
@@ -62,22 +45,27 @@ function activeViewLayer(file: any, scene: any): any {
 }
 
 /**
- * The objects Blender shows in the active scene, as its viewport does or, with `render`, as its renderer does
+ * The objects Blender shows in `scene`, as its viewport does or, with `render`, as its renderer does
  * (`evaluationMode`). Since 2.80: the objects of the scene's collection tree, without collections excluded in the
  * view layer (they aren't evaluated at all) and without objects or collections disabled in the viewport (or in
  * renders), or hidden in the view layer (the eye icons, viewport only). Before 2.80: the scene's objects (bases)
  * on the scene's visible layers. The hidden parent of a shown object is still made, as an empty, for its
- * children's transforms (outsideParents).
+ * children's transforms (outsideParents). The objects of the scene's background scenes (Scene.set) show too.
  *
  * A file can hold objects that are in no scene, such as a collection kept for reuse (a fake user) or in an asset
  * library, and objects of other scenes; Blender doesn't show them either. Undefined when the scene has no
  * objects at all (an asset library, say): then every object is imported.
  */
-function sceneObjects(file: any, render: boolean): {shown: Set<any>, inScene: number} | undefined {
-    const scene = activeScene(file)
+function sceneObjects(file: any, scene: any, render: boolean): {shown: Set<any>, inScene: number} | undefined {
     if (!scene) return undefined
     const shown = new Set<any>()
     const all = new Set<any>()
+    for (const s of withBackgroundScenes(scene)) addSceneObjects(file, s, render, shown, all)
+    return all.size ? {shown, inScene: all.size} : undefined
+}
+
+// sceneObjects for one scene: adds its objects to `all`, and those Blender shows to `shown`.
+function addSceneObjects(file: any, scene: any, render: boolean, shown: Set<any>, all: Set<any>) {
     if (scene.master_collection) {
         const viewLayer = activeViewLayer(file, scene)
         const layerFlags = new Map<any, number>()
@@ -116,7 +104,6 @@ function sceneObjects(file: any, render: boolean): {shown: Set<any>, inScene: nu
             if (lay & sceneLayers && !objectHidden(base.object, render)) shown.add(base.object)
         }
     }
-    return all.size ? {shown, inScene: all.size} : undefined
 }
 
 // Object.transflag OB_DUPLICOLLECTION (OB_DUPLIGROUP before 2.80): the object places a copy of a collection.
@@ -160,8 +147,9 @@ export async function createObjects(file: any, ctx: Ctx) {
     const allObjects: any[] = file.objects.Object ?? []
     // Only the active scene's objects, unless asked for all (ctx.allObjects).
     const render = ctx.evaluationMode === 'render'
-    const scene = ctx.allObjects ? undefined : sceneObjects(file, render)
-    const state: BuildState = {ctx, loaded: new WeakMap(), renderAspect: sceneRenderAspect(file), unsupported: new Map(), templates: new Map(), depth: 0, render}
+    const blendScene = chosenScene(file, ctx.scene, true)
+    const scene = ctx.allObjects ? undefined : sceneObjects(file, blendScene, render)
+    const state: BuildState = {ctx, loaded: new WeakMap(), renderAspect: sceneRenderAspect(blendScene), unsupported: new Map(), templates: new Map(), depth: 0, render}
     let objects: Object3D[]
     if (scene) {
         const shown = scene.shown
@@ -172,7 +160,7 @@ export async function createObjects(file: any, ctx: Ctx) {
             hidden > 0 ? `${hidden} hidden in the ${render ? 'renders' : 'viewport'} (hidden layers, excluded or disabled collections, disabled objects)` : '',
             elsewhere > 0 ? `${elsewhere} in no collection of the scene (collections kept for reuse, other scenes)` : '',
         ].filter(Boolean)
-        if (parts.length) console.warn(`BlendLoader - objects Blender doesn't show in the scene "${activeScene(file)?.aname ?? ''}" left out: ${parts.join('; ')}. Set allObjects to import them.`)
+        if (parts.length) console.warn(`BlendLoader - objects Blender doesn't show in the scene "${blendScene?.aname ?? ''}" left out: ${parts.join('; ')}. Set allObjects to import them.`)
         objects = buildObjects(allObjects.filter(o => shown.has(o) || parentsOnly.has(o)), parentsOnly, state)
     } else {
         objects = buildObjects(allObjects, new Set(), state)
@@ -205,7 +193,7 @@ function buildObjects(blendObjects: any[], parentsOnly: Set<any>, state: BuildSt
             obj = createMesh(object, state.loaded, ctx)
             break
         case blenderObjectTypes.lamp:
-            obj = createLight(object, ctx)
+            obj = createLight(object, ctx, blenderWorldScale(ctx, object))
             break
         case blenderObjectTypes.camera:
             obj = createCamera(object, ctx, state.renderAspect)
@@ -322,6 +310,24 @@ function blenderLocalMatrix(ctx: Ctx, object: any): Matrix4 {
     const rBasis = blenderRot(ctx, object.rotmode || 0, object.quat, object.rot, object.rotAxis, object.rotAngle)
     const rDelta = blenderRot(ctx, object.rotmode || 0, object.dquat, object.drot, object.drotAxis, object.drotAngle)
     return new ctx.Matrix4().compose(pos, rDelta.multiply(rBasis), scl) // delta pre-multiplies (dmat·rmat)
+}
+
+// A Blender object's world matrix (Blender space, Z-up): world = parent world · parentinv · local.
+function blenderWorldMatrix(ctx: Ctx, object: any, depth = 0): Matrix4 {
+    const m = blenderLocalMatrix(ctx, object)
+    if (object.parent && object.parent !== object && depth < 1000) {
+        const pinv = mat4FromBlender(ctx, object.parentinv)
+        if (pinv) m.premultiply(pinv)
+        m.premultiply(blenderWorldMatrix(ctx, object.parent, depth + 1))
+    }
+    return m
+}
+
+// The scale of a Blender object's world matrix (x and y: an area light's size is scaled by them).
+function blenderWorldScale(ctx: Ctx, object: any): {x: number, y: number} {
+    const scale = new ctx.Vector3(1, 1, 1)
+    blenderWorldMatrix(ctx, object).decompose(new ctx.Vector3(), new ctx.Quaternion(), scale)
+    return scale
 }
 
 // Blender column-major float[4][4] (as [col][row]) → three Matrix4 (three .elements is also column-major).
