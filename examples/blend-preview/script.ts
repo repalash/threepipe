@@ -227,7 +227,7 @@ async function init() {
     createExampleCard(viewer, {
         description: 'A .blend starts with a preview image. readBlendThumbnail reads it from the first few KB, so it shows at once while the whole file downloads and builds, and fades out when the model is ready. Mr Elephant is 66 MB.',
         actions: [
-            {type: 'dropdown', label: 'Scene', icon: 'box',
+            {type: 'dropdown', label: 'File', icon: 'box',
                 children: [...files.map(f => ({label: `${f.label} (${f.size})`, value: f.id})), {label: 'Your file', value: ''}],
                 getValue: () => state.file?.id ?? '',
                 setValue: (id: string) => {

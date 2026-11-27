@@ -16,7 +16,7 @@ import {
     Vector3,
 } from 'threepipe'
 import {SelectionOutlinePlugin} from '@threepipe/plugin-tweakpane-editor'
-import {BlendFile, BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
+import {BlendFile, BlendLoadPlugin, blendViewSettings} from '@threepipe/plugin-blend-importer'
 import {createExampleCard} from '../examples-utils/example-card.js'
 import {modelStats} from '../examples-utils/model-stats.js'
 import {
@@ -466,6 +466,11 @@ function renderSummary() {
         ['Scene', `${scene?.aname ?? '-'}${(parsed.objects.Scene?.length ?? 0) > 1 ? ` (of ${parsed.objects.Scene!.length})` : ''}`],
         ['Objects', [[byType(1), 'mesh', 'meshes'], [byType(10), 'light', 'lights'], [byType(11), 'camera', 'cameras']]
             .map(([n, one, many]) => `${n} ${n === 1 ? one : many}`).join(', ')],
+        ['Color', (() => {
+            const v = blendViewSettings(parsed)
+            if (!v) return '-'
+            return [v.viewTransform, v.look !== 'None' ? v.look : '', v.exposure ? `exposure ${v.exposure > 0 ? '+' : ''}${+v.exposure.toFixed(2)}` : ''].filter(Boolean).join(', ')
+        })()],
         ['Modifiers', String(objects.reduce((n: number, o: any) => n + modifiersOf(o).length, 0))],
         ['Images', `${images.length}, ${images.filter((i: any) => i.packedfile || i.packedfiles?.first).length} packed`],
     ]
@@ -535,7 +540,7 @@ async function init() {
     createExampleCard(viewer, {
         description: 'What is inside a .blend: the preview Blender saved, its collections and objects, each modifier stack and what the importer did with it, the materials and the images. Click a row or an object to select it.',
         actions: [
-            {type: 'dropdown', label: 'Scene', icon: 'box',
+            {type: 'dropdown', label: 'File', icon: 'box',
                 children: [...blenderDemoFiles.map(f => ({label: f.label, value: f.id})), {label: 'Your file', value: ''}],
                 getValue: () => state.file?.id ?? '',
                 setValue: (id: string) => {

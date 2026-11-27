@@ -98,14 +98,14 @@
 
 <span class="k">const</span> {scene: model} = <span class="k">await new</span> BlendLoader().loadAsync(url)
 scene.add(model)</pre>
-            <div class="row"><label for="scene">Scene</label><select id="scene"></select></div>
+            <div class="row"><label for="scene">File</label><select id="scene"></select></div>
             <div class="progress done" id="progress" role="progressbar" aria-label="Loading"><div></div></div>
             <div class="buttons">
                 <button class="btn" id="camera" type="button">Blender camera</button>
                 <button class="btn" id="open" type="button">Open .blend…</button>
                 <input id="file" type="file" accept=".blend" hidden>
             </div>
-            <label class="check"><input type="checkbox" id="lights"> Blender lights</label>
+            <label class="check"><input type="checkbox" id="lights"> Blender's lights, exposure and tone mapping</label>
             <div class="row"><span class="label">Meshes</span><span class="value" id="meshes">-</span></div>
             <div class="row"><span class="label">Triangles</span><span class="value" id="triangles">-</span></div>
             <div class="row"><span class="label">Load time</span><span class="value" id="time">-</span></div>
@@ -119,7 +119,7 @@ scene.add(model)</pre>
     import * as THREE from 'three'
     import {OrbitControls} from 'three/addons/controls/OrbitControls.js'
     import {RGBELoader} from 'three/addons/loaders/RGBELoader.js'
-    import {BlendLoader} from '@threepipe/plugin-blend-importer/three'
+    import {BlendLoader, blendViewSettings} from '@threepipe/plugin-blend-importer/three'
     import {blenderCameraView, blenderDemoFiles, creditLine, demoFileFromQuery, fitFov, sceneCameraName} from '../examples-utils/blender-demo-files.js'
 
     window.dispatchEvent(new Event('threepipe-test-started'))
@@ -130,6 +130,11 @@ scene.add(model)</pre>
     const renderer = new THREE.WebGLRenderer({canvas, antialias: true})
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
     renderer.toneMapping = THREE.ACESFilmicToneMapping // as threepipe's TonemapPlugin, so both examples look alike
+    // the imported lights and meshes cast shadows (only drawn while Blender's lights are on): lights inside lamp shades
+    // or a fireplace would otherwise light the whole room
+    renderer.shadowMap.enabled = true
+    renderer.shadowMap.type = THREE.PCFShadowMap
+    renderer.shadowMap.autoUpdate = false // nothing moves: drawn once per load or lighting change (setLights)
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0xdde1e6)
     const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 2000)
@@ -138,9 +143,12 @@ scene.add(model)</pre>
     controls.enableDamping = true
 
     // Image-based lighting, like the threepipe example; Blender's own lights are off by default
+    let environment = null
     new RGBELoader().load('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', (hdr) => {
         const pmrem = new THREE.PMREMGenerator(renderer)
-        scene.environment = pmrem.fromEquirectangular(hdr).texture
+        environment = pmrem.fromEquirectangular(hdr).texture
+        if (!ui.lights.checked) scene.environment = environment
+        dirty = true
         hdr.dispose()
         pmrem.dispose()
     })
@@ -151,8 +159,11 @@ scene.add(model)</pre>
         lights: document.getElementById('lights'),
         file: document.getElementById('file'),
     }
+    if (new URLSearchParams(location.search).get('lighting') === 'blender') ui.lights.checked = true
     const loader = new BlendLoader()
-    let model, view, loading = false
+    let model, parsed, view, loading = false
+    let dirty = true // redraw on the next frame
+    controls.addEventListener('change', () => dirty = true)
 
     function resize() {
         const w = container.clientWidth, h = container.clientHeight
@@ -160,13 +171,23 @@ scene.add(model)</pre>
         camera.aspect = w / h
         if (view) camera.fov = fitFov(view, camera.aspect)
         camera.updateProjectionMatrix()
+        dirty = true
     }
     new ResizeObserver(resize).observe(container)
 
+    // On: the file's lights, its exposure and the tone mapping nearest its view transform, no environment, as
+    // Blender's renders show it (without bounced light). Off: the HDR environment.
     function setLights(on) {
         model?.traverse(o => {
             if (o.isLight) o.visible = on
         })
+        const view = on && parsed ? blendViewSettings(parsed) : undefined
+        renderer.toneMapping = view ? THREE[view.toneMapping] ?? THREE.LinearToneMapping : THREE.ACESFilmicToneMapping
+        renderer.toneMappingExposure = view ? view.toneMappingExposure : 1
+        scene.environment = on ? null : environment
+        scene.background = new THREE.Color(on ? 0x0c0c0e : 0xdde1e6)
+        renderer.shadowMap.needsUpdate = true
+        dirty = true
     }
 
     // Look through the camera Blender renders the scene with, or frame the model when it has none
@@ -194,6 +215,7 @@ scene.add(model)</pre>
             })
         }
         model = result.scene
+        parsed = result.blend
         scene.add(model)
         setLights(ui.lights.checked)
         const center = new THREE.Box3().setFromObject(model).getCenter(new THREE.Vector3())
@@ -282,8 +304,10 @@ scene.add(model)</pre>
         openFile([...e.dataTransfer.files].find(f => /\.blend$/i.test(f.name)))
     })
 
+    // Draws only when something changed (the camera moved, a file loaded, the lighting changed), as threepipe does.
     renderer.setAnimationLoop(() => {
-        controls.update()
+        if (!controls.update() && !dirty) return
+        dirty = false
         renderer.render(scene, camera)
     })
 

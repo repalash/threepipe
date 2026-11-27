@@ -10,9 +10,11 @@ import {
     SSAAPlugin,
     SSAOPlugin,
     ThreeViewer,
+    TonemapPlugin,
     Vector3,
 } from 'threepipe'
-import {BlendFile, BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
+import * as THREE from 'threepipe'
+import {BlendFile, BlendLoadPlugin, blendScenes, blendViewSettings} from '@threepipe/plugin-blend-importer'
 import {createExampleCard} from '../examples-utils/example-card.js'
 import {modelStats} from '../examples-utils/model-stats.js'
 import {
@@ -53,18 +55,31 @@ let parsed: BlendFile | undefined // set by onBlendLoad, for the scene camera
 const onBlendLoad = (blend: BlendFile) => parsed = blend
 dropzone.importOptions = {...dropzone.importOptions, onBlendLoad} as typeof dropzone.importOptions
 
+type Lighting = 'environment' | 'blender'
 const state = {
     file: demoFileFromQuery() as BlenderDemoFile | undefined, // undefined for a dropped or opened file
     loading: false,
     loadMs: 0,
-    blenderLights: false,
+    // 'environment': an HDR environment, the file's lights off. 'blender': the file's lights, with its exposure and
+    // tone mapping, as Blender's renders show it (no environment, no bounced light).
+    lighting: (new URLSearchParams(location.search).get('lighting') === 'blender' ? 'blender' : 'environment') as Lighting,
 }
 let view: CameraView | undefined // the Blender camera's view of the current scene
 
-function setLights(root: IObject3D, on: boolean) {
-    root.traverse((o) => {
-        if ((o as any).isLight) o.visible = on
+function applyLighting() {
+    const blender = state.lighting === 'blender'
+    viewer.scene.modelRoot.traverse((o) => {
+        if ((o as any).isLight) o.visible = blender
     })
+    viewer.scene.environmentIntensity = blender ? 0 : 1
+    const tonemap = viewer.getPlugin(TonemapPlugin)
+    const settings = blender && parsed ? blendViewSettings(parsed, blendLoader.scene || undefined) : undefined
+    if (tonemap) {
+        tonemap.toneMapping = settings ? (THREE as any)[settings.toneMapping] ?? THREE.LinearToneMapping : THREE.ACESFilmicToneMapping
+        tonemap.exposure = settings ? settings.toneMappingExposure : 1
+    }
+    viewer.scene.backgroundColor = new Color(blender ? 0x0c0c0e : 0xdde1e6)
+    viewer.setDirty()
 }
 
 // Look through the scene's Blender camera, and orbit around a point in front of it.
@@ -85,11 +100,12 @@ function showBlenderView() {
     camera.setDirty()
 }
 
-// After a .blend is in the scene: Blender's camera, its lights off (environment lighting), the card's values.
+// After a .blend is in the scene: Blender's camera, the lighting, the card's values.
 function onLoaded(root: IObject3D | undefined, start: number) {
     state.loadMs = Math.round(performance.now() - start)
     if (!root) return
-    setLights(root, state.blenderLights)
+    applyLighting()
+    showScenes()
     const center = new Box3().setFromObject(root).getCenter(new Vector3())
     view = blenderCameraView(root, parsed ? sceneCameraName(parsed) : undefined, center)
     showBlenderView()
@@ -100,6 +116,7 @@ function onLoaded(root: IObject3D | undefined, start: number) {
 async function loadDemo(file: BlenderDemoFile) {
     if (state.loading) return
     state.loading = true
+    if (state.file !== file) blendLoader.scene = ''
     state.file = file
     notes.length = 0
     parsed = undefined
@@ -117,6 +134,7 @@ dropzone.addEventListener('drop', (e: any) => {
     const root = (e.assets as any[] | undefined)?.find(a => a?.isObject3D)
     if (!root) return
     state.file = undefined
+    blendLoader.scene = ''
     onLoaded(root, dropStart || performance.now())
     notes.length = 0
 })
@@ -129,6 +147,31 @@ viewer.container.addEventListener('drop', () => {
 
 viewer.scene.backgroundColor = new Color(0xdde1e6)
 const credit = document.createElement('div')
+
+// The file's Blender scenes, when it has more than one: pick one to load it instead (BlendLoadPlugin.scene).
+const scenesEl = document.createElement('label')
+scenesEl.className = 'blend-scenes'
+function showScenes() {
+    const scenes = parsed ? blendScenes(parsed) : []
+    scenesEl.hidden = scenes.length < 2 || !state.file
+    if (scenesEl.hidden) return
+    const select = document.createElement('select')
+    const current = blendLoader.scene || scenes.find(s => s.active)?.name
+    for (const s of scenes) {
+        const option = document.createElement('option')
+        option.value = s.name
+        option.textContent = s.name + (s.active ? ' (open when saved)' : '') + (s.backgroundScene ? `, with ${s.backgroundScene}` : '')
+        option.selected = s.name === current
+        select.appendChild(option)
+    }
+    select.onchange = () => {
+        if (!state.file || state.loading) return
+        blendLoader.scene = select.value
+        loadDemo(state.file)
+    }
+    scenesEl.replaceChildren('Blender scene ', select)
+}
+scenesEl.hidden = true
 const notesEl = document.createElement('details')
 notesEl.className = 'blend-notes'
 function showNotes() {
@@ -153,9 +196,9 @@ async function init() {
 
     const stats = modelStats(viewer)
     createExampleCard(viewer, {
-        description: 'Blender\'s demo files, read straight from .blend by BlendLoadPlugin: meshes with Blender\'s shading, materials and packed textures, modifiers, and the scene\'s camera. Pick a scene, orbit around, or drop your own .blend.',
+        description: 'Blender\'s demo files, read straight from .blend by BlendLoadPlugin: meshes with Blender\'s shading, materials and packed textures, modifiers, the scene\'s camera and lights. Pick a file, orbit around, or drop your own .blend.',
         actions: [
-            {type: 'dropdown', label: 'Scene', icon: 'box',
+            {type: 'dropdown', label: 'File', icon: 'box',
                 children: [...blenderDemoFiles.map(f => ({label: f.label, value: f.id})), {label: 'Your file', value: ''}],
                 getValue: () => state.file?.id ?? '',
                 setValue: (id: string) => {
@@ -173,17 +216,18 @@ async function init() {
                     if (state.file) loadDemo(state.file)
                 },
                 disabled: () => state.loading || !state.file},
-            {type: 'checkbox', label: 'Blender lights', icon: 'lightbulb',
-                getValue: () => state.blenderLights,
-                setValue: (on: boolean) => {
-                    state.blenderLights = on
-                    setLights(viewer.scene.modelRoot, on)
+            {type: 'dropdown', label: 'Lighting', icon: 'lightbulb',
+                children: [{label: 'Environment', value: 'environment'}, {label: 'Blender\'s lights', value: 'blender'}],
+                getValue: () => state.lighting,
+                setValue: (lighting: Lighting) => {
+                    state.lighting = lighting
+                    applyLighting()
                 }},
             {type: 'monitor', label: 'Meshes', getValue: () => stats.meshes.toLocaleString()},
             {type: 'monitor', label: 'Triangles', getValue: () => stats.triangles.toLocaleString()},
             {type: 'monitor', label: 'Load time', getValue: () => state.loading ? '…' : `${(state.loadMs / 1000).toFixed(1)} s`},
         ],
-        content: [credit, notesEl],
+        content: [scenesEl, credit, notesEl],
     })
 }
 
