@@ -8,7 +8,7 @@ beforeAll(async() => {
 // RenderManager needs a WebGL context; these call its budget and error checks on a stand-in with the fields they use
 function standIn(maxTextures: number, maxShadowMaps: number | 'auto' = 'auto') {
     return {maxShadowMaps, _renderer: {capabilities: {maxTextures}, info: {programs: [] as any[]}}, _shadowBudgetOff: [], _shadowBudgetLimit: -1,
-        _shadowBudgetDirty: true, _reportedPrograms: new WeakSet(), _programCount: 0, dispatchEvent: vi.fn()} as any
+        _shadowBudgetDirty: true, _reportedPrograms: new WeakSet(), dispatchEvent: vi.fn()} as any
 }
 
 function sceneWithLights(n: number) {
@@ -53,6 +53,16 @@ describe('RenderManager.maxShadowMaps', () => {
         warn.mockRestore()
     })
 
+    it('changing maxShadowMaps recomputes the budget before the next render', () => {
+        const rm = standIn(16)
+        rm._shadowBudgetDirty = false
+        rm._maxShadowMaps = 'auto'
+        const desc = Object.getOwnPropertyDescriptor(tp.RenderManager.prototype, 'maxShadowMaps')!
+        desc.set!.call(rm, 2)
+        expect(rm._shadowBudgetDirty).toBe(true)
+        expect(desc.get!.call(rm)).toBe(2)
+    })
+
     it('fits on a GPU with 32 textures, and a number or Infinity overrides', () => {
         const {scene} = sceneWithLights(16)
         const rm = standIn(32)
@@ -82,5 +92,24 @@ describe('RenderManager shaderError', () => {
         rm._renderer.info.programs.push({name: 'x'})
         check()
         expect(rm.dispatchEvent).toHaveBeenCalledOnce()
+        // a failing program that replaces another, with the same count
+        rm._renderer.info.programs.splice(0, 1, {name: 'second', diagnostics: {runnable: false, programLog: 'link error'}})
+        check()
+        expect(rm.dispatchEvent).toHaveBeenCalledTimes(2)
+        expect(rm.dispatchEvent.mock.calls[1][0]).toMatchObject({materialName: 'second', tooManyTextures: false})
+    })
+
+    it('toggles castShadow on threepipe lights without setDirty', () => {
+        const l = new tp.PointLight2(0xffffff, 10)
+        l.castShadow = true
+        const dirty = vi.fn()
+        l.addEventListener('objectUpdate', dirty)
+        expect('_oc_castShadow' in l).toBe(true)
+        ;(l as any)._oc_castShadow = false
+        expect(l.castShadow).toBe(false)
+        ;(l as any)._oc_castShadow = true
+        expect(dirty).not.toHaveBeenCalled()
+        l.castShadow = false // the public setter still notifies
+        expect(dirty).toHaveBeenCalled()
     })
 })

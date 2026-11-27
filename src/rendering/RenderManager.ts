@@ -109,7 +109,15 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
      * `'auto'` (default): `maxTextures` minus {@link SHADOW_TEXTURE_RESERVE}, which leaves room for the maps of a material
      * and the textures of the pipeline. A number sets it; `Infinity` turns the budget off.
      */
-    maxShadowMaps: number | 'auto' = 'auto'
+    get maxShadowMaps(): number | 'auto' {
+        return this._maxShadowMaps
+    }
+    set maxShadowMaps(value: number | 'auto') {
+        if (value === this._maxShadowMaps) return
+        this._maxShadowMaps = value
+        this._shadowBudgetDirty = true
+    }
+    private _maxShadowMaps: number | 'auto' = 'auto'
 
     /**
      * Textures per shader kept free for the maps of a material, the environment map and the pipeline's textures when
@@ -159,13 +167,12 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     }
 
     private _reportedPrograms = new WeakSet<object>()
-    private _programCount = 0
 
-    // after a frame: report programs that failed to compile or link (three.js logs them and leaves the objects undrawn)
+    // after a frame: report programs that failed to compile or link (three.js logs them and leaves the objects undrawn).
+    // All programs are checked (a few dozen): a failing one can replace another and keep the count the same.
     private _checkShaderErrors() {
         const programs = this._renderer.info.programs
-        if (!programs || programs.length === this._programCount) return
-        this._programCount = programs.length
+        if (!programs) return
         for (const program of programs) {
             const diagnostics = (program as any).diagnostics
             if (!diagnostics || diagnostics.runnable !== false || this._reportedPrograms.has(program)) continue
@@ -374,7 +381,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         this._composer.renderToScreen = renderToScreen ?? this.defaultRenderToScreen
         if (this._shadowBudgetDirty && this._renderDepth === 0) this._refreshShadowBudget(scene)
         const shadowOff = this._renderDepth === 0 ? this._shadowBudgetOff : []
-        for (const l of shadowOff) l.castShadow = false // only while rendering, see maxShadowMaps
+        for (const l of shadowOff) setCastShadowQuietly(l, false) // only while rendering, see maxShadowMaps
         this._renderDepth++
         try {
             this.dispatchEvent({type: 'preRender', scene, renderToScreen: this._composer.renderToScreen})
@@ -382,7 +389,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
             this.dispatchEvent({type: 'postRender', scene, renderToScreen: this._composer.renderToScreen})
         } finally {
             this._renderDepth--
-            for (const l of shadowOff) l.castShadow = true
+            for (const l of shadowOff) setCastShadowQuietly(l, true)
         }
         this._composer.renderToScreen = true
         this._checkShaderErrors()
@@ -938,4 +945,15 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         this.renderScale = value
     }
 
+}
+
+/**
+ * Sets `castShadow` for the shadow budget without side effects. On threepipe's lights it's an `@onChange3('setDirty')`
+ * accessor, and calling `setDirty` on every render would mark the scene dirty, reset progressive rendering and recompute
+ * the budget each frame; so the value is set where that accessor keeps it (`_oc_castShadow`, ts-browser-helpers'
+ * `onChange`). Plain three.js lights have a plain property.
+ */
+function setCastShadowQuietly(light: Light, value: boolean) {
+    if ('_oc_castShadow' in light) (light as any)._oc_castShadow = value
+    else light.castShadow = value
 }
