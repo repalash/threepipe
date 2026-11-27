@@ -177,6 +177,18 @@ scene.add(model)</pre>
 
     // On: the file's lights, its exposure and the tone mapping nearest its view transform, no environment, as
     // Blender's renders show it (without bounced light). Off: the HDR environment.
+    // Every shadow-casting light adds a shadow map to each lit material's shader, and a shader can use only
+    // renderer.capabilities.maxTextures textures (16 on Apple GPUs): over that it doesn't compile and draws black.
+    // Shadows stay on the directional lights, then the brightest, leaving 10 textures for the materials' maps and
+    // the environment (the rule of threepipe's RenderManager.maxShadowMaps).
+    function limitShadows() {
+        const lights = []
+        model?.traverse(o => o.isLight && o.userData.blenderShadow && lights.push(o))
+        const budget = Math.max(0, renderer.capabilities.maxTextures - 10)
+        lights.sort((a, b) => (b.isDirectionalLight ? Infinity : b.intensity) - (a.isDirectionalLight ? Infinity : a.intensity))
+        lights.forEach((l, i) => l.castShadow = i < budget)
+    }
+
     function setLights(on) {
         model?.traverse(o => {
             if (o.isLight) o.visible = on
@@ -216,6 +228,8 @@ scene.add(model)</pre>
         }
         model = result.scene
         parsed = result.blend
+        model.traverse(o => { if (o.isLight) o.userData.blenderShadow = o.castShadow })
+        limitShadows()
         scene.add(model)
         setLights(ui.lights.checked)
         const center = new THREE.Box3().setFromObject(model).getCenter(new THREE.Vector3())
