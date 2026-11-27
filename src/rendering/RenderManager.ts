@@ -106,6 +106,10 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
      * intensity, keep their shadows. Their `castShadow` is left as it is in the scene, the UI and exports; it's only
      * turned off during {@link render}. A warning names the lights that lose their shadows.
      *
+     * Lights with the same `shadowGroup` object are one light drawn with several shadow maps (`CascadedShadowsPlugin`'s
+     * cascades): they keep or lose their shadows together, and when they lose them only the first of the group is lit
+     * during the render, so the light still counts once.
+     *
      * `'auto'` (default): `maxTextures` minus {@link SHADOW_TEXTURE_RESERVE}, which leaves room for the maps of a material
      * and the textures of the pipeline. A number sets it; `Infinity` turns the budget off.
      */
@@ -128,6 +132,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     private _shadowBudgetDirty = true
     private _shadowBudgetLimit = -1
     private _shadowBudgetOff: Light[] = []
+    private _shadowBudgetHidden: Light[] = [] // group members other than the first, when their group is off
     private _renderDepth = 0 // render() can be called from a preRender/postRender listener; only the outer call toggles shadows
 
     /**
@@ -149,19 +154,45 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         scene.traverseVisible((o: any) => {
             if (o.isLight && o.castShadow && o.shadow && (o.isDirectionalLight || o.isPointLight || o.isSpotLight)) casting.push(o)
         })
-        const rank = (l: any) => l.isDirectionalLight ? 1 : 0
-        casting.sort((a, b) => rank(b) - rank(a) || b.intensity - a.intensity)
-        const off: Light[] = []
-        let used = 0
+        // a light, or the lights of one shadowGroup (in scene order), taken or left as a whole
+        const units: Light[][] = []
+        const groups = new Map<object, Light[]>()
         for (const l of casting) {
-            const cost = (l as any).isSpotLight && (l as any).map ? 2 : 1
-            if (used + cost <= max) used += cost
-            else off.push(l)
+            const group = (l as any).shadowGroup
+            if (!group) {
+                units.push([l])
+                continue
+            }
+            const unit = groups.get(group)
+            if (unit) unit.push(l)
+            else {
+                groups.set(group, [l])
+                units.push(groups.get(group)!)
+            }
+        }
+        const rank = (u: Light[]) => (u[0] as any).isDirectionalLight ? 1 : 0
+        units.sort((a, b) => rank(b) - rank(a) || b[0].intensity - a[0].intensity)
+        const off: Light[] = []
+        const hidden: Light[] = []
+        let used = 0
+        for (const unit of units) {
+            const cost = unit.reduce((c, l) => c + ((l as any).isSpotLight && (l as any).map ? 2 : 1), 0)
+            if (used + cost <= max) {
+                used += cost
+                continue
+            }
+            off.push(...unit)
+            hidden.push(...unit.slice(1))
         }
         const changed = off.length !== this._shadowBudgetOff.length || off.some((l, i) => l !== this._shadowBudgetOff[i]) || max !== this._shadowBudgetLimit
         this._shadowBudgetOff = off
+        this._shadowBudgetHidden = hidden
         this._shadowBudgetLimit = max
-        if (changed && off.length) {
+        if (!changed) return
+        // shadow maps are rendered only when asked (shadowMap.autoUpdate is off): lights that get their shadows back
+        // need new ones
+        this.resetShadows()
+        if (off.length) {
             console.warn(`RenderManager: ${casting.length} lights cast shadows, but a shader here can sample only ${max} shadow maps ` +
                 `(maxShadowMaps, ${this._renderer.capabilities.maxTextures} textures per shader on this GPU). ` +
                 `No shadows from the ${off.length} dimmest: ${off.map(l => l.name || l.type).join(', ')}`)
@@ -383,7 +414,9 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         this._composer.renderToScreen = renderToScreen ?? this.defaultRenderToScreen
         if (this._shadowBudgetDirty && this._renderDepth === 0) this._refreshShadowBudget(scene)
         const shadowOff = this._renderDepth === 0 ? this._shadowBudgetOff : []
-        for (const l of shadowOff) setCastShadowQuietly(l, false) // only while rendering, see maxShadowMaps
+        const hidden = this._renderDepth === 0 ? this._shadowBudgetHidden : []
+        for (const l of shadowOff) setQuietly(l, 'castShadow', false) // only while rendering, see maxShadowMaps
+        for (const l of hidden) setQuietly(l, 'visible', false)
         this._renderDepth++
         try {
             this.dispatchEvent({type: 'preRender', scene, renderToScreen: this._composer.renderToScreen})
@@ -391,7 +424,8 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
             this.dispatchEvent({type: 'postRender', scene, renderToScreen: this._composer.renderToScreen})
         } finally {
             this._renderDepth--
-            for (const l of shadowOff) setCastShadowQuietly(l, true)
+            for (const l of shadowOff) setQuietly(l, 'castShadow', true)
+            for (const l of hidden) setQuietly(l, 'visible', true)
         }
         this._composer.renderToScreen = true
         this._checkShaderErrors()
@@ -950,12 +984,12 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
 }
 
 /**
- * Sets `castShadow` for the shadow budget without side effects. On threepipe's lights it's an `@onChange3('setDirty')`
- * accessor, and calling `setDirty` on every render would mark the scene dirty, reset progressive rendering and recompute
- * the budget each frame; so the value is set where that accessor keeps it (`_oc_castShadow`, ts-browser-helpers'
- * `onChange`). Plain three.js lights have a plain property.
+ * Sets `castShadow` or `visible` for the shadow budget without side effects. On threepipe's lights `castShadow` is an
+ * `@onChange3('setDirty')` accessor, and calling `setDirty` on every render would mark the scene dirty, reset progressive
+ * rendering and recompute the budget each frame; so the value is set where such an accessor keeps it (`_oc_<key>`,
+ * ts-browser-helpers' `onChange`). Otherwise it's a plain property.
  */
-function setCastShadowQuietly(light: Light, value: boolean) {
-    if ('_oc_castShadow' in light) (light as any)._oc_castShadow = value
-    else light.castShadow = value
+function setQuietly(light: Light, key: 'castShadow' | 'visible', value: boolean) {
+    if ('_oc_' + key in light) (light as any)['_oc_' + key] = value
+    else light[key] = value
 }

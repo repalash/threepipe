@@ -234,6 +234,10 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
             light.intensity = this.light.intensity
             light.color.set(this.light.color)
             light.castShadow = true
+            // one light drawn with several shadow maps: the renderer's shadow budget keeps or drops the cascades together
+            // (RenderManager.maxShadowMaps)
+            const cascade: DirectionalLight & {shadowGroup?: object} = light
+            cascade.shadowGroup = this.lights
             light.shadow.mapSize.width = data.shadowMapSize
             light.shadow.mapSize.height = data.shadowMapSize
 
