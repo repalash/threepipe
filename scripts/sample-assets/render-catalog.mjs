@@ -201,7 +201,10 @@ function setUrls(row, dir) {
     })
     const metadata = JSON.parse(row.metadata ?? '{}')
     // a format the catalog can't read: the counts of what the page loaded, kept in the marker of the render
-    const stats = row.measure && names.includes(DONE) ? JSON.parse(fs.readFileSync(path.join(dir, DONE), 'utf8')).stats : undefined
+    const done = names.includes(DONE) ? JSON.parse(fs.readFileSync(path.join(dir, DONE), 'utf8')) : {}
+    const stats = row.measure ? done.stats : undefined
+    // its materials need lights besides the environment map (Phong, Lambert): the render added them, an app should too
+    if (done.needsLights) row.tags = JSON.stringify([...new Set([...JSON.parse(row.tags), 'needs-lights'])].sort())
     if (stats) {
         row.triangles = stats.triangles
         row.poly = stats.triangles < 50_000 ? 'low' : stats.triangles < 500_000 ? 'mid' : 'high' // as build-catalog's polyClass
@@ -292,7 +295,7 @@ for (const row of catalog.rows) {
         // videos: a stills-only run (--video 0) keeps them.
         const made = renderedNames(sizes, result.frames, result.hasBackground, !!args['hevc-host'])
         for (const name of staleFiles(dir, made, !!result.frames)) fs.rmSync(path.join(dir, name))
-        fs.writeFileSync(path.join(dir, DONE), JSON.stringify({sizes, hevc: !!args['hevc-host'], at: new Date().toISOString(), ...result.stats ? {stats: result.stats} : {}}))
+        fs.writeFileSync(path.join(dir, DONE), JSON.stringify({sizes, hevc: !!args['hevc-host'], at: new Date().toISOString(), ...result.stats ? {stats: result.stats} : {}, ...result.needsLights ? {needsLights: true} : {}}))
         setUrls(row, dir)
         console.log(`${row.name}: render ${((renderedAt - start) / 1000).toFixed(1)} s, encode ${((Date.now() - renderedAt) / 1000).toFixed(1)} s, ${result.frames} frames${result.hasBackground ? ', own background' : ''}${result.hasView ? ', a set view' : ''}`)
         fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 2))

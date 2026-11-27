@@ -2,6 +2,8 @@
 // loads: no ground and a transparent background, so a model that has its own ground or background keeps it.
 import {
     Box3,
+    DirectionalLight2,
+    HemisphereLight2,
     Mesh,
     Object3D,
     PhysicalMaterial,
@@ -135,6 +137,7 @@ async function render() {
             B3DMLoadPlugin, I3DMLoadPlugin, PNTSLoadPlugin, CMPTLoadPlugin, TilesRendererPlugin],
     })
     viewer.renderManager.stableNoise = true
+    ;(window as any).__viewer = viewer // for scripts that check what loaded
     // off unless a file's settings turn them on: they change how a model looks, or need settings made for it
     for (const plugin of [SSGIPlugin, SSContactShadowsPlugin, DepthOfFieldPlugin, ChromaticAberrationPlugin, VignettePlugin, FilmicGrainPlugin]) viewer.getPlugin(plugin as any)!.enabled = false
     const ssr = viewer.getPlugin(SSReflectionPlugin)! as any
@@ -163,6 +166,23 @@ async function render() {
     // a zip gives what was in it, a list
     const model = Array.isArray(loaded) ? loaded.length === 1 ? loaded[0] : viewer.scene.modelRoot : loaded
     if (!model || Array.isArray(loaded) && !loaded.length) throw new Error('nothing loaded')
+    // a file that loaded nothing to draw (a parse error the loader only logged) fails, not an empty preview
+    if (kind === 'model' && !model.tilesRenderer) {
+        const loadedStats = measure(viewer.scene.modelRoot)
+        if (!loadedStats.triangles && !loadedStats.points && !loadedStats.meshes) throw new Error('nothing to draw was loaded (see the errors above)')
+    }
+    // Phong, Lambert and toon materials (OBJ, 3MF, Collada, VRML) don't use the environment map, the only light here, and
+    // would render black: those models get a hemisphere light and a directional light from above the front
+    let needsLights = false
+    viewer.scene.modelRoot.traverse((o: any) => {
+        for (const m of [o.material ?? []].flat()) if (m.isMeshPhongMaterial || m.isMeshLambertMaterial || m.isMeshToonMaterial) needsLights = true
+    })
+    if (needsLights) {
+        viewer.scene.addObject(new HemisphereLight2(0xffffff, 0x505050, 2))
+        const sun = new DirectionalLight2(0xffffff, 2.5)
+        sun.position.set(1, 2, 1.5)
+        viewer.scene.addObject(sun)
+    }
     // a 3D tileset streams the tiles the camera sees: wait for them after the camera is set
     const tiles = model.tilesRenderer as undefined | {loadProgress: number, addEventListener: (type: string, listener: () => void) => void, removeEventListener: (type: string, listener: () => void) => void}
 
@@ -251,7 +271,7 @@ async function render() {
     const gl = viewer.renderManager.webglRenderer.getContext()
     const info = gl.getExtension('WEBGL_debug_renderer_info')
     const renderer = info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)
-    return {still: await toDataUrl(still), frames: frameCount, hasBackground, hasView: !!view, animated, renderer, stats: tiles || kind !== 'model' ? undefined : measure(viewer.scene.modelRoot)}
+    return {still: await toDataUrl(still), frames: frameCount, hasBackground, hasView: !!view, animated, renderer, needsLights, stats: tiles || kind !== 'model' ? undefined : measure(viewer.scene.modelRoot)}
 }
 
 (window as any).__render = render().catch(e => ({error: String(e?.stack ?? e)}))

@@ -499,6 +499,10 @@ async function* lists() {
                 set_name: a.set, name, label: a.label ?? name, tags: [...a.tags ?? [], ...list.tag ? [list.tag] : []],
                 license: a.license ?? null, license_note: a.license_note, authors: a.authors, source_url: a.source_url ?? a.url ?? a.zip,
                 links: a.links ?? [], changes: a.changes ?? null, file, extra, sourceZip, tileset: a.crawl === 'tileset',
+                // `link`: the row points at the source's own url, nothing is copied (fetched only to measure it)
+                link: a.link ? a.url : undefined,
+                // `wip`: why it doesn't render right yet (a threepipe issue); the row gets the tag `wip`
+                wip: a.wip,
             }
         }
     }
@@ -529,7 +533,10 @@ function addOther(m, fields) {
     const all = [root, ...m.extra]
     const rawSize = all.reduce((n, rel) => n + fs.statSync(path.join(srcDir, rel)).size, 0)
     let modelPath, stored, zipped = false
-    if (m.sourceZip && !NO_ZIP.has(format)) { // the source's own zip, as it is
+    if (m.link) { // linked where it is: nothing to copy
+        modelPath = `${m.set_name}/${m.name}/${root}`
+        stored = []
+    } else if (m.sourceZip && !NO_ZIP.has(format)) { // the source's own zip, as it is
         modelPath = `${m.set_name}/${path.basename(m.sourceZip)}`
         stored = [[m.sourceZip, path.join(args.out, 'samples', modelPath)]]
         zipped = true
@@ -555,28 +562,31 @@ function addOther(m, fields) {
         fs.copyFileSync(from, to)
     }
     const usedPath = modelPath.toLowerCase()
-    if (paths.has(usedPath)) throw new Error(`${modelPath}: this path is already used by ${paths.get(usedPath)}`)
+    if (!m.link && paths.has(usedPath)) throw new Error(`${modelPath}: this path is already used by ${paths.get(usedPath)}`)
     paths.set(usedPath, m.name)
-    const size = zipped || !stored.length || stored.length === 1 ? fs.statSync(path.join(args.out, 'samples', modelPath)).size :
+    const size = m.link ? rawSize : zipped || !stored.length || stored.length === 1 ? fs.statSync(path.join(args.out, 'samples', modelPath)).size :
         stored.reduce((n, [, to]) => n + fs.statSync(to).size, 0)
-    const url = `${SAMPLES}/${modelPath.split('/').map(encodeURIComponent).join('/')}`
+    const url = m.link ?? `${SAMPLES}/${modelPath.split('/').map(encodeURIComponent).join('/')}`
     const tags = new Set(m.tags)
+    if (m.wip) tags.add('wip')
     if (TILES.has(format)) tags.add('tiles3d')
     if (POINTS.has(format)) tags.add('pointcloud')
     if (SPLATS.has(format)) tags.add('splat')
-    // a zip says which file in it to open; `count`: how many files it is
-    const file = {default: true, format, url, size, ...zipped ? {zip: true, entry: m.sourceZip ? path.relative(path.join(path.dirname(m.sourceZip), 'unzipped'), m.file) : root} : {},
+    // a zip says which file in it to open; `count`: how many files it is; `load_as` the extension to load it with, when the
+    // url's own doesn't pick the loader (a tileset.json would load as JSON)
+    const file = {default: true, format, url, size, ...format === 'tileset' ? {load_as: 'tileset'} : {}, ...zipped ? {zip: true, entry: m.sourceZip ? path.relative(path.join(path.dirname(m.sourceZip), 'unzipped'), m.file) : root} : {},
         ...all.length > 1 ? {count: all.length} : {}}
     const metadata = {
         // a .splat file is 32 bytes per splat (position, scale, colour, rotation)
         ...format === 'splat' ? {splats: Math.floor(fs.statSync(m.file).size / 32)} : {},
         ...m.tileset ? {tiles: m.extra.filter(rel => !rel.endsWith('.json')).length + (root.endsWith('.json') ? 0 : 1)} : {},
         ...m.license_note ? {license_note: m.license_note} : {},
+        ...m.wip ? {wip: m.wip} : {},
     }
     return {...fields, metadata: JSON.stringify(metadata), screenshots: '[]', tags: JSON.stringify([...tags].sort()), links: JSON.stringify(m.links ?? []),
-        files: JSON.stringify([file]), kind: 'model', url, previews: `p/samples/${m.set_name}/${slugOf(m.name)}`, linked: false, size,
-        // counted on the render page, except a tileset: what it loads depends on the view
-        triangles: null, poly: null, measure: format !== 'tileset', over_limit: Math.max(...(zipped ? [size] : stored.map(([, to]) => fs.statSync(to).size))) > MAX_BYTES,
+        files: JSON.stringify([file]), kind: 'model', url, previews: `p/samples/${m.set_name}/${slugOf(m.name)}`, linked: !!m.link, size,
+        // counted on the render page, except a tileset (what it loads depends on the view) and splats (counted above)
+        triangles: null, poly: null, measure: format !== 'tileset' && !SPLATS.has(format), over_limit: !m.link && Math.max(...(zipped ? [size] : stored.map(([, to]) => fs.statSync(to).size))) > MAX_BYTES,
         changes: [m.changes, zipped && !m.sourceZip ? `zipped (${(rawSize / 1e6).toFixed(1)} to ${(size / 1e6).toFixed(1)} MB${all.length > 1 ? `, ${all.length} files in one request` : ''})` : null].filter(Boolean).join('; ') || null}
 }
 
@@ -803,7 +813,7 @@ for (const [set, list] of Object.entries(sets)) {
         const unique = `${m.set_name}/${m.name.toLowerCase()}`
         if (names.has(unique)) throw new Error(`${m.set_name}/${m.name}: this name is already used by ${names.get(unique)}`)
         names.set(unique, m.label)
-        const {images = [], linked, read, pack, extra, sourceZip, tileset, ...fields} = m
+        const {images = [], linked, read, pack, extra, sourceZip, tileset, link, wip, ...fields} = m
         delete fields.files // a row's files go into metadata, with its default file first
         delete fields.license_note // in metadata, for a file of a list
         try {
@@ -812,7 +822,7 @@ for (const [set, list] of Object.entries(sets)) {
                 continue
             }
             if (!/\.(glb|gltf)$/i.test(file)) {
-                rows.push(addOther({...m, file, extra: extra ?? [], sourceZip, tileset}, fields))
+                rows.push(addOther({...m, file, extra: extra ?? [], sourceZip, tileset, link, wip}, fields))
                 continue
             }
             const doc = await io.read(read ?? file)
