@@ -288,3 +288,5 @@ function tgaTexture(buffer: ArrayBuffer): Texture {
     return texture
 }
 export type {BlendEvaluationMode} from './loader/ctx'
+export {readBlendThumbnail, blendThumbnailImageData, BLEND_THUMBNAIL_BYTES} from './thumbnail'
+export type {BlendThumbnail} from './thumbnail'

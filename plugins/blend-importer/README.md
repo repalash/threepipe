@@ -26,6 +26,35 @@ await viewer.load('path/to/file.blend', {
 
 Don't write `blend` data onto `userData` — it gets serialized by export pipelines and large typed arrays (the thumbnail is ~64 KB) will balloon outputs or fail JSON encoding.
 
+## Showing the preview while the file loads
+
+A `.blend` starts with a small preview image (usually 128×128). `readBlendThumbnail` reads it from the first bytes
+of the file, without parsing it, so a page can show it while the full load runs. It works on uncompressed, gzip and
+zstd files, and returns null when the file has no preview or the preview isn't in the bytes given.
+`BLEND_THUMBNAIL_BYTES` (256 KB) is enough for any file. The preview is in the first 2-64 KB of the files we
+measured, and a zstd decoder can need up to ~130 KB.
+
+```ts
+import {BLEND_THUMBNAIL_BYTES, blendThumbnailImageData, readBlendThumbnail} from '@threepipe/plugin-blend-importer'
+
+// the start of the file: a Range request (or file.slice(0, BLEND_THUMBNAIL_BYTES) for a dropped File)
+const res = await fetch(url, {headers: {Range: `bytes=0-${BLEND_THUMBNAIL_BYTES - 1}`}})
+const thumbnail = readBlendThumbnail(await res.arrayBuffer())
+if (thumbnail) {
+    const canvas = document.createElement('canvas')
+    canvas.width = thumbnail.width
+    canvas.height = thumbnail.height
+    canvas.getContext('2d')!.putImageData(blendThumbnailImageData(thumbnail), 0, 0) // rows top-down
+    document.body.appendChild(canvas)
+}
+const model = await viewer.load(url) // meanwhile, the full load
+```
+
+`thumbnail` has the same shape as `blend.thumbnail` from a full load: `{width, height, data}`, RGBA8 packed per
+`Uint32`, rows bottom-up. The same functions are exported by `@threepipe/plugin-blend-importer/three`. A server that
+ignores `Range` sends the whole file; reading the response as a stream and cancelling it after
+`BLEND_THUMBNAIL_BYTES` avoids that.
+
 ## Options
 
 Set these on the plugin (`viewer.getPlugin(BlendLoadPlugin)`) or on a plain three.js `BlendLoader` before loading:
