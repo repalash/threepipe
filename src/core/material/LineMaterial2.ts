@@ -233,7 +233,7 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
         dashOffset: 0,
         gapSize: 1,
         linewidth: 1,
-        resolution: new Vector2(1, 1),
+        resolution: new Vector2(0, 0), // three.js r185 (#33872): no resolution until the line renders, LineSegments2 does not raycast before
         alphaToCoverage: false,
         worldUnits: false,
 

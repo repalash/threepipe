@@ -268,9 +268,10 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         plugin.setMaterial('materialId')
         const variant = render().fatLineMaterial
         const renderer = {getSize: (v: any) => v.set(800, 600)} as any
+        const lineResolution = fatLineMaterial.resolution.toArray()
         variant.onBeforeRender(renderer, null, null, null, null, null)
         expect(variant.resolution.value.toArray()).toEqual([800, 600])
-        expect(fatLineMaterial.resolution.toArray()).toEqual([1, 1]) // the line material does not change
+        expect(fatLineMaterial.resolution.toArray()).toEqual(lineResolution) // the line material does not change
         fatLineMaterial.autoUpdateResolution = false
         fatLineMaterial.resolution.set(300, 200)
         variant.onBeforeRender(renderer, null, null, null, null, null)
