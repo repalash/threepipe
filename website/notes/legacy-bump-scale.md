@@ -20,7 +20,7 @@ On import, for every material with a bump map, the first of these that is presen
 2. `normalizedScale` in the `WEBGI_materials_bumpmap` extension (older webgi files).
 3. `userData.legacyBumpScale` (the flag saved with the material).
 4. The file:
-   - `asset.subversion` is `1` or more, or `asset.version` is `2.001` → not legacy.
+   - `asset.subversion` is `1` or more, or `asset.version` is `2.001` → not legacy. (threepipe wrote `asset.subversion` from June 2025 until November 2026; it no longer writes it, the per-material flag above replaces it.)
    - Viewer config (`WEBGI_viewer`): threepipe older than 0.0.44, or webgi older than 0.12.0-dev.5 → legacy.
    - Otherwise legacy only when the file was written by three.js `GLTFExporter` (old threepipe/webgi exports without a viewer config). Files re-saved by other tools (Draco/glTF-Transform, Blender) count as not legacy.
 

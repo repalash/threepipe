@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- glTF export no longer writes `asset.subversion` (not a glTF property: glTF validators reported `UNEXPECTED_PROPERTY /asset/subversion`). The legacy bump scale is known per material from the `legacyBumpScale` flag in `WEBGI_material_extras`; files that have `asset.subversion` are still read. `GLTFWriter2.TPAssetVersion` is deprecated
+
 - `npm run check-bundles` (`scripts/check-bundles.mjs`) checks the built bundles: it fails on an import in a built bundle that is not declared (a bare `three` in a plugin) and on a package bundled twice (two Reacts in blueprintjs). Run it after `build:all`
 - Repository setup: the core and the packages in `plugins/` are now one npm workspace, installed by a single `npm install` (one `package-lock.json`, the per-plugin lockfiles are removed). `npm install` no longer builds anything; `npm start` runs the examples from source without a build, `npm run build:all` builds everything
 - Builds run through [Turborepo](https://turborepo.com) (`turbo.json`): the core and plugins build in parallel in dependency order and unchanged packages are restored from the cache. The pages workflow keeps the turbo cache between runs

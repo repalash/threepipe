@@ -207,3 +207,9 @@ describe('map extension exporters', () => {
         expect(write(tp.GLTFMaterialsBumpMapExtension, {bumpScale: 0})).toEqual({extensions: undefined, used: []})
     })
 })
+
+describe('GLTFWriter2 asset', () => {
+    it('writes no asset.subversion (not a glTF property; the per-material legacyBumpScale flag replaces it)', () => {
+        expect(new tp.GLTFWriter2().json.asset).not.toHaveProperty('subversion')
+    })
+})
