@@ -11,8 +11,8 @@
         "@threepipe/plugin-tweakpane": "*"
     },
     "peerDependencies": {
-        "threepipe": ">=0.5.0",
-        "@threepipe/plugin-tweakpane": ">=0.8.4"
+        "threepipe": ">=0.7.0-next.1",
+        "@threepipe/plugin-tweakpane": ">=0.11.0-0"
     },
     "exports": {
         ".": {
