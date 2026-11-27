@@ -14,6 +14,7 @@ import {
     NoToneMapping,
     OneMinusConstantAlphaFactor,
     PCFShadowMap,
+    PCFSoftShadowMap,
     RenderTargetOptions,
     ShaderChunk,
     ShaderLib,
@@ -62,6 +63,9 @@ import {bindToValue, generateUUID, textureDataToImageData} from '../three'
 import {BlobExt, EXRExporter2} from '../assetmanager'
 import {IRenderManagerEventMap, RendererBlitOptions} from '../core/IRenderer'
 
+/** three.js r182 deprecates PCFSoftShadowMap: PCFShadowMap is soft */
+const pcfSoftToPcf = (type: ShadowMapType) => type === PCFSoftShadowMap ? PCFShadowMap : type
+
 @serializable('RenderManager')
 @uiFolderContainer('Render Manager')
 export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEventMap> extends RenderTargetManager<IRenderManagerEventMap&TE> implements IShaderPropertiesUpdater, IRenderManager<IRenderManagerEventMap&TE> {
@@ -84,9 +88,10 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     }
 
     @serialize()
-    // PCFSoftShadowMap is deprecated in three.js r182 (PCFShadowMap is soft): three.js warns and uses PCFShadowMap
+    // PCFSoftShadowMap is deprecated in three.js r182 (PCFShadowMap is soft): three.js warns and uses PCFShadowMap. A
+    // saved or set PCFSoftShadowMap is PCFShadowMap here, and the renderer's PCFSoftShadowMap shows as PCFShadowMap
     @uiDropdown('Shadow Map Type', ([['BasicShadowMap', BasicShadowMap], ['PCFShadowMap', PCFShadowMap], ['VSMShadowMap', VSMShadowMap]] as const).map(([label, value]) => ({label, value})), {tags: [UiTags.Advanced]})
-    @bindToValue({obj: 'shadowMap', key: 'type', onChange: RenderManager.prototype._shadowMapTypeChanged})
+    @bindToValue({obj: 'shadowMap', key: 'type', onChange: RenderManager.prototype._shadowMapTypeChanged, processVal: pcfSoftToPcf, invProcessVal: pcfSoftToPcf})
         shadowMapType: ShadowMapType
 
     @bindToValue({obj: 'renderer', key: 'shadowMap'})

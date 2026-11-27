@@ -9,11 +9,14 @@ import {
     NoBlending,
     NoColorSpace,
     onChange,
+    PCFShadowMap,
+    PCFSoftShadowMap,
     PhysicalMaterial, RenderManager,
     RGBAFormat,
     serialize,
     ShaderMaterial2,
     shaderReplaceString, shaderUtils,
+    ShadowMapType,
     SimpleEventDispatcher,
     Texture,
     ThreeSerialization,
@@ -135,8 +138,18 @@ export class ShadowMapBaker extends SimpleEventDispatcher<'shadowBaking'|'shadow
     @serialize() smoothShadow = false
 
     @serialize()
-    @onChange(ShadowMapBaker.prototype.reset)
-    shadowMapType = BasicShadowMap // this is fine since we are randomizing
+    @onChange(ShadowMapBaker.prototype._shadowMapTypeChanged)
+    shadowMapType: ShadowMapType = BasicShadowMap // this is fine since we are randomizing
+
+    private _shadowMapTypeChanged() {
+        // PCFSoftShadowMap is deprecated in three.js r182 (PCFShadowMap is soft), and three.js warns each time the
+        // renderer gets it, which the bake does on each frame: a saved or set PCFSoftShadowMap is PCFShadowMap
+        if (this.shadowMapType === PCFSoftShadowMap) {
+            this.shadowMapType = PCFShadowMap // calls this again
+            return
+        }
+        this.reset()
+    }
 
     private _attachedMesh: Mesh<BufferGeometry, PhysicalMaterial> | undefined
 
