@@ -22,18 +22,10 @@ async function init() {
         setBackground: true,
     })
 
-    // A Poly Haven material glTF (https://polyhaven.com/a/worn_planks, CC0). On the Poly Haven CDN, the files of a glTF are
-    // not next to it: the API lists their urls (`include`), a url modifier gives them to the glTF loader.
-    // (A copy of the glTF folder on another host needs no modifier)
-    const files = await fetch('https://api.polyhaven.com/files/worn_planks').then(async r => r.json())
-    const gltf = files.gltf['1k'].gltf as {url: string, include: Record<string, {url: string}>}
-    const includes = new Map(Object.entries(gltf.include).map(([path, f]) => [new URL(path, gltf.url).href, f.url]))
-    const polyhavenUrls = (url: string) => includes.get(url) ?? url
-    viewer.assetManager.importer.addURLModifier(polyhavenUrls)
-
+    // A Poly Haven material glTF (https://polyhaven.com/a/worn_planks, CC0), from their CDN: the loader finds its textures there
     const [polyhaven, ambientCG] = await Promise.all([
         // the first material in the glTF
-        viewer.load<PhysicalMaterial>(gltf.url, {
+        viewer.load<PhysicalMaterial>('https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/worn_planks/worn_planks_1k.gltf', {
             fileExtension: 'phmatgltf',
         }),
         // An ambientCG material zip (https://ambientcg.com/view?id=DiamondPlate003, CC0): a material with the maps in the zip
@@ -41,7 +33,6 @@ async function init() {
             fileExtension: 'acgzip',
         }),
     ])
-    viewer.assetManager.importer.removeURLModifier(polyhavenUrls)
     if (!polyhaven || !ambientCG) {
         alert('Unable to load the materials')
         return

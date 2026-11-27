@@ -117,7 +117,7 @@ Materials from [Poly Haven](https://polyhaven.com/textures) (glTF) and [ambientC
 
 ```typescript
 // Poly Haven: a material glTF, the result is the first material in it
-const planks = await viewer.load<PhysicalMaterial>('https://example.com/worn_planks_1k/worn_planks_1k.gltf', {fileExtension: 'phmatgltf'})
+const planks = await viewer.load<PhysicalMaterial>('https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/worn_planks/worn_planks_1k.gltf', {fileExtension: 'phmatgltf'})
 
 // ambientCG: a material zip, like Fabric087_1K-JPG.zip
 const fabric = await viewer.load<PhysicalMaterial>('https://acg-download.struffelproductions.com/file/ambientCG-Web/download/Fabric087_PbQRcKaT/Fabric087_1K-JPG.zip', {fileExtension: 'acgzip'})
@@ -126,18 +126,9 @@ object.material = fabric
 ```
 
 - **ambientCG** (`acgzip`, `AmbientCGZipLoader`): the maps of the zip go to `map` (Color, sRGB), `normalMap` (NormalGL; NormalDX with `normalScale.y = -1` when there is no NormalGL), `roughnessMap`, `metalnessMap`, `aoMap` (AmbientOcclusion), `alphaMap` (Opacity, and `transparent` is set), `emissiveMap` (Emission, sRGB, white `emissive`) and `displacementMap`. The maps repeat (`RepeatWrapping`). `roughness` is 1, and `metalness` 1 with a Metalness map, else 0. `displacementScale` is 0: the depth depends on the size and the tessellation of the mesh, set it to use the displacement. Scattering maps are not used. Use the download url of the zip (`https://acg-download.struffelproductions.com/...`, the `downloadLink` of the [ambientCG API](https://ambientcg.com/api/v2/full_json?id=Fabric087&include=downloadData) redirects there): the `https://ambientcg.com/get?file=...` link cannot be loaded in a browser, its redirect has no CORS header. An ambientCG HDRI zip loads as an environment map, see [Background, Environment maps](#background-environment-maps).
-- **Poly Haven** (`phmatgltf`, `PolyhavenMaterialGLTFLoader`): the glTF downloaded from Poly Haven (the glTF with its `textures` folder and `.bin`), from any host. On the Poly Haven CDN (`dl.polyhaven.org`) the files of a glTF are not next to it, so its url alone loads no textures; the [Poly Haven API](https://api.polyhaven.com/files/worn_planks) lists their urls (`gltf.1k.gltf.include`), which a url modifier can give to the loader:
-  ```typescript
-  const files = await fetch('https://api.polyhaven.com/files/worn_planks').then(r => r.json())
-  const gltf = files.gltf['1k'].gltf
-  const urls = new Map(Object.entries(gltf.include).map(([path, f]) => [new URL(path, gltf.url).href, f.url]))
-  const modifier = (url: string) => urls.get(url) ?? url
-  viewer.assetManager.importer.addURLModifier(modifier)
-  const planks = await viewer.load<PhysicalMaterial>(gltf.url, {fileExtension: 'phmatgltf'})
-  viewer.assetManager.importer.removeURLModifier(modifier)
-  ```
+- **Poly Haven** (`phmatgltf`, `PolyhavenMaterialGLTFLoader`): the glTF of a material, from Poly Haven's CDN (`https://dl.polyhaven.org/file/ph-assets/Textures/gltf/<res>/<id>/<id>_<res>.gltf`, the `gltf` urls of the [Poly Haven API](https://api.polyhaven.com/files/worn_planks)) or downloaded with its `textures` folder and `.bin` to any host. The CDN keeps a glTF's textures in `Textures/<jpg|png>/<res>/<id>/`, not in the `textures` folder the glTF names, so for a glTF loaded from there the loader works out each texture's url the same way (`PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl`).
 
-A loaded material can be saved and loaded back like any material (`viewer.export(material)` gives a `.pmat` file). The textures of an ambientCG material are saved in the file (they have no url of their own); the textures of a Poly Haven material are saved as their urls (the urls in the glTF: loaded with the url modifier above, the file loads them again only with the same modifier).
+A loaded material can be saved and loaded back like any material (`viewer.export(material)` gives a `.pmat` file). The textures of an ambientCG material are saved in the file (they have no url of their own); the textures of a Poly Haven material are saved as their urls (on the CDN, the urls the loader worked out).
 
 Check the example [polyhaven-ambientcg-material-load](https://threepipe.org/examples/#polyhaven-ambientcg-material-load/).
 

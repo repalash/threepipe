@@ -218,3 +218,18 @@ describe('AmbientCGZipLoader.transform', () => {
         await expect(loader.transform(zip(metal032) as any, {})).rejects.toThrow('importer')
     })
 })
+
+describe('PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl', () => {
+    const folder = 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/worn_planks/'
+    it('maps a texture of a glTF on the Poly Haven CDN to where the CDN keeps it', () => {
+        expect(tp.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl(folder, 'textures/worn_planks_diff_1k.jpg'))
+            .toBe('https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/worn_planks/worn_planks_diff_1k.jpg')
+        expect(tp.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl(folder.replace('/1k/', '/4k/'), 'textures/worn_planks_nor_gl_4k.png'))
+            .toBe('https://dl.polyhaven.org/file/ph-assets/Textures/png/4k/worn_planks/worn_planks_nor_gl_4k.png')
+    })
+    it('leaves other hosts, other folders and the buffer alone', () => {
+        expect(tp.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl('https://example.com/worn_planks/', 'textures/worn_planks_diff_1k.jpg')).toBeUndefined()
+        expect(tp.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl('https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/chair/', 'textures/chair_diff_1k.jpg')).toBeUndefined()
+        expect(tp.PolyhavenMaterialGLTFLoader.PolyhavenTextureUrl(folder, 'worn_planks.bin')).toBeUndefined()
+    })
+})
