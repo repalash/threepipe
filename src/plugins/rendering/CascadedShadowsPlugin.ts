@@ -234,6 +234,10 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
             light.intensity = this.light.intensity
             light.color.set(this.light.color)
             light.castShadow = true
+            // one light drawn with several shadow maps: the renderer's shadow budget keeps or drops the cascades together
+            // (RenderManager.maxShadowMaps)
+            const cascade: DirectionalLight & {shadowGroup?: object} = light
+            cascade.shadowGroup = this.lights
             light.shadow.mapSize.width = data.shadowMapSize
             light.shadow.mapSize.height = data.shadowMapSize
 
@@ -635,10 +639,19 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
         return this.frustums.length
     }
 
+    /**
+     * Whether the cascades draw their shadows. Not while the renderer's shadow budget has turned them off for the render
+     * (RenderManager.maxShadowMaps keeps or drops them as a group): then the shader treats them as one plain directional
+     * light, and any other shadow-casting directional light isn't mistaken for the first cascade.
+     */
+    protected _cascadesCastShadow() {
+        return !!this.light && !this.isDisabled() && this.lights.length > 0 && this.lights[0].castShadow
+    }
+
     materialExtension: MaterialExtension = {
         extraDefines: {
             ['CSM_CASCADES']: () => this.cascades.toString(),
-            ['USE_CSM']: ()=>this.light && !this.isDisabled() ? '1' : undefined,
+            ['USE_CSM']: ()=>this._cascadesCastShadow() ? '1' : undefined,
             ['CSM_FADE']: () => this.fade ? '1' : undefined,
         },
         extraUniforms: {
@@ -658,7 +671,7 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
         //     // this.getExtendedBreaks(shader.uniforms.CSM_cascades.value)
         // },
         onObjectRender: (_, material) => {
-            if (this.isDisabled() || !this.light) {
+            if (!this._cascadesCastShadow()) {
                 if (material.extraUniformsToUpload.CSM_cascades) material.extraUniformsToUpload.CSM_cascades.needsUpdate = false
                 if (material.extraUniformsToUpload.cameraNear) material.extraUniformsToUpload.cameraNear.needsUpdate = false
                 if (material.extraUniformsToUpload.shadowFar) material.extraUniformsToUpload.shadowFar.needsUpdate = false
