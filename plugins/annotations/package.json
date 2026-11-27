@@ -1,15 +1,15 @@
 {
     "name": "@threepipe/plugin-annotations",
     "description": "3D annotations for ThreePipe: numbered markers on objects with a title, a text and a camera view, saved in the scene",
-    "version": "0.1.0-r177.1",
+    "version": "0.1.0-r182.1",
     "publishConfig": {
-        "tag": "three-r177"
+        "tag": "three-r182"
     },
     "dependencies": {
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": ">=0.6.0 || >=0.7.0-r177.1"
+        "threepipe": ">=0.6.0 || >=0.7.0-r182.1"
     },
     "exports": {
         ".": {

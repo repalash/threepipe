@@ -4,9 +4,9 @@ All notable changes to this plugin will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [0.8.0-r177.1] - 2026-11-07
+## [0.8.0-r182.1] - 2026-11-27
 
-Release candidate of the three.js r177 upgrade lane, under the npm dist-tag `three-r177`, for threepipe 0.7.0-r177.1: the changes listed under [Unreleased] below.
+Release candidate of the three.js r182 upgrade lane, under the npm dist-tag `three-r182`, for threepipe 0.7.0-r182.1: the changes listed under [Unreleased] below.
 
 ## [Unreleased]
 
@@ -18,6 +18,13 @@ Release candidate of the three.js r177 upgrade lane, under the npm dist-tag `thr
 
 - `AnisotropyPlugin` glTF export uses the async `writeMaterialAsync` hook and `processTextureAsync` (three.js r170 made `GLTFExporter` async and no longer calls `writeMaterial`; without this, exported files silently lost the anisotropy extension)
 - `AnisotropyPlugin` with three.js r181: the anisotropic lobe is the single-scattering term of `BRDF_GGX_Multiscatter`, which r181 uses for direct lights, so anisotropic materials keep its energy compensation (with r181 the old patch did not find its anchor, and direct light on anisotropic materials was isotropic)
+- The shader patches use the metalness-blended colors of three.js r182's `PhysicalMaterial` struct (#32190), `diffuseContribution` and `specularColorBlended`, where they used `diffuseColor` and `specularColor` (now the base color and the dielectric F0): the SSGI patch, the SSR patch, the physical mode of `Reflector2` and `AnisotropyPlugin`. With the old names a metal got the dielectric F0 and its full base color as diffuse color
+- The baked shadow type of `AdvancedGroundPlugin` no longer offers `PCFSoftShadowMap`, deprecated in three.js r182 (`PCFShadowMap` is soft)
+
+### Fixed
+
+- `SSContactShadowsPlugin` with three.js r182: the contact shadow is added to each `getShadow` (r182 has one for each shadow map type, PCF with a `sampler2DShadow`). The plugin changed the first one only, now the VSM one, so with the default `PCFShadowMap` the materials did not compile
+- `SSContactShadowsPlugin` and the inline ray trace of `SSReflectionPlugin` include `<packing>`, which three.js r182 removed from the material shaders; `ShadowMapBaker` (`AdvancedGroundPlugin`) includes it for its baked map, and `FSShadowMaterial` for `ShadowMaterial`
 
 ## [0.7.0] - 2026-10-24
 

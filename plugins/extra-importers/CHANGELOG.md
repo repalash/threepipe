@@ -4,11 +4,15 @@ All notable changes to this plugin will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [0.3.0-r177.1] - 2026-11-07
+## [0.3.0-r182.1] - 2026-11-27
 
-Release candidate of the three.js r177 upgrade lane, under the npm dist-tag `three-r177`, for threepipe 0.7.0-r177.1: the changes listed under [Unreleased] below.
+Release candidate of the three.js r182 upgrade lane, under the npm dist-tag `three-r182`, for threepipe 0.7.0-r182.1: the changes listed under [Unreleased] below.
 
 ## [Unreleased]
+
+### Changed
+
+- `VOXLoadPlugin` uses the `VOXLoader` result of three.js r182 (#32488): it adds the scene of the file (scaled as the meshes were), so the models keep the positions and rotations the file gives them; a file without a scene graph gets a mesh of each chunk from `buildMesh()`, as before. `VOXMesh` and the result as an array of chunks are deprecated in r182
 
 ### Removed
 

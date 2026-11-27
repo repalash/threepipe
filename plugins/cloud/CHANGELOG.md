@@ -1,8 +1,8 @@
 # @threepipe/plugin-cloud Changelog
 
-## [0.1.0-r177.1] - 2026-11-07
+## [0.1.0-r182.1] - 2026-11-27
 
-Release candidate of the three.js r177 upgrade lane, under the npm dist-tag `three-r177`, for threepipe 0.7.0-r177.1: the changes listed under [Unreleased] below.
+Release candidate of the three.js r182 upgrade lane, under the npm dist-tag `three-r182`, for threepipe 0.7.0-r182.1: the changes listed under [Unreleased] below.
 
 ## [Unreleased]
 

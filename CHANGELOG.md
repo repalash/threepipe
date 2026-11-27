@@ -4,17 +4,17 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [0.7.0-r177.1] - 2026-11-07
+## [0.7.0-r182.1] - 2026-11-27
 
-Release candidate of the three.js r177 upgrade lane, under the npm dist-tag `three-r177`, with `three-modded` and `three-types-modded` 0.177.10001-rc.1: the changes listed under [Unreleased] below, the r172 upgrade among them.
+Release candidate of the three.js r182 upgrade lane, under the npm dist-tag `three-r182`, with `three-modded` and `three-types-modded` 0.182.10001-rc.1: the changes listed under [Unreleased] below, the r172, r177, r180 and r181 upgrades among them.
 
 An app that installs the release candidate pins `three` and `@types/three` to the same versions with `overrides`, since other packages' ranges (such as `uiconfig-tweakpane`'s peer `@types/three`) do not match prerelease versions:
 
 ```json
 "dependencies": {
-    "threepipe": "0.7.0-r177.1",
-    "three": "npm:three-modded@0.177.10001-rc.1",
-    "@types/three": "npm:three-types-modded@0.177.10001-rc.1"
+    "threepipe": "0.7.0-r182.1",
+    "three": "npm:three-modded@0.182.10001-rc.1",
+    "@types/three": "npm:three-types-modded@0.182.10001-rc.1"
 },
 "overrides": {
     "three": "$three",
@@ -68,7 +68,7 @@ An app that installs the release candidate pins `three` and `@types/three` to th
 
 ### Changed
 
-- Upgrade `three` from v0.168.10008 to v0.181.10001 (three.js r181, through r172, r177 and r180)
+- Upgrade `three` from v0.168.10008 to v0.182.10001 (three.js r182, through r172, r177, r180 and r181)
   - **Breaking** `RenderManager.exportRenderTarget()` is async and returns `Promise<BlobExt>` (three.js r169 made `EXRExporter.parse()` async); `RenderTargetPreviewPlugin.downloadTarget()` returns a promise too
   - **Breaking** glTF export is async (three.js r170): `GLTFWriter2.processObjects/processMaterial/processTexture` are now `processObjectsAsync/processMaterialAsync/processTextureAsync`, and glTF exporter plugins must implement `writeMaterialAsync` instead of `writeMaterial` — the old hook is silently ignored by three, so material extensions would be dropped from exports. All built-in extensions are updated. The `writeMesh`, `writeNode`, `beforeParse` and `afterParse` hooks may return a promise (three-modded awaits them)
   - `DisplayP3ColorSpace` moved out of three.js core (r170). threepipe registers Display P3 from `three/examples/jsm/math/ColorSpaces.js`, so the `ColorSpace` ui mapping keeps working
@@ -93,6 +93,16 @@ An app that installs the release candidate pins `three` and `@types/three` to th
   - `AnisotropyPlugin` (webgi-plugins): the anisotropic lobe is the single-scattering term of three.js r181's `BRDF_GGX_Multiscatter` for direct lights, so anisotropic materials get the same energy compensation. With r181 the old patch did not find its anchor and direct light on anisotropic materials was isotropic
   - The types (three-types-modded 0.181.10001) put the image type first: `Texture<TImage, TEventMap>` (three.js types r181). `ITexture<TE>` extends `Texture<any, TE>`, so code using `ITexture` does not change. `Source` needs its data type (`Source<any>`), `TextureImageData` is `DataTextureImageData` (`textureDataToImageData` takes it), and `Texture.DEFAULT_IMAGE` can be set (upstream r181 types it as `null`)
   - three.js r181 writes its messages with `log()`, `warn()` and `error()` (still prefixed `THREE.`), which an app can redirect with `setConsoleFunction()`
+  - **Breaking** three.js r182 renders shadow maps to depth textures (`light.shadow.map.depthTexture`), sampled with a hardware comparison for `PCFShadowMap`, and a point light's shadow map is a cube render target with a cube depth texture. Code that reads packed depth from `shadow.map.texture`, or draws a point light's shadow map as a 2D texture, needs a change (the `point-light` example no longer previews it). Changing `renderer.shadowMap.type` recompiles the materials and makes new shadow maps
+  - **Breaking** `PCFSoftShadowMap` is deprecated (three.js r182): `PCFShadowMap` is soft now, and `PCFSoftShadowMap` warns and renders as `PCFShadowMap` (the r183 check, #32593, which three-modded has). The shadow map type dropdowns of `RenderManager` and `AdvancedGroundPlugin` no longer offer it, and the examples use `PCFShadowMap`
+  - **Breaking** the material shaders of three.js r182 no longer include `<packing>` (only the depth material does). A material extension that uses its functions (`unpackRGBAToDepth`, `perspectiveDepthToViewZ`, ...) includes it: `#include <packingOnce>`, a new shader chunk that includes it once (it defines `THREE_PACKING_INCLUDED`, which `cameraHelpers` checks too). The unpack extensions of `GBufferPlugin` and `DepthBufferPlugin` add their snippet after `#include <common>` with it when the shader has neither `<packing>` nor their own include; without that the contact shadows and the inline SSR of webgi-plugins did not compile
+  - **Breaking** the `PhysicalMaterial` struct of the shaders splits its colors (three.js r182, #32190): `diffuseColor` is the base color and `diffuseContribution` the diffuse part, `specularColor` the dielectric F0 and `specularColorBlended` the F0 mixed with the base color by metalness. Shader patches that read `material.diffuseColor` or `material.specularColor` for the lighting use `diffuseContribution` and `specularColorBlended`, as the webgi-plugins patches (SSGI, SSR, `Reflector2`, `AnisotropyPlugin`) now do
+  - `MeshNormalMaterial` writes `normalize( normal ) * 0.5 + 0.5` (three.js r182); the world normals view of `ViewOverridesPlugin` replaces that line
+  - `SSContactShadowsPlugin` (webgi-plugins) adds the contact shadow to each `getShadow` of three.js r182 (one for each shadow map type; with the default `PCFShadowMap` the material did not compile)
+  - `VOXLoadPlugin` (extra-importers) uses the `VOXLoader` result of three.js r182 (#32488): the scene of the file, so its models keep their positions; `VOXMesh` is deprecated
+  - `ICameraControls.domElement` can be an `SVGElement`, as `Controls.domElement` in the r182 types
+  - `OrbitControls` (and `OrbitControls3`) listen to `pointermove` and `pointerup` on the document of their element (`domElement.ownerDocument`, three.js r182), so a drag goes on outside the canvas; an element without an `ownerDocument` (a fake one in tests, an `OffscreenCanvas`) does not work with them
+  - PBR: the sheen of physical materials changed (three.js r182: energy compensation in direct and indirect light, a new sheen albedo fit), the iridescence of metals uses the base color, and the transmission uses the metalness-blended colors
 - `TransformControls2` and `PivotControls` do not listen to keys themselves now: their plugins register the keys (`actions`) in `viewer.actions`. An app that makes a gizmo without its plugin registers them: `viewer.actions.register(controls.actions)`
 - Uses ts-browser-helpers 0.23.0 (was 0.20.0). The dialogs of `viewer.dialog` with a UI plugin (`htmlDialogWrapper`: alert, confirm, prompt, choose) are modal `<dialog>` elements: the page behind an open dialog takes no click and no focus, and a close by the browser (Escape, the Android back gesture) resolves the dialog as its Escape does. They have the look of a Figma-like UI, a dark mode and CSS variables (`--dialog-*`) for an app's theme.
 - `ObjectPicker.setSelected` of a list switches the selection mode as its first item does (a list of objects after a material: object mode again), as a single item does
