@@ -108,6 +108,13 @@ describe.skipIf(!ELEPHANT)('lights, Blender 2.93 (Mr Elephant)', () => {
         expect(area.intensity).toBeCloseTo(3000 * Math.PI / 4 / Math.PI, 2)
     })
 
+    it('cast shadows when Blender\'s Shadow box is ticked', async() => {
+        const {byName} = await load(ELEPHANT!)
+        const lights = [...byName.values()].filter(o => o.isLight)
+        expect(lights).toHaveLength(16) // 16 light objects, sharing 10 lights
+        expect(lights.every(l => l.castShadow)).toBe(true) // every light of this file casts shadows in Blender
+    })
+
     it('finds the CMYK JPEGs, which WebKit can\'t upload as they are', async() => {
         const blend: any = await loadBlend(ELEPHANT!)
         const cmyk: string[] = []

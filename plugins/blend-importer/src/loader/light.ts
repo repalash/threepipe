@@ -5,6 +5,10 @@ import {Ctx} from './ctx'
 const LA_LOCAL = 0, LA_SUN = 1, LA_SPOT = 2, LA_AREA = 4
 // Blender Light.area_shape — DNA_light_types.h (eLightAreaShape).
 const LA_AREA_RECT = 1, LA_AREA_DISK = 4, LA_AREA_ELLIPSE = 5
+// Light.mode: the light's "Shadow" box (DNA_light_types.h LA_SHADOW). Before 2.80 bit 0 was buffer shadows and
+// bit 13 ray shadows (LA_SHAD_RAY), which Blender turns into LA_SHADOW when it opens the file (versioning_280.cc);
+// bit 13 isn't used since.
+const LA_SHADOW = 1 << 0, LA_SHAD_RAY = 1 << 13
 // Light.mode: the light's "Normalize" box unticked (Blender 4.2+), its power given per square metre of its area.
 const LA_UNNORMALIZED = 1 << 25
 // Watts -> lumens (Blender's PBR_WATTS_TO_LUMENS), the glTF exporter's "Standard" lighting mode. Only with
@@ -127,6 +131,8 @@ export function createLight(lamp: any, ctx: Ctx, worldScale = {x: 1, y: 1}): Lig
     // working space — match GLTFLoader (color.setRGB(..., LinearSRGBColorSpace)), no 8-bit packing.
     if ((light as any).color && typeof ldata.r === 'number')
         (light as any).color.setRGB(ldata.r, ldata.g, ldata.b) // the default colour space is the linear working space
-    light.castShadow = true
+    // Blender's "Shadow" box. How many shadow maps a GPU can take is the renderer's business (threepipe's
+    // RenderManager.maxShadowMaps): each one is a texture unit in every lit material's shader.
+    light.castShadow = !!((ldata.mode ?? LA_SHADOW) & (LA_SHADOW | LA_SHAD_RAY))
     return light
 }
