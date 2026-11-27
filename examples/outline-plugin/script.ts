@@ -16,6 +16,7 @@ import {
     TemporalAAPlugin,
     VelocityBufferPlugin,
 } from '@threepipe/webgi-plugins'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -48,7 +49,7 @@ async function init() {
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
         setBackground: true,
     })
-    await viewer.load<IObject3D>('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', {
+    const model = await viewer.load<IObject3D>('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', {
         autoCenter: true,
         autoScale: true,
     })
@@ -63,6 +64,18 @@ async function init() {
     const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
     targetPreview.addTarget(()=>outline.target, 'outline', false, true, true, (s)=>`${s} = 1.-${s};`)
 
+    // select the helmet, so the outline shows from the start
+    if (model) viewer.getPlugin(PickingPlugin)?.setSelectedObject(model)
+
+    createExampleCard(viewer, {
+        description: 'OutlinePlugin (webgi-plugins) draws an outline around the selected object, with an optional highlight over it. Click a part to select it, or the empty space to clear the selection. The preview at the bottom is the outline target.',
+        actions: [
+            {type: 'checkbox', label: 'Outline', icon: 'scan', property: [outline, 'enabled']},
+            {type: 'checkbox', label: 'Highlight', icon: 'sparkles', property: [outline, 'enableHighlight']},
+            {type: 'slider', label: 'Thickness', bounds: [0, 10], stepSize: 0.01, property: [outline, 'thickness']},
+            {type: 'color', label: 'Color', property: [outline, 'color'], onChange: () => outline.setDirty()},
+        ],
+    })
 }
 
 _testStart()

@@ -1,5 +1,6 @@
 import {_testFinish, _testStart, formatShortcut, IObject3D, LoadingScreenPlugin, shortcutsOf, ThreeViewer} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
@@ -63,8 +64,13 @@ async function init() {
         result.textContent = `${action.label}: ${r.error ?? r.warn ?? 'done'}`
     })
 
+    createExampleCard(viewer, {
+        description: 'viewer.actions: the actions of the viewer and their keys, in one place. Any UI can list and run them; below is a small one made by this example (a menu or a command palette works the same). Press a key or click an action.',
+        content: document.getElementById('commands')!,
+    })
+
     // Its Actions folder lists the actions too (the editor shows it in its settings)
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.appendChild(actions.uiConfig, {expanded: true})
 }
 
