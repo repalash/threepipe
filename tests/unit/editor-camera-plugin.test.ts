@@ -14,10 +14,11 @@ vi.mock(tippyPath, () => ({default: Object.assign(vi.fn(() => ({setContent: vi.f
 vi.mock('../../plugins/tweakpane-editor/src/util-buttons', () => ({setupFullscreenButton: vi.fn(), setupUtilButtonsBar: vi.fn()}))
 vi.mock('@threepipe/plugin-tweakpane', () => ({TweakpaneUiPlugin: class {static PluginType = 'TweakpaneUiPlugin'}}))
 
-// a viewer canvas for the orbit controls of the cameras (the node setup has no DOM)
+// a viewer canvas for the orbit controls of the cameras (the node setup has no DOM). Its document takes listeners: the
+// OrbitControls of three r182 listen to pointermove and pointerup on it
 function makeCanvas() {
     const listeners = {addEventListener: () => {}, removeEventListener: () => {}}
-    return {style: {}, tabIndex: 0, clientWidth: 400, clientHeight: 300, ownerDocument: globalThis.document, ...listeners, getRootNode: () => listeners} as any
+    return {style: {}, tabIndex: 0, clientWidth: 400, clientHeight: 300, ownerDocument: {...globalThis.document, ...listeners}, ...listeners, getRootNode: () => listeners} as any
 }
 
 // a viewer config with a start view, as a file brings it
