@@ -109,6 +109,18 @@ function measure(root: any) {
         animations: [...clips].map((clip: any) => ({name: clip.name, seconds: Math.round(clip.duration * 100) / 100}))}
 }
 
+/**
+ * The first perspective camera in what a file loaded (not the viewer's), for formats whose cameras the catalog can't read
+ * itself (glTF cameras come as `view`).
+ */
+function fileCamera(model: any): any {
+    let found: any
+    model.traverse((o: any) => {
+        if (!found && o.isPerspectiveCamera) found = o
+    })
+    return found
+}
+
 /** A shader ball with the material on its surface (material mode with `ball`). */
 async function shaderBall(viewer: ThreeViewer, material: any) {
     if (!material?.isMaterial) throw new Error('no material loaded')
@@ -234,6 +246,19 @@ async function render() {
         camera.maxFarPlane = camera.far = radius * 50
         camera.position.fromArray(view.position).applyMatrix4(model.matrixWorld)
         camera.target.fromArray(view.target).applyMatrix4(model.matrixWorld)
+        camera.setDirty()
+    } else if (kind === 'model' && fileCamera(model)) {
+        // a camera that came with the file (a .blend's scene camera): its view, square, like a glTF camera above
+        const fc = fileCamera(model)!
+        viewer.scene.updateMatrixWorld(true)
+        const position = new Vector3().setFromMatrixPosition(fc.matrixWorld)
+        const direction = new Vector3(0, 0, -1).transformDirection(fc.matrixWorld)
+        const box = new Box3().setFromObject(model, true)
+        const distance = Math.max(position.distanceTo(box.getCenter(new Vector3())), 0.01)
+        // its own vertical view, widened only when the file says it is wide (an aspect that isn't three's default 1)
+        camera.fov = fc.aspect && fc.aspect > 1 ? 2 * Math.atan(Math.tan(fc.fov * Math.PI / 360) * fc.aspect) * 180 / Math.PI : fc.fov
+        camera.position.copy(position)
+        camera.target.copy(position).addScaledVector(direction, distance)
         camera.setDirty()
     } else {
         camera.position.fromArray(DIRECTIONS[kind] ?? DIRECTIONS.model)

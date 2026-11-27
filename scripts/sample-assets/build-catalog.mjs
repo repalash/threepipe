@@ -109,6 +109,11 @@ async function addTextures(root, model, seen, links) {
         try {
             const meta = await sharp(image).metadata()
             ;({width, height} = meta)
+            // a placeholder an exporter wrote for a texture it couldn't load: not a texture to list
+            if (width < 16 && height < 16) {
+                links.delete(`${model.set_name}/${model.name}|uses|${asset}`)
+                continue
+            }
             await sharp(image).resize(256, 256, {fit: 'inside', withoutEnlargement: true}).webp({quality: 80}).toFile(path.join(args.out, textureDir, `${hash.slice(0, 12)}.webp`))
             thumb = `${FILES}/${textureDir}/${hash.slice(0, 12)}.webp`
         } catch { /* a format sharp doesn't read (KTX2): no thumbnail or dimensions */ }
@@ -211,6 +216,9 @@ function tagsOf(tags, root) {
         const material = /^KHR_materials_(.+)$/.exec(e.extensionName)?.[1]
         if (material) out.add(material)
         if (e.extensionName === 'KHR_lights_punctual') out.add('lights')
+        // how the file itself is compressed, as fileTags does for the formats in metadata.files
+        const compressed = {EXT_meshopt_compression: 'meshopt', KHR_draco_mesh_compression: 'draco', KHR_texture_basisu: 'ktx2', KHR_mesh_quantization: 'quantized'}[e.extensionName]
+        if (compressed) out.add(compressed)
     }
     return [...out].sort()
 }
@@ -478,6 +486,17 @@ async function* lists() {
             const name = a.name ?? rootName.replace(/(\.[A-Za-z0-9_]+)+$/, '')
             const dir = path.join(args.src, 'lists', a.set, slugOf(name))
             let file, extra = [], sourceZip
+            // a glTF already in our bucket (link): read where it is, like the bucket set
+            if (a.link && /\.(glb|gltf)$/i.test(a.url)) {
+                yield {
+                    set_name: a.set, name, label: a.label ?? name, tags: [...a.tags ?? [], ...list.tag ? [list.tag] : []],
+                    license: a.license ?? null, license_note: a.license_note, authors: a.authors, source_url: a.source_url ?? a.url,
+                    links: a.links ?? [], changes: a.changes ?? null, file: a.url, linked: true, wip: a.wip,
+                    // other files of the asset (the source .blend of a converted GLB): metadata.files after the default
+                    files: a.alt_files ?? [],
+                }
+                continue
+            }
             if (a.crawl === 'tileset') {
                 const files = await crawlTileset(a.url, dir)
                 file = path.join(dir, files[0])

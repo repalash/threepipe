@@ -1,0 +1,13 @@
+{
+    "about": "Objects to preview materials on (shader balls), in the samples bucket. Same fields as viewer-samples.json; alt_files are the other files of an asset (format, url, label).",
+    "tag": "shader-ball",
+    "assets": [
+        {"set": "blender", "name": "shaderball-jesus-sandoval", "label": "Blender ShaderBall (by Jesus Sandoval)", "link": true,
+            "url": "https://samples.threepipe.org/blender/shaderball-jesus-sandoval.glb",
+            "alt_files": [{"format": "blend", "url": "https://samples.threepipe.org/blender/shaderball-jesus-sandoval.blend", "label": "Blender 4.0 file (zstd, as Blender saves compressed files)", "size": 27059054}],
+            "license": "CC0-1.0", "authors": ["Jesus Sandoval (EntityDesigner)"],
+            "source_url": "https://drive.google.com/file/d/1pHTHSYJlBIJrqTO2wKuY8sXNO-rl4cew/view",
+            "links": [{"label": "CC0, made for the Blender 4.0 release notes and manual (devtalk)", "url": "https://devtalk.blender.org/t/images-for-blender-4-0-release-notes-and-manual/31290/16"}],
+            "changes": "the .blend compressed with zstd (lossless, 41.0 to 27.1 MB; Blender and threepipe read it); the GLB exported from it with threepipe's blend importer, its vertex and index data compressed with EXT_meshopt_compression without quantization (lossless, 6.2 to 3.6 MB). Not in the GLB: the area lights (the importer doesn't read Blender area lights yet) and the colour chart's texture (an external file not packed in the .blend); the camera's lens shift isn't applied by the importer"}
+    ]
+}
