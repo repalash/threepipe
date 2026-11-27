@@ -693,7 +693,7 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         const shader = {uniforms: {}, vertexShader, fragmentShader}
         material.onBeforeCompile(shader)
         // the normal after the normal and bump maps, the back face flip, skinning, morphs and the normal matrix
-        expect(shader.fragmentShader).toContain('gl_FragColor = vec4( packNormalToRGB( normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ) ), diffuseColor.a );')
+        expect(shader.fragmentShader).toContain('gl_FragColor = vec4( normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ) * 0.5 + 0.5, diffuseColor.a );')
         expect(shader.fragmentShader.indexOf('viewMatrix ).xyz')).toBeGreaterThan(shader.fragmentShader.indexOf('#include <normal_fragment_maps>'))
         // no world normal from the object normal and the model matrix (wrong for a non-uniform scale)
         expect(shader.vertexShader).toBe(vertexShader)

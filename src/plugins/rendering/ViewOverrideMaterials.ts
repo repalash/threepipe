@@ -350,8 +350,8 @@ export class NormalWorldOverrideMaterial extends NormalOverrideMaterial {
     onBeforeCompile(shader: any) {
         super.onBeforeCompile(shader)
         shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
-            'gl_FragColor = vec4( packNormalToRGB( normal ), diffuseColor.a );',
-            'gl_FragColor = vec4( packNormalToRGB( normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ) ), diffuseColor.a );')
+            'gl_FragColor = vec4( normalize( normal ) * 0.5 + 0.5, diffuseColor.a );',
+            'gl_FragColor = vec4( normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ) * 0.5 + 0.5, diffuseColor.a );')
     }
 }
 
