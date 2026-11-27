@@ -4,9 +4,9 @@ All notable changes to this plugin will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [0.8.0-r182.1] - 2026-11-27
+## [0.8.0-r187.1] - 2026-11-27
 
-Release candidate of the three.js r182 upgrade lane, under the npm dist-tag `three-r182`, for threepipe 0.7.0-r182.1: the changes listed under [Unreleased] below. Its peer range is `threepipe >=0.7.0-r182.1`: its shaders need the `packingOnce` chunk and the shaders of three.js r182 that threepipe 0.7.0-r182.1 brings.
+Release candidate of the three.js r187 upgrade lane, under the npm dist-tag `three-r187`, for threepipe 0.7.0-r187.1: the changes listed under [Unreleased] below. Its peer range is `threepipe >=0.7.0-r187.1`: its shaders need the `packingOnce` chunk and the shaders of three.js r186 and later (`AnisotropyPlugin` patches the direct lobe of r186's `RE_Direct_Physical`), which threepipe 0.7.0-r187.1 brings.
 
 ## [Unreleased]
 
@@ -20,9 +20,11 @@ Release candidate of the three.js r182 upgrade lane, under the npm dist-tag `thr
 - `AnisotropyPlugin` with three.js r181: the anisotropic lobe is the single-scattering term of `BRDF_GGX_Multiscatter`, which r181 uses for direct lights, so anisotropic materials keep its energy compensation (with r181 the old patch did not find its anchor, and direct light on anisotropic materials was isotropic)
 - The shader patches use the metalness-blended colors of three.js r182's `PhysicalMaterial` struct (#32190), `diffuseContribution` and `specularColorBlended`, where they used `diffuseColor` and `specularColor` (now the base color and the dielectric F0): the SSGI patch, the SSR patch, the physical mode of `Reflector2` and `AnisotropyPlugin`. With the old names a metal got the dielectric F0 and its full base color as diffuse color
 - The baked shadow type of `AdvancedGroundPlugin` no longer offers `PCFSoftShadowMap`, deprecated in three.js r182 (`PCFShadowMap` is soft)
+- `AnisotropyPlugin` with three.js r186: `RE_Direct_Physical` calls `BRDF_GGX` and scales it by `material.multiScatteringCompensation` in place of `BRDF_GGX_Multiscatter` (#34046). The anisotropic lobe takes the place of that `BRDF_GGX` call, with `specularColorBlended` as F0, and the compensation applies to it as to the isotropic lobe; the retroreflection lobe of r186 stays isotropic. With r186 and later the old patch fell back to the pre-r181 path, whose F0 is the dielectric `specularColor` since r182, so an anisotropic metal reflected like a dielectric
 
 ### Fixed
 
+- `FSShadowMaterial` (`AdvancedGroundPlugin`'s shadow baker): `fromJSON()` is typed as returning `this`, as three.js r185's `Material.fromJSON(json, textures)`; the declarations did not type-check. It still throws
 - `SSContactShadowsPlugin` with three.js r182: the contact shadow is added to each `getShadow` (r182 has one for each shadow map type, PCF with a `sampler2DShadow`). The plugin changed the first one only, now the VSM one, so with the default `PCFShadowMap` the materials did not compile
 - `SSContactShadowsPlugin` with `CascadedShadowsPlugin`: every directional and spot `getShadow` call gets the light direction, also the four that `CascadedShadowsPlugin` adds; with both plugins a material did not compile
 - `AnisotropyPlugin`: the anisotropic lobe passes its dot products to three.js's `D_GGX_Anisotropic( alphaT, alphaB, dotNH, dotTH, dotBH )` in that order; it passed them in Filament's order (`dotTH, dotBH, dotNH`), so the distribution of the direct light used the wrong angles. Anisotropic highlights look different

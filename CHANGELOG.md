@@ -4,17 +4,17 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [0.7.0-r182.1] - 2026-11-27
+## [0.7.0-r187.1] - 2026-11-27
 
-Release candidate of the three.js r182 upgrade lane, under the npm dist-tag `three-r182`, with `three-modded` and `three-types-modded` 0.182.10001-rc.1: the changes listed under [Unreleased] below, the r172, r177, r180 and r181 upgrades among them.
+Release candidate of the three.js r187 upgrade lane, under the npm dist-tag `three-r187`, with `three-modded` 0.187.10001-rc.1 and `three-types-modded` 0.187.10001-rc.2: the changes listed under [Unreleased] below, the r172, r177, r180, r181 and r182 upgrades among them.
 
 An app that installs the release candidate pins `three` and `@types/three` to the same versions with `overrides`, since other packages' ranges (such as `uiconfig-tweakpane`'s peer `@types/three`) do not match prerelease versions:
 
 ```json
 "dependencies": {
-    "threepipe": "0.7.0-r182.1",
-    "three": "npm:three-modded@0.182.10001-rc.1",
-    "@types/three": "npm:three-types-modded@0.182.10001-rc.1"
+    "threepipe": "0.7.0-r187.1",
+    "three": "npm:three-modded@0.187.10001-rc.1",
+    "@types/three": "npm:three-types-modded@0.187.10001-rc.2"
 },
 "overrides": {
     "three": "$three",
@@ -68,7 +68,7 @@ An app that installs the release candidate pins `three` and `@types/three` to th
 
 ### Changed
 
-- Upgrade `three` from v0.168.10008 to v0.182.10001 (three.js r182, through r172, r177, r180 and r181)
+- Upgrade `three` from v0.168.10008 to v0.187.10001 (three.js r187, through r172, r177, r180, r181, r182 and r183–r186)
   - **Breaking** `RenderManager.exportRenderTarget()` is async and returns `Promise<BlobExt>` (three.js r169 made `EXRExporter.parse()` async); `RenderTargetPreviewPlugin.downloadTarget()` returns a promise too
   - **Breaking** glTF export is async (three.js r170): `GLTFWriter2.processObjects/processMaterial/processTexture` are now `processObjectsAsync/processMaterialAsync/processTextureAsync`, and glTF exporter plugins must implement `writeMaterialAsync` instead of `writeMaterial` — the old hook is silently ignored by three, so material extensions would be dropped from exports. All built-in extensions are updated. The `writeMesh`, `writeNode`, `beforeParse` and `afterParse` hooks may return a promise (three-modded awaits them)
   - `DisplayP3ColorSpace` moved out of three.js core (r170). threepipe registers Display P3 from `three/examples/jsm/math/ColorSpaces.js`, so the `ColorSpace` ui mapping keeps working
@@ -105,6 +105,23 @@ An app that installs the release candidate pins `three` and `@types/three` to th
   - `ICameraControls.domElement` can be an `SVGElement`, as `Controls.domElement` in the r182 types
   - `OrbitControls` (and `OrbitControls3`) listen to `pointermove` and `pointerup` on the document of their element (`domElement.ownerDocument`, three.js r182), so a drag goes on outside the canvas; an element without an `ownerDocument` (a fake one in tests, an `OffscreenCanvas`) does not work with them
   - PBR materials look different with three.js r182: the indirect light computes multiple scattering separately for the dielectric and the metal parts and mixes them by metalness; the diffuse energy conservation uses the dielectric scattering of each color channel instead of its maximum; the multiple-scattering compensation of direct light (`BRDF_GGX_Multiscatter`) has a corrected denominator; the iridescence of metals uses the base color; sheen has energy compensation in direct and indirect light, a new albedo fit, and its roughness is clamped at 0.0001 instead of 0.07; `V_GGX_SmithCorrelated_Anisotropic` is no longer clamped to 1, which changes the anisotropic lobe of `AnisotropyPlugin` (webgi-plugins) too
+  - **Breaking** three.js r187 builds PMREMs as cube render targets and removed `CubeUVReflectionMapping` (#34585): the shaders sample a `samplerCube` with `textureLod()` under `ENVMAP_TYPE_PMREM`, and `ENVMAP_TYPE_CUBE_UV` and `textureCubeUV()` are gone, so a shader patch that uses them needs a change. The texture mapping dropdown (`threeConstMappings`) no longer lists CubeUV; a PMREM is a cube texture (`CubeReflectionMapping`). Environment lighting looks slightly different
+  - **Breaking** `MeshPhysicalMaterial.iridescenceThicknessRange` is `iridescenceThicknessMinimum` and `iridescenceThicknessMaximum` (three.js r187, #35039; the range is a deprecated accessor that warns). `PhysicalMaterial` lists the two values for `setValues`, clone, the saved JSON and the animation; a file saved with `iridescenceThicknessRange` sets them. The material UI's Thickness sliders (which changed nothing) are Thickness Min and Thickness Max. `diffuseRoughness` and `diffuseRoughnessMap` (r187, `KHR_materials_diffuse_roughness`) and `retroreflectivity` (r186) are listed too, without UI
+  - **Breaking** three.js r185's `MaterialLoader.parse()` calls `material.fromJSON(json, textures)` (#33714). threepipe's materials take that call: with the textures by uuid in place of `meta` they run three.js's `Material.fromJSON()`, with a `SerializationMetaType` (or none) they deserialize as before. `fromJSON()` returns `this` (not `this | null`) in `IMaterial` and the materials, so a subclass that overrides it with `this | null` gets a type error
+  - **Breaking** three.js r186 adds `Object3D.dispose()`, which dispatches the `dispose` event (#34141). threepipe's object dispose calls the object's own `dispose()` and dispatches the event only when that did not, so the listeners of a mesh run once (they ran twice with r186). A class with its own `dispose()` calls `super.dispose()`. `IObject3D.dispose` is no longer optional, and `Group2` and `Object3D2` no longer declare an empty `dispose()`
+  - **Breaking** (types) the three.js r183 types generate `Light`, `Camera` and `Scene` from the JSDoc. `Light` has no shadow type parameter and no `shadow` (only the light types with shadows declare it), and r186 removed `LightEventMap`: `ILight<TShadowSupport, TE>` extends `Light<TE>` and declares `shadow` itself, so code that reads `shadow` from a three.js `Light` uses the light's own type. `isLight`, `isCamera` and `isScene` are `boolean` there; threepipe's classes declare them `true`, and `RootScene.type` `'Scene'`. The `InstancedMeshEventMap` re-export is removed (r186 types; its `dispose` event is in `Object3DEventMap`)
+  - `Source` is `TextureSource` (three.js r186, #34202). The texture deserializer reads `isTextureSource`: with r186 a texture in a viewer config or a material JSON, whose image `ObjectLoader` had already parsed, failed with "Cannot deserialize texture". `ITexture.source` is a `TextureSource`; threepipe exports `TextureSource`, and `Source` stays exported (deprecated in three.js)
+  - `Clock` is deprecated (three.js r183, the constructor warns): `RenderManager.timer` (and `IRenderManager.timer`) is the effect composer's `Timer`, which replaced its clock. `RenderManager.clock` is deprecated and returns that timer, which has `getDelta()` and `getElapsed()` (no `getElapsedTime()`). `ViewHelper2` and `ViewerTimeline` use a `Timer` (`ViewerTimeline._clock` is `_timer`). threepipe exports `Timer`; `Clock` stays exported
+  - `DRACOLoader2` with three.js r185's decoder file URLs (`decoderPaths`): the bundled decoders of `SetDecoderJsString` and `SetDecoderWasmBinary` are found again by file name, `initEncoder()` loads the encoder from the folder set with `setDecoderPath()` (it loaded from the page's folder), and `preload()` returns the loader. `setDecoderConfig()` is deprecated in r185
+  - `Rhino3dmLoader2` passes three.js r186's render environment to `_createMaterial()` (#34180): the render environment of a `.3dm` file is the `envMap` of its materials, as in three.js. r186 no longer sets `userData.materials` on the loaded object
+  - `CascadedShadowsPlugin` splits the cascades as three.js r185 does (#33510): the split planes are lerped by `(break * far - near) / (far - near)`, so with a near distance above 0 each cascade's frustum matches the depth range the shader uses for it. The cascade boundaries move a little towards the camera
+  - `MeshLambertMaterial` and `MeshPhongMaterial` (and `LegacyPhongMaterial`) are lit by `scene.environment` with `envMapIntensity` and `scene.environmentIntensity`, as the standard materials are (three.js r183, #32791, #32795): in a scene with an environment map they look different
+  - Environment map and background rotations follow the rotation of 3D objects (three.js r184, #33077): a `scene.environmentRotation`, `scene.backgroundRotation` or `material.envMapRotation` about more than one axis gives another orientation, and the shaders no longer have the `flipEnvMap` uniform
+  - three.js r185's `Object3D.updateWorldMatrix()` updates `matrixWorld` only when `matrixWorldNeedsUpdate` is set (#33746): with `matrixAutoUpdate = false`, set `matrixWorldNeedsUpdate = true` after changing `matrix`. r187's `setViewport()` and `setScissor()` no longer multiply by the pixel ratio while a render target is set (#34460)
+  - three.js r186's `SimplifyModifier.modify()` is async and uses meshoptimizer (#34021). `SimplifyModifierPlugin._simplify()` is synchronous, so the sample in its docs and the `simplify-modifier-plugin` example, which use `SimplifyModifier`, do not work with r186 and later; `MeshOptSimplifyModifierPlugin` works as before
+  - `ImageBitmap` textures ignore `flipY`, `premultiplyAlpha` and the color space conversion at upload (three.js r184, #33073): set them with `ImageBitmapLoader.setOptions()`. `GLTFExporter` writes WebP textures as WebP with the required `EXT_texture_webp` extension (r184, #33117; it wrote PNG), and `BufferGeometryUtils.mergeVertices(geometry, 0)` merges identical vertices (r186; a negative tolerance, as `toIndexedGeometry()` uses, merges none)
+  - `require('three')` loads three.js r186's CommonJS stub (`build/three.cjs`), which warns and loads the ES module with `require(esm)` (Node.js 20.19, 22.12 and later); there are no `build/*.min.js` files (#33891, #33893). threepipe's `lib` imports three as an ES module and `dist` bundles it; the unit tests alias `three` to `build/three.module.js`
+  - The types (three-types-modded 0.187.10001-rc.2) declare `WebGLRenderer.resetCurrentMaterial()` and `InstancedMesh.sourceTrs`, so threepipe has four `@ts-expect-error` fewer. They still declare the fork's `Rhino3dmLoader._createMaterial(material)` with one parameter, so `Rhino3dmLoader2` has one `@ts-expect-error` for r186's second
 - `TransformControls2` and `PivotControls` do not listen to keys themselves now: their plugins register the keys (`actions`) in `viewer.actions`. An app that makes a gizmo without its plugin registers them: `viewer.actions.register(controls.actions)`
 - Uses ts-browser-helpers 0.23.0 (was 0.20.0). The dialogs of `viewer.dialog` with a UI plugin (`htmlDialogWrapper`: alert, confirm, prompt, choose) are modal `<dialog>` elements: the page behind an open dialog takes no click and no focus, and a close by the browser (Escape, the Android back gesture) resolves the dialog as its Escape does. They have the look of a Figma-like UI, a dark mode and CSS variables (`--dialog-*`) for an app's theme.
 - `ObjectPicker.setSelected` of a list switches the selection mode as its first item does (a list of objects after a material: object mode again), as a single item does
@@ -129,6 +146,7 @@ An app that installs the release candidate pins `three` and `@types/three` to th
 
 ### Fixed
 
+- `PointLight2.power` and `RectAreaLight2.power` are three.js's accessors (the luminous power from the intensity). The classes declared `power` as a property with `@onChange3`, which kept its own value: `power` read `undefined` and the Power slider changed nothing
 - `AnisotropyPlugin` (webgi-plugins): the anisotropic lobe passes its dot products to three.js's `D_GGX_Anisotropic( alphaT, alphaB, dotNH, dotTH, dotBH )` in that order; it passed them in Filament's order (`dotTH, dotBH, dotNH`), so the distribution of the direct light used the wrong angles. Anisotropic highlights look different
 - EXR files load as half float on devices without float render targets: `getTextureDataType()` gives `UnsignedByteType` there, which `EXRLoader` does not decode (it only outputs half or full float)
 - `ViewOverridesPlugin` linear depth view with three.js r179 and later: the patch now replaces every `fragCoordZ` declaration of the depth shader (r179 has one for the reversed depth buffer and one for the normal one, and changed the spacing the old patch matched)

@@ -4,9 +4,9 @@ All notable changes to this plugin will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [0.3.0-r182.1] - 2026-11-27
+## [0.3.0-r187.1] - 2026-11-27
 
-Release candidate of the three.js r182 upgrade lane, under the npm dist-tag `three-r182`, for threepipe 0.7.0-r182.1: the changes listed under [Unreleased] below. Its peer range is `threepipe >=0.7.0-r182.1`: `VOXLoadPlugin` needs the `VOXLoader` of three.js r182 that threepipe 0.7.0-r182.1 brings.
+Release candidate of the three.js r187 upgrade lane, under the npm dist-tag `three-r187`, for threepipe 0.7.0-r187.1: the changes listed under [Unreleased] below. Its peer range is `threepipe >=0.7.0-r187.1`: `VOXLoadPlugin` needs the `VOXLoader` of three.js r182 or later, which threepipe 0.7.0-r187.1 brings.
 
 ## [Unreleased]
 

@@ -1,9 +1,9 @@
 {
     "name": "@threepipe/plugin-tweakpane",
     "description": "Tweakpane UI Plugin for ThreePipe",
-    "version": "0.11.0-r182.1",
+    "version": "0.11.0-r187.1",
     "publishConfig": {
-        "tag": "three-r182"
+        "tag": "three-r187"
     },
     "devDependencies": {
         "@threepipe/tweakpane-image-plugin": "^1.1.406",
@@ -16,7 +16,7 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": ">=0.4.0 || >=0.7.0-r182.1",
+        "threepipe": ">=0.4.0 || >=0.7.0-r187.1",
         "uiconfig-tweakpane": "^2.1.0"
     },
     "exports": {
