@@ -128,25 +128,13 @@ export class AnisotropyPlugin extends AViewerPluginSync {
             lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
                 'vec3 BRDF_GGX( const in vec3 lightDir, const in vec3 viewDir, const in vec3 normal, const in PhysicalMaterial material ) {',
                 anisotropyBsdf + '\n', {prepend: true})
-            const multiscatterCall = 'BRDF_GGX_Multiscatter( directLight.direction, geometryViewDir, geometryNormal, material )'
-            if (lights_physical_pars_fragment.includes(multiscatterCall)) {
-                // three.js r181 (#32072): RE_Direct_Physical calls BRDF_GGX_Multiscatter, which adds multiple-scattering
-                // energy compensation to BRDF_GGX. The anisotropic lobe becomes its single-scattering term, with the F0
-                // that three.js r182 (#32190) mixes with the base color by metalness, specularColorBlended (as BRDF_GGX).
-                lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
-                    'vec3 BRDF_GGX_Multiscatter( const in vec3 lightDir, const in vec3 viewDir, const in vec3 normal, const in PhysicalMaterial material ) {',
-                    'vec3 BRDF_GGX_Multiscatter( const in vec3 lightDir, const in vec3 viewDir, const in vec3 normal, const in PhysicalMaterial material, const in vec3 anisotropicT, const in vec3 anisotropicB ) {')
-                lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
-                    'vec3 singleScatter = BRDF_GGX( lightDir, viewDir, normal, material );',
-                    'vec3 singleScatter = BRDF_GGX_Anisotropy( lightDir, viewDir, normal, material.specularColorBlended, material.specularF90, material.roughness, anisotropicT, anisotropicB );')
-                lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
-                    multiscatterCall,
-                    'BRDF_GGX_Multiscatter( directLight.direction, geometryViewDir, geometryNormal, material, anisotropicT, anisotropicB )')
-            } else {
-                lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
-                    'BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material )',
-                    'BRDF_GGX_Anisotropy( directLight.direction, geometryViewDir, geometryNormal, material.specularColor, material.specularF90, material.roughness, anisotropicT, anisotropicB )')
-            }
+            // three.js r186 (#34046): RE_Direct_Physical calls BRDF_GGX and scales it by material.multiScatteringCompensation
+            // (computed once in lights_fragment_begin) in place of BRDF_GGX_Multiscatter (r181, #32072). The anisotropic lobe
+            // takes the place of that BRDF_GGX call, with the F0 that BRDF_GGX uses, specularColorBlended (r182, #32190).
+            // The retroreflection lobe (r186, USE_RETROREFLECTION) stays isotropic.
+            lights_physical_pars_fragment = shaderReplaceString(lights_physical_pars_fragment,
+                'vec3 specularBRDF = BRDF_GGX( directLight.direction, geometryViewDir, geometryNormal, material );',
+                'vec3 specularBRDF = BRDF_GGX_Anisotropy( directLight.direction, geometryViewDir, geometryNormal, material.specularColorBlended, material.specularF90, material.roughness, anisotropicT, anisotropicB );')
 
             shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#include <lights_physical_pars_fragment>', lights_physical_pars_fragment)
 
