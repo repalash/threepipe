@@ -3,7 +3,7 @@
  * pixels of a 2x1 normal map.
  */
 import {afterEach, beforeAll, describe, expect, it} from 'vitest'
-import {BoxGeometry, CompressedTexture, Mesh, MeshStandardMaterial, Texture, Vector2} from 'three'
+import {BoxGeometry, CompressedTexture, Mesh, MeshStandardMaterial, Texture, Vector2, WebGLRenderTarget} from 'three'
 
 let tp: typeof import('threepipe')
 beforeAll(async() => {
@@ -63,7 +63,7 @@ describe('bakeNormalScaleSign', () => {
         expect(m.normalScale.toArray()).toEqual([1, 1])
     })
 
-    it('changes nothing for a glTF map, or a compressed one', () => {
+    it('changes nothing for a glTF map, a compressed one or a render target texture', () => {
         stubCanvas()
         const m = material([1, -1])
         const map = m.normalMap
@@ -72,6 +72,8 @@ describe('bakeNormalScaleSign', () => {
         const c = new MeshStandardMaterial({normalMap: new CompressedTexture([], 2, 1), normalScale: new Vector2(1, 1)})
         expect(tp.bakeNormalScaleSign(c)).toBe(false)
         expect(c.normalScale.toArray()).toEqual([1, 1])
+        const rt = new MeshStandardMaterial({normalMap: new WebGLRenderTarget(2, 1).texture, normalScale: new Vector2(1, 1)})
+        expect(tp.bakeNormalScaleSign(rt)).toBe(false)
         expect(written).toBeUndefined()
     })
 })
