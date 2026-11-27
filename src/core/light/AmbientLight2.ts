@@ -17,6 +17,7 @@ import {UiTags} from '../../ui/uiconfig'
  */
 export class AmbientLight2 extends AmbientLight implements ILight<undefined> {
     assetType = 'light' as const
+    declare readonly isLight: true // three.js r183 types it as boolean
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
     uiConfig: UiObjectConfig = {

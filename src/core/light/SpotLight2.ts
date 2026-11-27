@@ -18,6 +18,7 @@ import {UiTags} from '../../ui/uiconfig'
  */
 export class SpotLight2 extends SpotLight implements ILight<SpotLightShadow> {
     assetType = 'light' as const
+    declare readonly isLight: true // three.js r183 types it as boolean
     setDirty = iLightCommons.setDirty
     refreshUi = iLightCommons.refreshUi
     uiConfig: UiObjectConfig = {

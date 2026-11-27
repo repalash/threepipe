@@ -16,6 +16,7 @@ import {UiTags} from '../../ui/uiconfig'
 // todo: maybe change domElement to some wrapper/base class of viewer
 export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> extends OrthographicCamera<TE&ICameraEventMap> implements ICamera<TE&ICameraEventMap> {
     assetType = 'camera' as const
+    declare readonly isCamera: true // three.js r183 types it as boolean
     get controls(): ICameraControls | undefined {
         return this._controls
     }

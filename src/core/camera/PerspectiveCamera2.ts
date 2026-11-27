@@ -26,6 +26,7 @@ import {UiTags} from '../../ui/uiconfig'
  */
 export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> extends PerspectiveCamera<TE&ICameraEventMap> implements ICamera<TE&ICameraEventMap> {
     assetType = 'camera' as const
+    declare readonly isCamera: true // three.js r183 types it as boolean
     get controls(): ICameraControls | undefined {
         return this._controls
     }

@@ -39,6 +39,8 @@ import {iCameraCommons} from './iCameraCommons'
 @uiFolderContainer('Root Scene')
 export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene<TE&ISceneEventMap> implements IScene<TE> {
     readonly isRootScene = true
+    declare readonly isScene: true // three.js r183 types these as boolean and string
+    declare readonly type: 'Scene'
 
     assetType = 'model' as const
     declare uiConfig: UiObjectConfig
