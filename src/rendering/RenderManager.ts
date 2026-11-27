@@ -8,6 +8,7 @@ import {
     FloatType,
     HalfFloatType,
     IUniform,
+    Light,
     NoBlending,
     NoColorSpace,
     NormalBlending,
@@ -93,6 +94,132 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     private _shadowMapTypeChanged() {
         this.resetShadows()
         this.reset()
+    }
+
+    /**
+     * How many shadow maps a lit material may sample. Every shadow-casting point, spot or directional light adds a shadow
+     * map to the shader of every lit material (a spot light with a `map` adds two), and a GPU allows only
+     * `renderer.capabilities.maxTextures` textures per shader: 16 on Apple GPUs, 32 on most others. Past that, no
+     * shader compiles and nothing is drawn (an imported Blender scene with 16 shadow-casting lights, for example).
+     *
+     * Only visible lights count. Lights over the budget don't cast shadows while rendering: directional lights first, then point and spot lights by
+     * intensity, keep their shadows. Their `castShadow` is left as it is in the scene, the UI and exports; it's only
+     * turned off during {@link render}. A warning names the lights that lose their shadows.
+     *
+     * Lights with the same `shadowGroup` object are one light drawn with several shadow maps (`CascadedShadowsPlugin`'s
+     * cascades): they keep or lose their shadows together, and when they lose them only the first of the group is lit
+     * during the render, so the light still counts once.
+     *
+     * `'auto'` (default): `maxTextures` minus {@link SHADOW_TEXTURE_RESERVE}, which leaves room for the maps of a material
+     * and the textures of the pipeline. A number sets it; `Infinity` turns the budget off.
+     */
+    get maxShadowMaps(): number | 'auto' {
+        return this._maxShadowMaps
+    }
+    set maxShadowMaps(value: number | 'auto') {
+        if (value === this._maxShadowMaps) return
+        this._maxShadowMaps = value
+        this._shadowBudgetDirty = true
+    }
+    private _maxShadowMaps: number | 'auto' = 'auto'
+
+    /**
+     * Textures per shader kept free for the maps of a material, the environment map and the pipeline's textures when
+     * {@link maxShadowMaps} is `'auto'`.
+     */
+    static SHADOW_TEXTURE_RESERVE = 10
+
+    private _shadowBudgetDirty = true
+    private _shadowBudgetLimit = -1
+    private _shadowBudgetOff: Light[] = []
+    private _shadowBudgetHidden: Light[] = [] // group members other than the first, when their group is off
+    private _renderDepth = 0 // render() can be called from a preRender/postRender listener; only the outer call toggles shadows
+
+    /**
+     * Recompute which lights cast shadows within {@link maxShadowMaps} before the next render. The viewer calls it when
+     * the scene changes or a light updates; call it after showing or hiding lights (or their parents), since only visible
+     * lights count.
+     */
+    shadowBudgetNeedsUpdate() {
+        this._shadowBudgetDirty = true
+    }
+
+    protected _refreshShadowBudget(scene: IScene) {
+        this._shadowBudgetDirty = false
+        const max = this.maxShadowMaps === 'auto' ?
+            Math.max(0, this._renderer.capabilities.maxTextures - RenderManager.SHADOW_TEXTURE_RESERVE) :
+            this.maxShadowMaps
+        const casting: Light[] = []
+        // visible lights only: three.js skips invisible ones (and their shadows)
+        scene.traverseVisible((o: any) => {
+            if (o.isLight && o.castShadow && o.shadow && (o.isDirectionalLight || o.isPointLight || o.isSpotLight)) casting.push(o)
+        })
+        // a light, or the lights of one shadowGroup (in scene order), taken or left as a whole
+        const units: Light[][] = []
+        const groups = new Map<object, Light[]>()
+        for (const l of casting) {
+            const group = (l as any).shadowGroup
+            if (!group) {
+                units.push([l])
+                continue
+            }
+            const unit = groups.get(group)
+            if (unit) unit.push(l)
+            else {
+                groups.set(group, [l])
+                units.push(groups.get(group)!)
+            }
+        }
+        const rank = (u: Light[]) => (u[0] as any).isDirectionalLight ? 1 : 0
+        units.sort((a, b) => rank(b) - rank(a) || b[0].intensity - a[0].intensity)
+        const off: Light[] = []
+        const hidden: Light[] = []
+        let used = 0
+        for (const unit of units) {
+            const cost = unit.reduce((c, l) => c + ((l as any).isSpotLight && (l as any).map ? 2 : 1), 0)
+            if (used + cost <= max) {
+                used += cost
+                continue
+            }
+            off.push(...unit)
+            hidden.push(...unit.slice(1))
+        }
+        const changed = off.length !== this._shadowBudgetOff.length || off.some((l, i) => l !== this._shadowBudgetOff[i]) || max !== this._shadowBudgetLimit
+        this._shadowBudgetOff = off
+        this._shadowBudgetHidden = hidden
+        this._shadowBudgetLimit = max
+        if (!changed) return
+        // shadow maps are rendered only when asked (shadowMap.autoUpdate is off): lights that get their shadows back
+        // need new ones
+        this.resetShadows()
+        if (off.length) {
+            console.warn(`RenderManager: ${casting.length} lights cast shadows, but a shader here can sample only ${max} shadow maps ` +
+                `(maxShadowMaps, ${this._renderer.capabilities.maxTextures} textures per shader on this GPU). ` +
+                `No shadows from the ${off.length} dimmest: ${off.map(l => l.name || l.type).join(', ')}`)
+        }
+    }
+
+    private _reportedPrograms = new WeakSet<object>()
+
+    // after a frame: report programs that failed to compile or link (three.js logs them and leaves the objects undrawn).
+    // All programs are checked (a few dozen): a failing one can replace another and keep the count the same.
+    private _checkShaderErrors() {
+        const programs = this._renderer.info.programs
+        if (!programs) return
+        for (const program of programs) {
+            const diagnostics = (program as any).diagnostics
+            if (!diagnostics || diagnostics.runnable !== false || this._reportedPrograms.has(program)) continue
+            this._reportedPrograms.add(program)
+            const programLog: string = diagnostics.programLog || ''
+            this.dispatchEvent({
+                type: 'shaderError',
+                materialName: (program as any).name || '',
+                programLog,
+                fragmentLog: diagnostics.fragmentShader?.log || '',
+                vertexLog: diagnostics.vertexShader?.log || '',
+                tooManyTextures: /texture image units|exceeds MAX_TEXTURE_IMAGE_UNITS/i.test(programLog + (diagnostics.fragmentShader?.log || '')),
+            } as any)
+        }
     }
 
     @uiConfig(undefined, {label: 'Passes', tags: [UiTags.Advanced], order: 1000})
@@ -285,10 +412,23 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
             if (pass.enabled && pass.beforeRender) pass.beforeRender(scene, scene.renderCamera, this)
         }
         this._composer.renderToScreen = renderToScreen ?? this.defaultRenderToScreen
-        this.dispatchEvent({type: 'preRender', scene, renderToScreen: this._composer.renderToScreen})
-        this._composer.render()
-        this.dispatchEvent({type: 'postRender', scene, renderToScreen: this._composer.renderToScreen})
+        if (this._shadowBudgetDirty && this._renderDepth === 0) this._refreshShadowBudget(scene)
+        const shadowOff = this._renderDepth === 0 ? this._shadowBudgetOff : []
+        const hidden = this._renderDepth === 0 ? this._shadowBudgetHidden : []
+        for (const l of shadowOff) setQuietly(l, 'castShadow', false) // only while rendering, see maxShadowMaps
+        for (const l of hidden) setQuietly(l, 'visible', false)
+        this._renderDepth++
+        try {
+            this.dispatchEvent({type: 'preRender', scene, renderToScreen: this._composer.renderToScreen})
+            this._composer.render()
+            this.dispatchEvent({type: 'postRender', scene, renderToScreen: this._composer.renderToScreen})
+        } finally {
+            this._renderDepth--
+            for (const l of shadowOff) setQuietly(l, 'castShadow', true)
+            for (const l of hidden) setQuietly(l, 'visible', true)
+        }
         this._composer.renderToScreen = true
+        this._checkShaderErrors()
         if (renderToScreen) {
             this.incRenderToScreen()
         }
@@ -841,4 +981,15 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         this.renderScale = value
     }
 
+}
+
+/**
+ * Sets `castShadow` or `visible` for the shadow budget without side effects. On threepipe's lights `castShadow` is an
+ * `@onChange3('setDirty')` accessor, and calling `setDirty` on every render would mark the scene dirty, reset progressive
+ * rendering and recompute the budget each frame; so the value is set where such an accessor keeps it (`_oc_<key>`,
+ * ts-browser-helpers' `onChange`). Otherwise it's a plain property.
+ */
+function setQuietly(light: Light, key: 'castShadow' | 'visible', value: boolean) {
+    if ('_oc_' + key in light) (light as any)['_oc_' + key] = value
+    else light[key] = value
 }
