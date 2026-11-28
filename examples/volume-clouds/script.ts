@@ -1,12 +1,12 @@
 import {
     _testFinish,
     _testStart,
-    Color,
+    AgXToneMapping,
     DirectionalLight2,
-    HemisphereLight,
     LoadingScreenPlugin,
     ProgressivePlugin,
     ThreeViewer,
+    TonemapPlugin,
     UiObjectConfig,
 } from 'threepipe'
 import {generateVolume, VolumeObject, VolumePlugin} from '@threepipe/plugin-volume'
@@ -15,98 +15,121 @@ import {createExampleCard} from '../examples-utils/example-card.js'
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: false,
-    renderScale: 'auto',
+    // heavy for the software renderer of the screenshot tests
+    renderScale: window.TESTING ? 0.5 : 'auto',
     plugins: [LoadingScreenPlugin, ProgressivePlugin, VolumePlugin],
 })
 
-// Cumulus clouds: a coverage map from fractal noise sets where clouds are and how tall they grow; each is a dome on a
-// flat base, with puffs from cellular (Worley) noise on its surface. The same noise scale on every axis, though the
-// box is lower than it is wide.
+// Cumulus clouds as a distance field: clusters of puffs (spheres joined smoothly) rising from a flat base, with
+// billows (cellular noise) pushing their surface out at two scales. The same scale on every axis, though the box is
+// lower than it is wide.
 const cloudsGLSL = /* glsl */`
+float smin(float a, float b, float k) {
+    float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+    return mix(b, a, h) - k * h * (1.0 - h);
+}
+float cloudSdf(vec3 q) {
+    float d = 1e3;
+    for (int j = 0; j < 3; j++) for (int i = 0; i < 3; i++) {
+        vec3 cell = vec3(float(i), 0.0, float(j));
+        vec3 h = volHash3(cell * 7.31 + 3.7);
+        if (h.z < 0.25) continue;
+        vec2 c = 0.2 + 0.6 * (vec2(float(i), float(j)) + 0.2 + 0.6 * h.xy) / 3.0;
+        float s = 0.035 + 0.04 * h.z;
+        for (int k = 0; k < 5; k++) {
+            vec3 r = volHash3(cell * 3.1 + float(k) * 11.7);
+            float rad = s * (0.55 + 0.6 * r.z) * (k == 0 ? 1.35 : 1.0);
+            vec3 pc = vec3(c.x + (r.x - 0.5) * s * 3.0, 0.1 + rad * (k == 0 ? 1.0 : 0.7), c.y + (r.y - 0.5) * s * 3.0);
+            d = smin(d, length(q - pc) - rad, 0.05);
+        }
+    }
+    return max(d, 0.1 - q.y); // flat base
+}
 float density(vec3 p) {
-    float h = p.y;
-    vec3 q = vec3(p.x, h * 112.0 / 256.0, p.z);
-    float coverage = smoothstep(0.36, 0.62, volFbm(vec3(p.xz * 2.2, 0.0), 5));
-    coverage *= smoothstep(0.5, 0.3, length(p.xz - 0.5)); // a round patch of sky, so the box corners never show
-    float base = 0.1;
-    float puffs = 1.0 - volWorley(q * 10.0);
-    float puffs2 = 1.0 - volWorley(q * 23.0);
-    float top = base - 0.12 + 0.9 * sqrt(coverage) + 0.14 * (puffs - 0.5) + 0.06 * (puffs2 - 0.5);
-    float inside = min(top - h, (h - base + 0.03 * (puffs2 - 0.5)) * 2.0);
-    return smoothstep(0.0, 0.05, inside) * (0.75 + 0.25 * puffs);
+    vec3 q = vec3(p.x, p.y * 112.0 / 256.0, p.z);
+    float d = cloudSdf(q);
+    if (d > 0.08) return 0.0;
+    float b1 = 1.0 - volWorley(q * 22.0);
+    float b2 = 1.0 - volWorley(q * 50.0);
+    d -= 0.035 * b1 + 0.015 * b2 - 0.02;
+    return smoothstep(0.012, -0.01, d) * (0.85 + 0.15 * b2);
 }
 `
 
-const state = {timeOfDay: 0.62, turn: 35, rotate: false, shadows: true}
+// sky HDRIs from Poly Haven (CC0), hosted on threepipe cloud; the sun takes the colour of the light in each
+const skies: Record<string, {url: string, sun: string, intensity: number}> = {
+    'Day': {url: 'qwantani_puresky', sun: '#fff1de', intensity: 16},
+    'Sunset': {url: 'belfast_sunset_puresky', sun: '#ffb27a', intensity: 14},
+    'Dawn': {url: 'kloppenheim_06_puresky', sun: '#ffc9a0', intensity: 12},
+}
+
+const state = {sky: 'Day', turn: 70, height: 25, shadows: true, rotate: !window.TESTING}
 let clouds: VolumeObject
 let sun: DirectionalLight2
-let sky: HemisphereLight
 
-const noon = new Color('#fffaf0')
-const dusk = new Color('#ffb070')
-const skyNoon = new Color('#5d8fd8')
-const skyDusk = new Color('#3b3f6b')
-
-function applyTime() {
-    // elevation from the horizon (0) to high noon (1); the sun turns around the deck with Turn
-    const e = state.timeOfDay * Math.PI * 0.45 + 0.04
-    const a = state.turn * Math.PI / 180
+function applySun() {
+    const a = state.turn * Math.PI / 180, e = state.height * Math.PI / 180
     sun.position.set(Math.cos(e) * Math.sin(a), Math.sin(e), Math.cos(e) * Math.cos(a)).multiplyScalar(4)
     sun.lookAt(0, 0, 0)
-    const t = Math.min(1, state.timeOfDay * 1.6)
-    sun.color.copy(dusk).lerp(noon, t)
-    sun.intensity = 3 + 3 * t
     sun.setDirty()
-    sky.color.copy(skyDusk).lerp(skyNoon, t)
-    sky.groundColor.set('#30343c').lerp(new Color('#8a8f98'), t)
-    sky.intensity = 1 + 1.6 * t
-    viewer.scene.setBackgroundColor(new Color('#1c1d33').lerp(new Color('#7fb0ea'), t))
     clouds.material.shadows = state.shadows
     viewer.setDirty()
 }
 
+async function applySky() {
+    const sky = skies[state.sky]
+    await viewer.setEnvironmentMap(`https://files.threepipe.org/p/volume-samples/sky/${sky.url}_2k.hdr`, {setBackground: true})
+    sun.color.set(sky.sun)
+    sun.intensity = sky.intensity
+    applySun()
+}
+
 async function init() {
-    sun = new DirectionalLight2('#ffffff', 4)
+    viewer.getPlugin(TonemapPlugin)!.toneMapping = AgXToneMapping
+    // the sky lights the clouds a little: the sun does most, as outside
+    viewer.scene.environmentIntensity = 0.18
+
+    sun = new DirectionalLight2('#ffffff', 16)
     sun.castShadow = true // the clouds shadow themselves from this light
     viewer.scene.addObject(sun)
-    sky = new HemisphereLight('#5d8fd8', '#8a8f98', 1)
-    viewer.scene.addObject(sky)
 
     const data = generateVolume(viewer.renderManager.webglRenderer, {size: [256, 112, 256], glsl: cloudsGLSL, name: 'clouds', units: 'm'})
-    clouds = new VolumeObject(data, {unitScale: 4 / 256}) // a 4 x 1.75 x 4 deck
+    clouds = new VolumeObject(data, {unitScale: 4 / 256}) // a 4 x 1.75 x 4 box
     viewer.scene.addObject(clouds)
     const m = clouds.material
     m.range.set(0, 255)
     m.transferFunction.colorPoints = [[0, 1, 1, 1], [1, 1, 1, 1]]
-    m.transferFunction.opacityPoints = [[0, 0], [0.04, 0], [0.3, 0.15], [1, 0.5]]
+    m.transferFunction.opacityPoints = [[0, 0], [0.04, 0], [0.3, 0.2], [1, 0.6]]
     m.transferFunction.setDirty()
     m.density = 2.5
-    m.shading = 'hybrid' // lit like a surface where the cloud is dense, scattering in its soft edges
-    m.gradientFactor = 20
-    m.anisotropy = 0.35 // forward scattering: brighter toward the sun
+    m.shading = 'volume'
+    m.anisotropy = 0.55 // forward scattering: bright edges toward the sun
+    m.multipleScattering = 0.35 // light scattered many times inside: soft, bright clouds
     m.ambientOcclusion = true
     m.aoRadius = 12
-    m.samplingRate = 1.2
+    m.lightingResolution = 1
+    m.samplingRate = 1.5
+    m.interactiveSamplingRate = 1
 
-    viewer.scene.mainCamera.position.set(-2.7, 1.2, 2.9)
-    viewer.scene.mainCamera.target.set(0, -0.35, 0)
-    viewer.scene.mainCamera.setDirty()
-    applyTime()
+    await applySky()
 
-    viewer.addEventListener('preFrame', (e: any) => {
-        if (!state.rotate) return
-        state.turn = (state.turn + (e.deltaTime ?? 16) * 0.006) % 360
-        applyTime()
-    })
+    const camera = viewer.scene.mainCamera
+    camera.position.set(-2.7, 0.6, 2.9)
+    camera.target.set(0, -0.1, 0)
+    camera.setDirty()
+    const controls = camera.controls as any
+    controls.autoRotate = state.rotate
+    controls.autoRotateSpeed = 0.4
 
     const actions: UiObjectConfig[] = [
-        {type: 'slider', label: 'Time of day', property: [state, 'timeOfDay'], bounds: [0, 1], stepSize: 0.01, onChange: applyTime},
-        {type: 'slider', label: 'Sun direction', property: [state, 'turn'], bounds: [0, 360], stepSize: 1, onChange: applyTime},
-        {type: 'checkbox', label: 'Sun moves', icon: 'sun', property: [state, 'rotate']},
-        {type: 'checkbox', label: 'Self shadows', property: [state, 'shadows'], onChange: applyTime},
+        {type: 'dropdown', label: 'Sky', property: [state, 'sky'], children: Object.keys(skies).map(label => ({label})), onChange: applySky},
+        {type: 'slider', label: 'Sun direction', property: [state, 'turn'], bounds: [-180, 180], stepSize: 1, onChange: applySun},
+        {type: 'slider', label: 'Sun height', property: [state, 'height'], bounds: [3, 85], stepSize: 1, onChange: applySun},
+        {type: 'checkbox', label: 'Self shadows', property: [state, 'shadows'], onChange: applySun},
+        {type: 'checkbox', label: 'Turn', icon: 'rotate-3d', property: [state, 'rotate'], onChange: () => controls.autoRotate = state.rotate},
     ]
     createExampleCard(viewer, {
-        description: 'Cumulus clouds made on the GPU from noise in a quarter of a second, lit by the sun and the sky, shadowing themselves. Move the sun through the day, or let it move.',
+        description: 'Cumulus clouds made on the GPU from a distance field and cellular noise, in front of an HDR sky: forward and multiple scattering, self shadows from the sun. Change the sky, or move the sun.',
         actions,
     })
 }

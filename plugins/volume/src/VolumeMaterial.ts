@@ -380,6 +380,22 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     @serialize() anisotropy = 0
 
     /**
+     * Volume shading: light scattered more than once, as in clouds (approximated by octaves, Wrenninge 2015). 0 is
+     * single scattering; about 0.5 makes dense media bright and soft, and lights their shadowed parts. At most 0.5
+     * keeps the energy right.
+     */
+    @uiSlider('Multiple Scattering', [0, 1], 0.01)
+    @onChange(VolumeMaterial.prototype._definesChanged) // the uniform carries the value, the define turns the octaves on
+    @serialize() multipleScattering = 0
+
+    /**
+     * Scale of the colour in every mode. Unlit (`shading: 'none'`), the transfer function colour is emitted light, and
+     * above 1 it glows with `BloomPlugin`; lit, it scales the shaded result.
+     */
+    @uiSlider('Intensity', [0, 20], 0.01)
+    @serialize() intensity = 1
+
+    /**
      * Surface shading: roughness of the GGX highlight.
      */
     @uiSlider('Roughness', [0, 1], 0.01)
@@ -498,6 +514,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
                 uGradientFactor: {value: 20},
                 uAnisotropy: {value: 0},
                 uRoughness: {value: 0.5},
+                uMultipleScattering: {value: 0},
+                uIntensity: {value: 1},
                 uSpecular: {value: 1},
                 uLightMap: {value: null},
                 uLightReady: {value: 0},
@@ -612,6 +630,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
             this.needsUpdate = true
         }
         set('VOL_SHADOWS', shading > 0 && this.shadows)
+        // compiled in only when used: the octaves cost three more phase functions per light and sample
+        set('VOL_MULTIPLE_SCATTERING', shading > 0 && this.multipleScattering > 0)
         set('VOL_AO', shading > 0 && this.ambientOcclusion)
         set('VOL_GRADIENT_MAP', this.gradientTexture)
         set('VOL_DEBUG_STEPS', this.debugSteps)
@@ -889,6 +909,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         u.uGradientFactor.value = this.gradientFactor
         u.uAnisotropy.value = this.anisotropy
         u.uRoughness.value = this.roughness
+        u.uMultipleScattering.value = this.multipleScattering
+        u.uIntensity.value = this.intensity
         u.uSpecular.value = this.specular
         const lv = this._lightVolumes.get(object as IObject3D)
         if (this._usesShadows() && this._shadowLightType && lv?.texture) {
@@ -1049,6 +1071,18 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this.gradientTexture = source.gradientTexture
         this.sourceField = source.sourceField
         this.opacityUnitDistance = source.opacityUnitDistance
+        this.sampling = source.sampling
+        this.shading = source.shading
+        this.gradientFactor = source.gradientFactor
+        this.anisotropy = source.anisotropy
+        this.multipleScattering = source.multipleScattering
+        this.intensity = source.intensity
+        this.roughness = source.roughness
+        this.specular = source.specular
+        this.shadows = source.shadows
+        this.ambientOcclusion = source.ambientOcclusion
+        this.aoRadius = source.aoRadius
+        this.lightingResolution = source.lightingResolution
         source.effectiveRange() // notices a range changed in place
         this._rangeSet = source._rangeSet
         this._autoRange = [source._autoRange[0], source._autoRange[1]]

@@ -418,3 +418,37 @@ describe('field lifetime', () => {
         m.dispose()
     })
 })
+
+describe('material settings', () => {
+    test('clone copies the lighting and the new colour settings', () => {
+        const m = new VolumeMaterial()
+        m.shading = 'hybrid'
+        m.anisotropy = 0.4
+        m.multipleScattering = 0.5
+        m.intensity = 3
+        m.shadows = true
+        m.ambientOcclusion = true
+        m.aoRadius = 12
+        m.sampling = 'cubic'
+        m.roughness = 0.2
+        const c = m.clone()
+        expect([c.shading, c.anisotropy, c.multipleScattering, c.intensity, c.shadows, c.ambientOcclusion, c.aoRadius, c.sampling, c.roughness])
+            .toEqual(['hybrid', 0.4, 0.5, 3, true, true, 12, 'cubic', 0.2])
+        m.dispose()
+        c.dispose()
+    })
+})
+
+describe('multiple scattering', () => {
+    test('the octaves are compiled in only when used with lighting', () => {
+        const m = new VolumeMaterial()
+        expect(m.defines.VOL_MULTIPLE_SCATTERING).toBeUndefined()
+        m.multipleScattering = 0.5
+        expect(m.defines.VOL_MULTIPLE_SCATTERING).toBeUndefined() // unlit
+        m.shading = 'volume'
+        expect(m.defines.VOL_MULTIPLE_SCATTERING).toBe(1)
+        m.multipleScattering = 0
+        expect(m.defines.VOL_MULTIPLE_SCATTERING).toBeUndefined()
+        m.dispose()
+    })
+})

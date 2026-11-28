@@ -7,8 +7,11 @@ import {
     ProgressivePlugin,
     SSAOPlugin,
     ThreeViewer,
+    AgXToneMapping,
+    TonemapPlugin,
     UiObjectConfig,
 } from 'threepipe'
+import {BloomPlugin} from '@threepipe/webgi-plugins'
 import {generateVolume, VolumeObject, VolumePlugin} from '@threepipe/plugin-volume'
 import {createExampleCard} from '../examples-utils/example-card.js'
 
@@ -16,9 +19,9 @@ const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: false,
     // tricubic sampling, shadows and SSAO are slow on the software renderer of the screenshot tests
-    renderScale: window.TESTING ? 0.5 : 'auto',
+    renderScale: window.TESTING ? 0.25 : 'auto',
     // the isosurface goes into the G-buffer, so SSAO darkens its creases like a mesh
-    plugins: [LoadingScreenPlugin, ProgressivePlugin, VolumePlugin, GBufferPlugin, SSAOPlugin],
+    plugins: [LoadingScreenPlugin, ProgressivePlugin, VolumePlugin, GBufferPlugin, SSAOPlugin, BloomPlugin],
 })
 
 // The Mandelbulb: points c whose orbit under z -> z^power + c (in spherical coordinates) stays bounded. Inside is 1;
@@ -45,7 +48,7 @@ float density(vec3 p) {
 }
 `
 
-const state = {power: 8, look: 'surface' as 'surface' | 'ice', rotate: !window.TESTING, lightAngle: 50}
+const state = {power: 8, look: 'surface' as 'surface' | 'ice', rotate: !window.TESTING, lightAngle: 12}
 let bulb: VolumeObject
 let key: DirectionalLight2
 let powerTimer: ReturnType<typeof setTimeout> | undefined
@@ -80,7 +83,7 @@ function applyLook() {
         m.isoValue = 0.5
         m.shading = 'surface'
         m.shadows = true
-        tf.colorPoints = [[0, 0.55, 0.36, 0.2], [1, 0.55, 0.36, 0.2]]
+        tf.colorPoints = [[0, 0.8, 0.5, 0.2], [1, 0.8, 0.5, 0.2]]
     } else {
         // only a thin shell at the surface is opaque, so the layers behind show through it
         m.mode = 'composite'
@@ -91,7 +94,7 @@ function applyLook() {
     }
     tf.setDirty()
     const a = state.lightAngle * Math.PI / 180
-    key.position.set(Math.cos(a) * 3, 2.5, Math.sin(a) * 3)
+    key.position.set(Math.cos(a) * 3, 2.2, Math.sin(a) * 3)
     key.lookAt(0, 0, 0)
     key.setDirty()
     viewer.setDirty()
@@ -100,22 +103,32 @@ function applyLook() {
 async function init() {
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/studio_small_06_1k.hdr', {setBackground: false})
     viewer.scene.setBackgroundColor('#0d0e12')
-    viewer.scene.envMapIntensity = 0.35
-    key = new DirectionalLight2('#fff4e6', 3)
+    viewer.scene.environmentIntensity = 0.15 // a dark fill: the key and the rim light shape it
+    viewer.getPlugin(TonemapPlugin)!.toneMapping = AgXToneMapping
+    const bloom = viewer.getPlugin(BloomPlugin)!
+    bloom.pass!.threshold = 1
+    bloom.pass!.intensity = 0.15
+    key = new DirectionalLight2('#fff4e6', 7)
     key.castShadow = true // the bulb shadows itself from this light
     viewer.scene.addObject(key)
+    // a cool rim light from behind
+    const rim = new DirectionalLight2('#8fb8ff', 5)
+    rim.position.set(-2, 1.5, -3)
+    rim.lookAt(0, 0, 0)
+    viewer.scene.addObject(rim)
 
     makeBulb()
     const m = bulb.material
     m.sampling = 'cubic' // smooth surface and normals from 256³ voxels
-    m.roughness = 0.3
+    m.roughness = 0.25
+    m.specular = 1.2
     m.ambientOcclusion = true
     m.aoRadius = 6
     m.samplingRate = 1.5
     m.lightingResolution = 0.5
     applyLook()
 
-    viewer.scene.mainCamera.position.set(1.8, 1.0, 2.2)
+    viewer.scene.mainCamera.position.set(1.3, 0.7, 1.7)
     viewer.scene.mainCamera.target.set(0, 0, 0)
     viewer.scene.mainCamera.setDirty()
 
