@@ -114,13 +114,15 @@ void main() {
     float dtRate = 1.0 / (max(uSamplingRate, 1e-3) * voxelsPerUnit);
     // a ray longer than VOLUME_MAX_STEPS samples takes longer steps, so it still reaches the end
     float dt = max(dtRate, (bounds.y - bounds.x) / float(VOLUME_MAX_STEPS));
-    int steps = int(min(ceil((bounds.y - bounds.x) / dt), float(VOLUME_MAX_STEPS)));
     // opacity correction for the step actually taken (uOpacityExponent is for the sampling rate)
     float opacityExp = uOpacityExponent * dt / dtRate;
     vec3 startTex = (vOrigin + vDirection * bounds.x) / uBoxSize + 0.5;
     vec3 stepTex = dirTex * dt;
     float offset = uJitter > 0.5 ? volNoise(gl_FragCoord.xy) : 0.5;
-    vec3 uvw = startTex + stepTex * offset;
+    vec3 uvw = startTex + stepTex * offset; // sample k is at startTex + stepTex * (offset + k)
+    // the end of the ray in sample index; samples past it (outside the crop, a clip plane or an opaque mesh) are not read
+    float kEnd = (bounds.y - bounds.x) / dt - offset;
+    int steps = int(clamp(floor(kEnd) + 1.0, 0.0, float(VOLUME_MAX_STEPS)));
     vec3 dirN = normalize(dirTex);
 
     vec4 acc = vec4(0.0);
@@ -162,12 +164,15 @@ void main() {
     vec4 s = volClassify(sum / max(count, 1.0), uvw);
     acc = vec4(s.rgb * s.a, s.a);
 
-    #elif VOLUME_MODE == 4 // isosurface
+    #elif VOLUME_MODE == 4 // isosurface: the first crossing between a sample and the next one (or the end of the ray)
+    vec3 base = uvw;
     float prevV = volValue(uvw);
     bool hit = false;
     for (int i = 0; i < VOLUME_MAX_STEPS; i++) {
         if (i >= steps) break;
-        vec3 next = uvw + stepTex;
+        float kNext = min(float(i) + 1.0, kEnd);
+        if (kNext <= float(i)) break;
+        vec3 next = base + stepTex * kNext;
         float v = volValue(next);
         if ((prevV - uIsoValue) * (v - uIsoValue) <= 0.0 && v != prevV) {
             // refine between uvw and next by bisection
@@ -185,6 +190,7 @@ void main() {
         }
         prevV = v;
         uvw = next;
+        if (kNext >= kEnd) break;
     }
     if (!hit) discard;
     vec4 s = volClassify(uIsoValue, uvw);
