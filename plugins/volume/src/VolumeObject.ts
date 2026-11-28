@@ -135,6 +135,37 @@ export class VolumeObject extends Mesh2<IGeometry, VolumeMaterial> {
     }
 
     /**
+     * Copies the fields (shared, not duplicated: the data stays in memory once), the active field and the unit scale
+     * of another volume, with the mesh properties.
+     */
+    copy(source: this, recursive?: boolean): this {
+        super.copy(source, recursive)
+        if ((source as any)?.isVolumeObject && source !== this) {
+            for (const d of Object.values(this.fields)) d.events.removeEventListener('update', this._onFieldUpdate)
+            for (const k of Object.keys(this.fields)) delete this.fields[k]
+            this._activeField = ''
+            this.unitScale = source.unitScale
+            for (const d of Object.values(source.fields)) this.addField(d)
+            if (source.activeField) this.activeField = source.activeField
+            this.pendingFieldLinks = source.pendingFieldLinks.map(l => ({...l}))
+        }
+        return this
+    }
+
+    /**
+     * A copy with the same fields, active field and unit scale, and the same material (as three.js `Mesh.clone`).
+     */
+    clone(recursive?: boolean): this {
+        return new (this.constructor as typeof VolumeObject)(undefined, {material: this.material, unitScale: this.unitScale}).copy(this, recursive) as this
+    }
+
+    /**
+     * Fields of a saved volume that are still to be loaded from their files (all but the active one, which the asset
+     * manager loads). {@link VolumePlugin} loads them and adds them with their saved names.
+     */
+    pendingFieldLinks: VolumeFieldLink[] = []
+
+    /**
      * Copies settings from an object that was saved as a link to this volume's file. Called by the asset manager
      * when a saved scene loads the volume again from its `rootPath`.
      * @internal
@@ -147,6 +178,23 @@ export class VolumeObject extends Mesh2<IGeometry, VolumeMaterial> {
         const saved = obj.userData.__volumeSettings
         if (saved) {
             if (saved.unitScale) this.unitScale = saved.unitScale
+            // the file loaded again is the saved active field: give it its saved name and place in the file
+            const loaded = this.data
+            const link = saved.fields?.[saved.activeField]
+            if (loaded && saved.activeField && loaded.name !== saved.activeField) {
+                delete this.fields[loaded.name]
+                loaded.name = saved.activeField
+                this.fields[loaded.name] = loaded
+                this._activeField = loaded.name
+            }
+            if (loaded && link) {
+                loaded.fieldName = link.fieldName ?? ''
+                loaded.fieldIndex = link.fieldIndex ?? 0
+            }
+            // the other fields are loaded by VolumePlugin
+            this.pendingFieldLinks = Object.entries(saved.fields ?? {})
+                .filter(([name, l]: [string, any]) => !this.fields[name] && l?.filePath)
+                .map(([name, l]: [string, any]) => ({name, filePath: l.filePath, fieldName: l.fieldName, fieldIndex: l.fieldIndex}))
             if (saved.activeField && this.fields[saved.activeField]) this.activeField = saved.activeField
             if (saved.material) this.material.fromJSON(saved.material, undefined, true)
             this.refreshBox()
@@ -163,6 +211,16 @@ export class VolumeObject extends Mesh2<IGeometry, VolumeMaterial> {
 
     /** @internal */
     declare _rootPathRefreshed?: boolean
+}
+
+/**
+ * A field of a volume saved as a link to its file (USD `VolumeFieldAsset`).
+ */
+export interface VolumeFieldLink {
+    name: string
+    filePath: string
+    fieldName?: string
+    fieldIndex?: number
 }
 
 /**

@@ -199,14 +199,12 @@ void main() {
 
     if (bounds.x >= bounds.y) discard;
 
-    // texture space ray: sample k is at base + stepTex * k, for k from 0 to steps - 1
+    // texture space ray: sample k is at base + stepTex * k, for k from 0 to steps - 1 (up to kEnd, the end of the ray)
     vec3 dirTex = vDirection / uBoxSize;
     float voxelsPerUnit = length(dirTex * uVolumeSize); // voxels crossed per unit of t'
     float dtRate = 1.0 / (max(uSamplingRate, 1e-3) * voxelsPerUnit);
     // a ray longer than VOLUME_MAX_STEPS samples takes longer steps, so it still reaches the end
     float dt = max(dtRate, (bounds.y - bounds.x) / float(VOLUME_MAX_STEPS));
-    int steps = int(min(ceil((bounds.y - bounds.x) / dt), float(VOLUME_MAX_STEPS)));
-    float fsteps = float(steps);
     // opacity correction for the step actually taken (uOpacityExponent is for the sampling rate), in voxels of the
     // data: a downsampled texture has fewer, larger texels (uDataSize is the voxel count of the data)
     float opacityExp = uOpacityExponent * dt / dtRate * length(dirTex * uDataSize) / voxelsPerUnit;
@@ -215,6 +213,10 @@ void main() {
     float offset = uJitter > 0.5 ? volNoise(gl_FragCoord.xy) : 0.5;
     vec3 base = startTex + stepTex * offset;
     vec3 uvw = base;
+    // the end of the ray in sample index; samples past it (outside the crop, a clip plane or an opaque mesh) are not read
+    float kEnd = (bounds.y - bounds.x) / dt - offset;
+    int steps = int(clamp(floor(kEnd) + 1.0, 0.0, float(VOLUME_MAX_STEPS)));
+    float fsteps = float(steps);
     vec3 dirN = normalize(dirTex);
 
     // empty space skipping: only samples that add nothing are skipped, so the image is the same. Off with a custom
@@ -329,8 +331,11 @@ void main() {
             kCheck = max(k + 1.0, floor(volBlocksExit(blk, blk + 1.0, base, stepTex)));
         }
         #endif
+        // the next sample, or the end of the ray
+        float kNext = min(k + 1.0, kEnd);
+        if (kNext <= k) break;
         VOL_COUNT(nSamples)
-        vec3 next = uvw + stepTex;
+        vec3 next = base + stepTex * kNext;
         float v = volValue(next);
         if ((prevV - uIsoValue) * (v - uIsoValue) <= 0.0 && v != prevV) {
             // refine between uvw and next by bisection
@@ -347,6 +352,7 @@ void main() {
             break;
         }
         prevV = v;
+        if (kNext >= kEnd) break;
         k += 1.0;
     }
     #ifndef VOL_DEBUG_STEPS
