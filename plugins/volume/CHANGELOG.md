@@ -9,3 +9,4 @@ All notable changes to this plugin will be documented in this file.
 ### Added
 
 - First version: `VolumeObject`, `VolumeData` (extends three.js `Volume`), `VolumeMaterial` (composite, MIP, MinIP, average, isosurface and x-ray modes; replaceable shader hooks; clip planes and crop box; stops at opaque meshes with `GBufferPlugin`; jitter averaged by `ProgressivePlugin`; lower sampling rate while moving), `TransferFunction`, the VolView presets and colour maps, `VolumePlugin` (glTF saving as a link to the data file, `WEBGI_volume`), `NRRDLoadPlugin`. Example: `examples/volume-plugin`
+- Fields belong to the `VolumeObject`; `VolumeMaterial.sourceField` picks one by name (else the active field), so a material can be shared by volumes with different data. Opacity per distance (`opacityUnitDistance`), so anisotropic voxels look right from every side. `clipIntersection` clip planes

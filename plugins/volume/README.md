@@ -35,7 +35,7 @@ viewer.scene.addObject(new VolumeObject(data))
 
 | Class | What it is |
 | --- | --- |
-| `VolumeObject` | A volume in the scene: a three.js `BoxGeometry` mesh sized from the voxel count and spacing, with named fields (as a USD `UsdVolVolume`) and a `VolumeMaterial`. Move, select and dispose it like any mesh |
+| `VolumeObject` | A volume in the scene: a three.js `BoxGeometry` mesh sized from the voxel count and spacing, with named fields (as a USD `UsdVolVolume`) and a `VolumeMaterial`. The object owns its fields; the material shows `material.sourceField` (else the active field), so one material can be shared. Move, select, copy and dispose it like any mesh |
 | `VolumeData` | One field on a regular grid; extends three.js `Volume`, so `NRRDLoader` results and `VolumeSlice` work with it. Uploads as R8 (8-bit), R16F (default for everything else) or R32F |
 | `VolumeMaterial` | The ray march. Modes: composite, MIP, MinIP, average, isosurface, x-ray. Opacity corrected for the step length, jittered ray start that `ProgressivePlugin` averages, lower sampling rate while moving |
 | `TransferFunction` | Value to colour and opacity, as control points; baked into a lookup texture |
@@ -46,7 +46,8 @@ viewer.scene.addObject(new VolumeObject(data))
 ### Notes
 
 - **Depth**: add `GBufferPlugin` and rays stop at opaque meshes inside the volume. Without it, the volume box is depth tested as a whole.
-- **Clip planes**: set `material.clippingPlanes` (three.js planes); as for any three.js material they apply only with `viewer.renderManager.webglRenderer.localClippingEnabled = true`. The planes shorten the rays. `material.cropMin` and `cropMax` crop the box in texture coordinates.
+- **Opacity** is per distance: the transfer function opacity is for `material.opacityUnitDistance` in the units of the field (the smallest voxel spacing by default), and each step is corrected for its physical length, so data with thick slices looks the same from every side.
+- **Clip planes**: set `material.clippingPlanes` (three.js planes); as for any three.js material they apply only with `viewer.renderManager.webglRenderer.localClippingEnabled = true`. The planes shorten the rays; with `clipIntersection` a point is clipped only when all planes clip it. `material.cropMin` and `cropMax` crop the box in texture coordinates.
 - **Shader hooks**: the march calls `volSample`, `volClassify`, `volShade` and `volBlend`. A material extension replaces one by defining `VOL_CUSTOM_SAMPLE`, `VOL_CUSTOM_CLASSIFY`, `VOL_CUSTOM_SHADE` or `VOL_CUSTOM_BLEND` and the function in its `parsFragmentSnippet`. See `src/shaders/volume.frag.glsl`.
 - **Saving**: a volume is saved in a glb as a link to its data file (the `WEBGI_volume` node extension) with its material settings; the voxels are not embedded. A volume made in code has no file to link to, so only its box is saved.
 - **Transparency with rgbm**: with `rgbm: true` (the viewer default), transparent objects, volumes included, are blended with their opacity applied twice, which darkens faint parts (a known threepipe issue). `rgbm: false` gives the correct result.

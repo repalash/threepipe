@@ -21,7 +21,7 @@ import {Volume} from 'three/examples/jsm/misc/Volume.js'
  * - `r16f`: half float, 2 bytes per voxel, linear filtering on every WebGL2 device. Values are stored normalized to
  *   0..1 over the value range, so precision is about 1/2048 of the range.
  * - `r32f`: float, 4 bytes per voxel, exact. Linear filtering needs `OES_texture_float_linear`, which many phones
- *   do not have; the texture then falls back to nearest filtering.
+ *   do not have; there the texture is filtered nearest ({@link VolumeData.floatLinearFiltering}).
  */
 export type VolumeGpuFormat = 'auto' | 'r8' | 'r16f' | 'r32f'
 
@@ -107,6 +107,13 @@ export class VolumeData extends Volume {
 
     gpuFormat: VolumeGpuFormat = 'auto'
 
+    /**
+     * Whether the GPU filters float textures linearly (`OES_texture_float_linear`). Without it an `r32f` texture with
+     * linear filtering reads as 0, so it is filtered nearest. Set by the volume material from its renderer.
+     */
+    static floatLinearFiltering = true
+
+    private _interpolate = true
     private _texture?: Data3DTexture
     /**
      * Value range the texture values span: a texture value t in 0..1 is the data value
@@ -228,7 +235,18 @@ export class VolumeData extends Volume {
      */
     get texture(): Data3DTexture {
         if (!this._texture) this._texture = this._createTexture()
+        this._applyFilter(this._texture)
         return this._texture
+    }
+
+    private _applyFilter(t: Data3DTexture) {
+        const linear = this._interpolate && (t.type !== FloatType || VolumeData.floatLinearFiltering)
+        const f = linear ? LinearFilter : NearestFilter
+        if (t.minFilter !== f || t.magFilter !== f) {
+            t.minFilter = f
+            t.magFilter = f
+            t.needsUpdate = true
+        }
     }
 
     /**
@@ -275,8 +293,6 @@ export class VolumeData extends Volume {
         const tex = new Data3DTexture(data as any, this.xLength, this.yLength, this.zLength)
         tex.format = RedFormat
         tex.type = type
-        tex.minFilter = LinearFilter
-        tex.magFilter = LinearFilter
         tex.wrapS = ClampToEdgeWrapping
         tex.wrapT = ClampToEdgeWrapping
         tex.wrapR = ClampToEdgeWrapping
@@ -288,19 +304,14 @@ export class VolumeData extends Volume {
     }
 
     /**
-     * Nearest or linear sampling of the texture.
+     * Linear (default) or nearest sampling of the texture; kept when the texture is built again.
      */
     set interpolate(v: boolean) {
-        const t = this.texture
-        const f = v ? LinearFilter : NearestFilter
-        if (t.minFilter !== f) {
-            t.minFilter = f
-            t.magFilter = f
-            t.needsUpdate = true
-        }
+        this._interpolate = v
+        if (this._texture) this._applyFilter(this._texture)
     }
     get interpolate() {
-        return this.texture.magFilter === LinearFilter
+        return this._interpolate
     }
 
     /**
