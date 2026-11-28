@@ -172,16 +172,18 @@ export class VolumePlugin extends AViewerPluginSync {
         const viewer = this._viewer
         if (!viewer || !this.enabled) return
         const renderer = viewer.renderManager.webglRenderer
-        // one object per material: a material shared by several volumes builds its lighting for the first one
-        const materials = new Map<VolumeMaterial, VolumeObject>()
-        for (const v of this.volumes) if (v.visible && v.material?.isVolumeMaterial && !materials.has(v.material)) materials.set(v.material, v)
-        this._updateEnvironment([...materials.keys()])
+        // each volume: a shared material builds the maps of the field and the shadows of each volume
+        const materials = new Set<VolumeMaterial>()
+        for (const v of this.volumes) if (v.visible && v.material?.isVolumeMaterial) materials.add(v.material)
+        this._updateEnvironment([...materials])
         let budget = this.kernelBudget
         let pending = false
         let lightingChanged = false
         const context = {scene: viewer.scene, camera: viewer.scene.mainCamera}
-        for (const [m, object] of materials) {
-            if (budget > 0) budget -= m.updateDerived(renderer, budget, {...context, object})
+        for (const v of this.volumes) {
+            const m = v.material as VolumeMaterial
+            if (!v.visible || !m?.isVolumeMaterial) continue
+            if (budget > 0) budget -= m.updateDerived(renderer, budget, {...context, object: v})
             pending = pending || m.derivedPending
             const lv = m.lightingVersion
             if ((this._lightingVersions.get(m) ?? 0) !== lv) lightingChanged = true

@@ -39,7 +39,7 @@ uniform int uSlice;           // index of this slice along the sweep axis
 uniform vec3 uStep;           // one slice toward the light, in light grid voxels (permuted axes, |z| = 1)
 uniform ivec3 uGrid;          // light grid size (permuted axes)
 uniform mat3 uToTexture;      // permuted light grid coordinate / grid size -> texture coordinate
-uniform vec3 uVoxelScale;     // source voxels per light grid voxel (permuted axes)
+uniform vec3 uVoxelScale;     // opacity unit distances per light grid voxel (permuted axes)
 vec4 kernel(ivec3 p) {
     if (uFirst == 1) return vec4(1.0);
     vec3 pos = vec3(vec2(p.xy) + 0.5, float(uSlice) + 0.5);
@@ -47,7 +47,7 @@ vec4 kernel(ivec3 p) {
     float prev = 1.0;
     vec2 g = vec2(uGrid.xy);
     if (q.x > 0.0 && q.y > 0.0 && q.x < g.x && q.y < g.y) prev = texture(uPrev, q.xy / g).r;
-    // two samples on the segment, each for half of it, in source voxels
+    // two samples on the segment, each for half of it, in opacity unit distances
     float len = 0.5 * length(uStep * uVoxelScale);
     vec3 gs = vec3(uGrid);
     float t = volTransmittance(volOpacity(uToTexture * ((pos + 0.25 * uStep) / gs)), len) *
@@ -240,7 +240,8 @@ export class LightVolume extends DerivedField {
         prop.flip = dir[c] > 0
         const stepLen = Math.abs(dir[c])
         const step = new Vector3(dir[a] / stepLen, dir[b] / stepLen, dir[c] / stepLen)
-        const voxelScale = new Vector3(p.sourceSize[a] / grid[a], p.sourceSize[b] / grid[b], p.sourceSize[c] / grid[c])
+        // opacity unit distances per light grid voxel, per (permuted) axis
+        const voxelScale = new Vector3(p.sourceSize[a] / grid[a] * p.unitScale[a], p.sourceSize[b] / grid[b] * p.unitScale[b], p.sourceSize[c] / grid[c] * p.unitScale[c])
         return [{
             kernel: prop,
             target: this._back,

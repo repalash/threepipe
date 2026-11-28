@@ -23,10 +23,11 @@ uniform sampler3D volumeMap;       // the field
 uniform sampler2D transferMap;     // RGBA lookup over 0..1
 uniform vec3 uBoxSize;             // size of the box in object units
 uniform vec3 uVolumeSize;          // texel counts of the texture
-uniform vec3 uDataSize;            // voxel counts of the data (larger than uVolumeSize when downsampled)
 uniform vec2 uValueMap;            // transfer function coordinate = texture value * x + y
 uniform float uSamplingRate;       // samples per voxel along the ray
-uniform float uOpacityExponent;    // density / samplingRate, for opacity correction
+uniform float uDensity;            // opacity multiplier
+uniform vec3 uPhysicalSize;        // size of the field in its units (voxel counts times spacing)
+uniform float uOpacityUnit;        // distance in field units over which a sample has the transfer function opacity
 uniform float uIsoValue;           // isosurface threshold on the transfer function coordinate
 uniform vec3 uCropMin;             // crop box in texture coordinates
 uniform vec3 uCropMax;
@@ -172,16 +173,36 @@ void main() {
     vec2 bounds = volIntersectBox(vOrigin, vDirection, max(-halfSize, cropMin), min(halfSize, cropMax));
     if (!isOrthographic) bounds.x = max(bounds.x, 0.0); // camera inside the box
 
-    // clip planes (material.clippingPlanes) shorten the ray instead of cutting the box surface
+    // clip planes (material.clippingPlanes) shorten the ray instead of cutting the box surface. A point P (view space)
+    // is clipped by a plane when dot(-P, plane.xyz) > plane.w (clipping_planes_fragment): along the ray, when a + b t > 0
     #if NUM_CLIPPING_PLANES > 0
+    // union planes: each one clips on its own
     for (int i = 0; i < UNION_CLIPPING_PLANES; i++) {
         vec4 plane = clippingPlanes[i];
-        // a point P (view space) is clipped when dot(-P, plane.xyz) > plane.w, see clipping_planes_fragment
         float a = -dot(vOriginView, plane.xyz) - plane.w;
         float b = -dot(vDirectionView, plane.xyz);
         if (abs(b) < 1e-8) { if (a > 0.0) discard; }
         else if (b > 0.0) bounds.y = min(bounds.y, -a / b);
         else bounds.x = max(bounds.x, -a / b);
+    }
+    #endif
+    // intersection planes (clipIntersection): a point is clipped when all of them clip it, an interval of the ray
+    vec2 clipped = vec2(1e20, -1e20);
+    #if NUM_CLIPPING_PLANES > UNION_CLIPPING_PLANES
+    clipped = vec2(-1e20, 1e20);
+    for (int i = UNION_CLIPPING_PLANES; i < NUM_CLIPPING_PLANES; i++) {
+        vec4 plane = clippingPlanes[i];
+        float a = -dot(vOriginView, plane.xyz) - plane.w;
+        float b = -dot(vDirectionView, plane.xyz);
+        if (abs(b) < 1e-8) { if (a <= 0.0) clipped = vec2(1e20, -1e20); }
+        else if (b > 0.0) clipped.x = max(clipped.x, -a / b);
+        else clipped.y = min(clipped.y, -a / b);
+    }
+    if (clipped.x < clipped.y) {
+        // at an end of the ray it shortens it; in the middle, the samples in it are left out (volClipped)
+        if (clipped.x <= bounds.x && clipped.y >= bounds.y) discard;
+        if (clipped.x <= bounds.x) bounds.x = max(bounds.x, clipped.y);
+        else if (clipped.y >= bounds.y) bounds.y = min(bounds.y, clipped.x);
     }
     #endif
 
@@ -205,9 +226,8 @@ void main() {
     float dtRate = 1.0 / (max(uSamplingRate, 1e-3) * voxelsPerUnit);
     // a ray longer than VOLUME_MAX_STEPS samples takes longer steps, so it still reaches the end
     float dt = max(dtRate, (bounds.y - bounds.x) / float(VOLUME_MAX_STEPS));
-    // opacity correction for the step actually taken (uOpacityExponent is for the sampling rate), in voxels of the
-    // data: a downsampled texture has fewer, larger texels (uDataSize is the voxel count of the data)
-    float opacityExp = uOpacityExponent * dt / dtRate * length(dirTex * uDataSize) / voxelsPerUnit;
+    // opacity correction for the physical length of a step, in opacity unit distances
+    float opacityExp = uDensity * length(dirTex * dt * uPhysicalSize) / max(uOpacityUnit, 1e-12);
     vec3 startTex = (vOrigin + vDirection * bounds.x) / uBoxSize + 0.5;
     vec3 stepTex = dirTex * dt;
     float offset = uJitter > 0.5 ? volNoise(gl_FragCoord.xy) : 0.5;
@@ -217,7 +237,15 @@ void main() {
     float kEnd = (bounds.y - bounds.x) / dt - offset;
     int steps = int(clamp(floor(kEnd) + 1.0, 0.0, float(VOLUME_MAX_STEPS)));
     float fsteps = float(steps);
+    if (steps == 0) discard; // shorter than half a step: no sample
     vec3 dirN = normalize(dirTex);
+    // the ray parameter of sample k, for the intersection clip planes
+    #define VOL_T(k) (bounds.x + (offset + (k)) * dt)
+    #if NUM_CLIPPING_PLANES > UNION_CLIPPING_PLANES
+    #define VOL_CLIPPED(k) (VOL_T(k) > clipped.x && VOL_T(k) < clipped.y)
+    #else
+    #define VOL_CLIPPED(k) false
+    #endif
 
     // empty space skipping: only samples that add nothing are skipped, so the image is the same. Off with a custom
     // volSample or volClassify, which the block maps know nothing about.
@@ -250,6 +278,7 @@ void main() {
             kCheck = max(k + 1.0, floor(volBlocksExit(blk, blk + 1.0, base, stepTex)));
         }
         #endif
+        if (VOL_CLIPPED(k)) { k += 1.0; continue; } // intersection clip planes
         VOL_COUNT(nSamples)
         vec4 s = volClassify(volValue(uvw), uvw);
         #if VOLUME_MODE == 0
@@ -272,6 +301,7 @@ void main() {
 
     #elif VOLUME_MODE == 1 || VOLUME_MODE == 2 // maximum / minimum intensity projection
     float best = VOLUME_MODE == 1 ? -1e20 : 1e20;
+    float read = 0.0;
     #ifdef VOL_SKIP_ON
     float kCheck = 0.0;
     #endif
@@ -289,25 +319,33 @@ void main() {
             kCheck = max(k + 1.0, floor(kExit));
         }
         #endif
+        if (VOL_CLIPPED(k)) { k += 1.0; continue; } // intersection clip planes
+        read += 1.0;
         VOL_COUNT(nSamples)
         float v = volValue(uvw);
         best = VOLUME_MODE == 1 ? max(best, v) : min(best, v);
         k += 1.0;
     }
+    if (read == 0.0) discard;
     vec4 s = volClassify(best, uvw);
     acc = vec4(s.rgb * s.a, s.a);
 
     #elif VOLUME_MODE == 3 // average intensity
     float sum = 0.0;
+    float count = 0.0;
     for (int i = 0; i < VOLUME_MAX_STEPS; i++) {
         if (k >= fsteps) break;
         VOL_COUNT(nIter)
         uvw = base + stepTex * k;
-        VOL_COUNT(nSamples)
-        sum += volValue(uvw);
+        if (!VOL_CLIPPED(k)) {
+            VOL_COUNT(nSamples)
+            sum += volValue(uvw);
+            count += 1.0;
+        }
         k += 1.0;
     }
-    vec4 s = volClassify(sum / max(k, 1.0), uvw);
+    if (count == 0.0) discard;
+    vec4 s = volClassify(sum / count, uvw);
     acc = vec4(s.rgb * s.a, s.a);
 
     #elif VOLUME_MODE == 4 // isosurface: the first crossing between sample k and k + 1
@@ -337,7 +375,9 @@ void main() {
         VOL_COUNT(nSamples)
         vec3 next = base + stepTex * kNext;
         float v = volValue(next);
-        if ((prevV - uIsoValue) * (v - uIsoValue) <= 0.0 && v != prevV) {
+        // a pair with a clipped sample (intersection planes) is not tested
+        bool clippedPair = VOL_CLIPPED(k) || VOL_CLIPPED(kNext);
+        if (!clippedPair && (prevV - uIsoValue) * (v - uIsoValue) <= 0.0 && v != prevV) {
             // refine between uvw and next by bisection
             vec3 a = uvw;
             vec3 b = next;
@@ -584,7 +624,8 @@ float volSample(vec3 uvw) {
 
 #ifndef VOL_CUSTOM_CLASSIFY
 vec4 volClassify(float v, vec3 uvw) {
-    return texture2D(transferMap, vec2(clamp(v, 0.0, 1.0), 0.5));
+    // texel i holds the value at i / (width - 1) (TransferFunction.bake); its centre is at (i + 0.5) / width
+    return texture2D(transferMap, vec2((clamp(v, 0.0, 1.0) * (VOL_TF_WIDTH - 1.0) + 0.5) / VOL_TF_WIDTH, 0.5));
 }
 #endif
 

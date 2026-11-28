@@ -17,3 +17,4 @@ All notable changes to this plugin will be documented in this file.
 - Tricubic B-spline sampling (`sampling: 'cubic'`)
 - Iso mode writes its depth and goes into the G-buffer (`VolumeGBufferMaterial`, `VolumeObject.customGBufferMaterial`). Example: `examples/volume-lighting`
 - `VolumeMaterial.debugSteps`: shows the samples read per pixel. Example: `examples/volume-benchmark`, frame time and samples per pixel with skipping off and on
+- Fields belong to the `VolumeObject`; `VolumeMaterial.sourceField` picks one by name (else the active field), so a material can be shared by volumes with different data. Opacity per distance (`opacityUnitDistance`), so anisotropic voxels look right from every side. `clipIntersection` clip planes

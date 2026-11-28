@@ -32,6 +32,7 @@ const STEPS = 4
 const aoKernel = `
 ${opacityKernelGLSL}
 uniform vec3 uSourceSize;
+uniform vec3 uUnitScale;     // opacity unit distances per source texel along x, y, z
 uniform float uRadius;       // in source voxels
 const vec3 aoDirs[14] = vec3[14](${directions.join(', ')});
 vec4 kernel(ivec3 p) {
@@ -44,7 +45,7 @@ vec4 kernel(ivec3 p) {
         for (int s = 1; s <= ${STEPS}; s++) {
             vec3 q = uvw + stepTex * float(s);
             if (any(lessThan(q, vec3(0.0))) || any(greaterThan(q, vec3(1.0)))) break;
-            t *= volTransmittance(volOpacity(q), h);
+            t *= volTransmittance(volOpacity(q), length(aoDirs[d] * h * uUnitScale));
         }
         sum += t;
     }
@@ -114,7 +115,7 @@ export class AmbientOcclusionVolume extends DerivedField {
         if (!this._kernel) this._kernel = new VolumeKernel({
             name: 'VolumeAmbientOcclusion',
             fragment: aoKernel,
-            uniforms: {...opacityUniforms(), uSourceSize: {value: [1, 1, 1]}, uRadius: {value: 8}},
+            uniforms: {...opacityUniforms(), uSourceSize: {value: [1, 1, 1]}, uUnitScale: {value: [1, 1, 1]}, uRadius: {value: 8}},
         })
         return [{
             kernel: this._kernel,
@@ -124,6 +125,7 @@ export class AmbientOcclusionVolume extends DerivedField {
                 const u = this._kernel!.uniforms
                 setOpacityUniforms(u, p)
                 u.uSourceSize.value = p.sourceSize
+                u.uUnitScale.value = p.unitScale
                 u.uRadius.value = p.radius
             },
         }]

@@ -26,19 +26,24 @@ export interface VolumeOpacityParams {
      */
     iso: number
     /**
-     * Opacity multiplier, as {@link VolumeMaterial.density}: the opacity of the transfer function is per voxel at 1.
+     * Opacity multiplier, as {@link VolumeMaterial.density}.
      */
     density: number
+    /**
+     * Length of one texel of the source texture along x, y, z, in opacity unit distances
+     * ({@link VolumeMaterial.opacityUnitDistance}): the transfer function opacity is for one unit.
+     */
+    unitScale: [number, number, number]
 }
 
 export function opacityParamsKey(p: VolumeOpacityParams) {
     return [p.source.uuid, p.source.version, p.transferTexture.uuid, p.transferTexture.version, p.valueMap[0], p.valueMap[1], p.mode,
-        p.mode === 'iso' ? p.iso : '', p.density].join(',')
+        p.mode === 'iso' ? p.iso : '', p.density, p.unitScale.join('x')].join(',')
 }
 
 /**
- * GLSL for the kernels: `volOpacity(uvw)`, the opacity of one voxel at a texture coordinate, and
- * `volTransmittance(alpha, voxels)`, what passes through a segment `voxels` long with that opacity.
+ * GLSL for the kernels: `volOpacity(uvw)`, the opacity at a texture coordinate (per opacity unit distance), and
+ * `volTransmittance(alpha, units)`, what passes through a segment `units` opacity unit distances long with it.
  */
 export const opacityKernelGLSL = `
 uniform sampler3D uSource;
@@ -50,10 +55,12 @@ uniform float uDensity;
 float volOpacity(vec3 uvw) {
     float v = texture(uSource, uvw).r * uValueMap.x + uValueMap.y;
     if (uOpacityMode == 1) return smoothstep(uIso - 0.005, uIso + 0.005, v);
-    return texture(uTransfer, vec2(clamp(v, 0.0, 1.0), 0.5)).a;
+    // at the texel positions the material uses (TransferFunction.bake)
+    float w = float(textureSize(uTransfer, 0).x);
+    return texture(uTransfer, vec2((clamp(v, 0.0, 1.0) * (w - 1.0) + 0.5) / w, 0.5)).a;
 }
-float volTransmittance(float alpha, float voxels) {
-    return pow(max(1.0 - alpha, 0.0), uDensity * voxels);
+float volTransmittance(float alpha, float units) {
+    return pow(max(1.0 - alpha, 0.0), uDensity * units);
 }
 `
 

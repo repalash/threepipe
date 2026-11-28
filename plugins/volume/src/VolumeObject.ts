@@ -18,7 +18,8 @@ export interface VolumeObjectOptions {
  * ray marches through its fields.
  *
  * Following the USD volume schema (`UsdVolVolume`), a volume has named fields ({@link fields}, like
- * `field:density`, `field:temperature`) and one material. The box is sized from the voxel count and spacing of the
+ * `field:density`, `field:temperature`) and one material. The volume owns its fields; the material only says which one
+ * to show ({@link VolumeMaterial.sourceField}, else {@link activeField}), so one material can be shared. The box is sized from the voxel count and spacing of the
  * field it shows, so it has its real size; the object's own position, rotation and scale stay free.
  *
  * Use it like any mesh: add it to the scene, move it, select it, dispose it.
@@ -84,8 +85,8 @@ export class VolumeObject extends Mesh2<IGeometry, VolumeMaterial> {
     }
     set activeField(name: string) {
         this._activeField = name
-        this.material.field = this.fields[name]
         this.refreshBox()
+        ;(this as unknown as IObject3D).setDirty?.({change: 'activeField'})
     }
 
     /**
@@ -206,7 +207,11 @@ export class VolumeObject extends Mesh2<IGeometry, VolumeMaterial> {
     }
 
     private _onDispose = () => {
-        for (const d of Object.values(this.fields)) d.events.removeEventListener('update', this._onFieldUpdate)
+        for (const d of Object.values(this.fields)) {
+            d.events.removeEventListener('update', this._onFieldUpdate)
+            // free the GPU memory; a field still used elsewhere builds its texture again when drawn
+            d.disposeTexture()
+        }
     }
 
     /** @internal */

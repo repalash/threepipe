@@ -37,23 +37,26 @@ export class NRRDLoadPlugin extends BaseImporterPlugin {
     protected _importer = new Importer(class extends NRRDLoader implements ILoader {
         transform(res: Volume, options: AnyOptions & NRRDLoadOptions): VolumeObject | VolumeData {
             const data = VolumeData.fromVolume(res)
-            const path = typeof options?.rootPath === 'string' ? options.rootPath : this._lastUrl
+            // the url of this load (the loader is shared by loads that can run at the same time)
+            const path = typeof options?.rootPath === 'string' ? options.rootPath : (res as any).__url ?? ''
             if (path && !path.startsWith('blob:') && !path.startsWith('data:')) {
                 data.filePath = path
             }
             if (options?.segmentation) data.interpolate = false
             if (options?.volumeDataOnly) return data
             const object = new VolumeObject(data)
+            // the material applies its interpolation to the field it draws
+            if (options?.segmentation) object.material.interpolate = false
             const name = path ? path.split('/').pop()?.split('?')[0] : ''
             if (name) object.name = name
             return object
         }
 
-        /** @internal */
-        _lastUrl = ''
         load(url: string, onLoad: (data: Volume) => void, onProgress?: (event: ProgressEvent) => void, onError?: (err: unknown) => void): void {
-            this._lastUrl = url
-            super.load(url, onLoad, onProgress, onError)
+            super.load(url, (volume) => {
+                (volume as any).__url = url
+                onLoad(volume)
+            }, onProgress, onError)
         }
     }, ['nrrd'], ['application/x-nrrd'], true)
 }
