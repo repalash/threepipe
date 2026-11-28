@@ -404,3 +404,17 @@ describe('fields on the object', () => {
         }
     })
 })
+
+describe('field lifetime', () => {
+    test('the caches of a field in the material are freed when the field is disposed', () => {
+        const d = new VolumeData({data: new Uint8Array(16 ** 3), size: [16, 16, 16]})
+        const m = new VolumeMaterial({field: d})
+        const caches = m as unknown as {_blocks(f: VolumeData): unknown, _emptySpace: Map<VolumeData, unknown>, _fieldDisposeListeners: Map<VolumeData, unknown>}
+        caches._blocks(d)
+        expect(caches._emptySpace.size).toBe(1)
+        d.dispose()
+        expect(caches._emptySpace.size).toBe(0)
+        expect(caches._fieldDisposeListeners.size).toBe(0)
+        m.dispose()
+    })
+})

@@ -139,6 +139,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         for (const v of this._aoVolumes.values()) v.dispose()
         this._lightVolumes.clear()
         this._aoVolumes.clear()
+        for (const [field, listener] of this._fieldDisposeListeners) field.events.removeEventListener('dispose', listener)
+        this._fieldDisposeListeners.clear()
         this._gbufferMaterial?.dispose()
         this._gbufferMaterial = undefined
         this.transferFunction.removeEventListener('update', this._tfUpdate)
@@ -436,6 +438,23 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     // the shadow volume of each volume object (it depends on the object's transform), the occlusion volume of each field
     private _lightVolumes = new Map<IObject3D, LightVolume>()
     private _aoVolumes = new Map<VolumeData, AmbientOcclusionVolume>()
+    // the per-field caches are freed when their field is disposed (a field replaced on an object, a new generated volume)
+    private _fieldDisposeListeners = new Map<VolumeData, () => void>()
+
+    private _watchField(field: VolumeData) {
+        if (this._fieldDisposeListeners.has(field)) return
+        const listener = () => {
+            field.events.removeEventListener('dispose', listener)
+            this._fieldDisposeListeners.delete(field)
+            this._emptySpace.get(field)?.dispose()
+            this._emptySpace.delete(field)
+            this._aoVolumes.get(field)?.dispose()
+            this._aoVolumes.delete(field)
+            if (this._lastField === field) this._lastField = undefined
+        }
+        field.events.addEventListener('dispose', listener)
+        this._fieldDisposeListeners.set(field, listener)
+    }
     private _shadowLightType = 0
     private _shadowLightIndex = 0
     private _lightingVersion = 0
@@ -644,6 +663,7 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         if (!emptySpace) {
             emptySpace = new EmptySpaceMap(minMax)
             this._emptySpace.set(field, emptySpace)
+            this._watchField(field)
         }
         return {minMax, emptySpace}
     }
@@ -760,7 +780,10 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         }
         if (this._usesAO()) {
             let ao = this._aoVolumes.get(field)
-            if (!ao) this._aoVolumes.set(field, ao = new AmbientOcclusionVolume())
+            if (!ao) {
+                this._aoVolumes.set(field, ao = new AmbientOcclusionVolume())
+                this._watchField(field)
+            }
             ao.setParams({
                 ...this._opacityParams(field),
                 sourceSize: field.textureSize,
