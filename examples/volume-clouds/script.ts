@@ -20,9 +20,9 @@ const viewer = new ThreeViewer({
     plugins: [LoadingScreenPlugin, ProgressivePlugin, VolumePlugin],
 })
 
-// Cumulus clouds as a distance field: clusters of puffs (spheres joined smoothly) rising from a flat base, with
-// billows (cellular noise) pushing their surface out at two scales. The same scale on every axis, though the box is
-// lower than it is wide.
+// Cumulus clouds as a distance field: a field of towers, each a cluster of puffs (spheres joined smoothly) rising
+// from a flat base, with billows (cellular noise) pushing their surface out at two scales. The same scale on every
+// axis, though the box is lower than it is wide.
 const cloudsGLSL = /* glsl */`
 float smin(float a, float b, float k) {
     float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
@@ -30,40 +30,41 @@ float smin(float a, float b, float k) {
 }
 float cloudSdf(vec3 q) {
     float d = 1e3;
-    for (int j = 0; j < 3; j++) for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 5; j++) for (int i = 0; i < 5; i++) {
         vec3 cell = vec3(float(i), 0.0, float(j));
         vec3 h = volHash3(cell * 7.31 + 3.7);
-        if (h.z < 0.25) continue;
-        vec2 c = 0.2 + 0.6 * (vec2(float(i), float(j)) + 0.2 + 0.6 * h.xy) / 3.0;
-        float s = 0.035 + 0.04 * h.z;
-        for (int k = 0; k < 5; k++) {
+        if (h.z < 0.3) continue;
+        vec2 c = 0.08 + 0.84 * (vec2(float(i), float(j)) + 0.2 + 0.6 * h.xy) / 5.0;
+        if (length(c - 0.5) > 0.46) continue; // a round field, so the box corners never show
+        float s = 0.018 + 0.03 * h.z * h.z;
+        for (int k = 0; k < 6; k++) {
             vec3 r = volHash3(cell * 3.1 + float(k) * 11.7);
-            float rad = s * (0.55 + 0.6 * r.z) * (k == 0 ? 1.35 : 1.0);
-            vec3 pc = vec3(c.x + (r.x - 0.5) * s * 3.0, 0.1 + rad * (k == 0 ? 1.0 : 0.7), c.y + (r.y - 0.5) * s * 3.0);
-            d = smin(d, length(q - pc) - rad, 0.05);
+            float rad = s * (0.5 + 0.6 * r.z) * (k == 0 ? 1.4 : 1.0);
+            vec3 pc = vec3(c.x + (r.x - 0.5) * s * 3.2, 0.03 + rad * (k == 0 ? 1.0 : 0.65), c.y + (r.y - 0.5) * s * 3.2);
+            d = smin(d, length(q - pc) - rad, 0.025);
         }
     }
-    return max(d, 0.1 - q.y); // flat base
+    return max(d, 0.03 - q.y); // flat base
 }
 float density(vec3 p) {
-    vec3 q = vec3(p.x, p.y * 112.0 / 256.0, p.z);
+    vec3 q = vec3(p.x, p.y * 0.25, p.z);
     float d = cloudSdf(q);
-    if (d > 0.08) return 0.0;
-    float b1 = 1.0 - volWorley(q * 22.0);
-    float b2 = 1.0 - volWorley(q * 50.0);
-    d -= 0.035 * b1 + 0.015 * b2 - 0.02;
-    return smoothstep(0.012, -0.01, d) * (0.85 + 0.15 * b2);
+    if (d > 0.05) return 0.0;
+    float b1 = 1.0 - volWorley(q * 34.0);
+    float b2 = 1.0 - volWorley(q * 80.0);
+    d -= 0.022 * b1 + 0.009 * b2 - 0.012;
+    return smoothstep(0.008, -0.006, d) * (0.85 + 0.15 * b2);
 }
 `
 
 // sky HDRIs from Poly Haven (CC0), hosted on threepipe cloud; the sun takes the colour of the light in each
 const skies: Record<string, {url: string, sun: string, intensity: number}> = {
-    'Day': {url: 'qwantani_puresky', sun: '#fff1de', intensity: 16},
+    'Day': {url: 'qwantani_puresky', sun: '#fff1de', intensity: 20},
     'Sunset': {url: 'belfast_sunset_puresky', sun: '#ffb27a', intensity: 14},
     'Dawn': {url: 'kloppenheim_06_puresky', sun: '#ffc9a0', intensity: 12},
 }
 
-const state = {sky: 'Day', turn: 70, height: 25, shadows: true, rotate: !window.TESTING}
+const state = {sky: 'Day', turn: 40, height: 35, shadows: true, rotate: !window.TESTING}
 let clouds: VolumeObject
 let sun: DirectionalLight2
 
@@ -93,8 +94,8 @@ async function init() {
     sun.castShadow = true // the clouds shadow themselves from this light
     viewer.scene.addObject(sun)
 
-    const data = generateVolume(viewer.renderManager.webglRenderer, {size: [256, 112, 256], glsl: cloudsGLSL, name: 'clouds', units: 'm'})
-    clouds = new VolumeObject(data, {unitScale: 4 / 256}) // a 4 x 1.75 x 4 box
+    const data = generateVolume(viewer.renderManager.webglRenderer, {size: [384, 96, 384], glsl: cloudsGLSL, name: 'clouds', units: 'm'})
+    clouds = new VolumeObject(data, {unitScale: 8 / 384}) // an 8 x 2 x 8 box
     viewer.scene.addObject(clouds)
     const m = clouds.material
     m.range.set(0, 255)
@@ -106,16 +107,17 @@ async function init() {
     m.anisotropy = 0.55 // forward scattering: bright edges toward the sun
     m.multipleScattering = 0.35 // light scattered many times inside: soft, bright clouds
     m.ambientOcclusion = true
-    m.aoRadius = 12
-    m.lightingResolution = 1
+    m.aoRadius = 16
+    m.lightingResolution = window.TESTING ? 0.5 : 1 // full resolution: the half one shows steps on the cloud tops
     m.samplingRate = 1.5
     m.interactiveSamplingRate = 1
 
     await applySky()
 
     const camera = viewer.scene.mainCamera
-    camera.position.set(-2.7, 0.6, 2.9)
-    camera.target.set(0, -0.1, 0)
+    // low, near the cloud base, looking along the field
+    camera.position.set(-1.2, -0.9, 7.5)
+    camera.target.set(0.3, -0.35, 0)
     camera.setDirty()
     const controls = camera.controls as any
     controls.autoRotate = state.rotate

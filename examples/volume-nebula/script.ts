@@ -25,37 +25,41 @@ const viewer = new ThreeViewer({
     plugins: [LoadingScreenPlugin, ProgressivePlugin, VolumePlugin, BloomPlugin],
 })
 
-// An emission nebula: thin bright filaments (ridged noise at two scales) through domain-warped gas, in two lobes,
-// with a cavity blown out by young stars and hot gas around them. Generated on the GPU in a fraction of a second.
+// An emission nebula: domain-warped gas with thin bright filaments (ridged noise) in two lobes, a cavity blown out by
+// young stars with a bright ionised rim, and dark dust clouds in front. The values carry what each voxel is: dark dust
+// below 0.07, then glowing gas from faint to hot. Generated on the GPU in a fraction of a second.
 const nebulaGLSL = /* glsl */`
 uniform float uSeed;
 float density(vec3 p) {
     vec3 c = p - 0.5;
     vec3 q = volWarp(c * 2.5 + uSeed, 2.2);
     float n = volFbm(q * 1.8, 6);
-    // two lobes, so the outline is not a ball
     float r = min(length((c - vec3(-0.08, 0.04, 0.0)) * vec3(1.0, 1.3, 1.1)), length((c - vec3(0.12, -0.06, 0.05)) * vec3(1.2, 1.0, 1.3)) * 1.15);
-    float ridge = pow(1.0 - abs(2.0 * volFbm(q * 3.1 + 5.0, 5) - 1.0), 10.0);
-    float ridge2 = pow(1.0 - abs(2.0 * volFbm(q * 6.3 + 9.0, 4) - 1.0), 14.0);
+    float ridge = pow(1.0 - abs(2.0 * volFbm(q * 3.1 + 5.0, 5) - 1.0), 8.0);
     float body = smoothstep(0.42, 0.08, r + 0.45 * (n - 0.5));
     float rc = length(c - vec3(-0.08, 0.04, 0.0));
-    float cavity = smoothstep(0.06, 0.16, rc + 0.15 * (n - 0.5));
-    float glow = exp(-rc * rc * 120.0); // hot gas around the young stars
-    float gas = 0.9 * ridge + 0.5 * ridge2 + 0.35 * smoothstep(0.55, 0.85, n);
-    return clamp(body * cavity * gas + 0.6 * glow * n, 0.0, 1.0);
-}
-`
+    float cavity = smoothstep(0.05, 0.14, rc + 0.12 * (n - 0.5));
+    float ion = smoothstep(0.34, 0.06, rc);
+    float gas = body * cavity * clamp(0.75 * ridge + 0.55 * smoothstep(0.5, 0.8, n), 0.0, 1.0) * (0.55 + 0.45 * ion);
+    float rim = exp(-pow((rc - 0.15) * 11.0, 2.0)) * body * smoothstep(0.35, 0.7, n);
+    gas = max(gas, 0.75 * rim);
+    // dust: dark clouds in the front half, where there is little glowing gas
+    float dn = volFbm(q * 2.0 + 31.0, 5);
+    float dust = body * smoothstep(0.52, 0.68, dn) * smoothstep(-0.05, 0.15, c.z + 0.1 * (n - 0.5));
+    if (gas < 0.06 && dust > 0.02) return 0.015 + 0.055 * dust;
+    return 0.07 + 0.6 * gas * smoothstep(0.0, 0.06, gas) - 0.07 * (1.0 - smoothstep(0.0, 0.06, gas));
+}`
 
-// Faint values are a dim haze, bright ones the hot filaments; one hue per palette keeps the colours deep. Opacity is
-// per voxel.
-const opacities = [[0, 0], [0.05, 0], [0.15, 0.012], [0.35, 0.03], [0.6, 0.08], [1, 0.3]]
+// Dust absorbs (opacity without colour); gas glows from a deep outer hue to a hot core. Opacity is per voxel.
+const opacities = [[0, 0], [0.012, 0], [0.03, 0.05], [0.07, 0.07], [0.09, 0.006], [0.2, 0.012], [0.4, 0.03], [0.6, 0.08]]
+const dust = [[0, 0, 0, 0], [0.015, 0.03, 0.015, 0.01], [0.07, 0.05, 0.02, 0.01]]
 const palettes: Record<string, number[][]> = {
-    'Hydrogen': [[0, 0, 0, 0], [0.12, 0.3, 0.02, 0.06], [0.3, 0.9, 0.1, 0.12], [0.55, 1, 0.42, 0.12], [0.8, 1, 0.78, 0.4], [1, 1, 0.97, 0.85]],
-    'Oxygen': [[0, 0, 0, 0], [0.12, 0.01, 0.12, 0.18], [0.3, 0.02, 0.5, 0.7], [0.55, 0.2, 0.85, 0.95], [0.8, 0.7, 1, 1], [1, 1, 1, 1]],
-    'Violet': [[0, 0, 0, 0], [0.12, 0.15, 0.02, 0.25], [0.3, 0.5, 0.1, 0.85], [0.55, 0.95, 0.35, 0.9], [0.8, 1, 0.75, 0.95], [1, 1, 1, 1]],
+    'Hydrogen': [...dust, [0.1, 0.45, 0.03, 0.06], [0.2, 0.9, 0.1, 0.12], [0.32, 1, 0.38, 0.12], [0.45, 1, 0.72, 0.35], [0.6, 1, 0.95, 0.8]],
+    'Oxygen': [...dust, [0.1, 0.02, 0.18, 0.3], [0.2, 0.05, 0.5, 0.75], [0.32, 0.15, 0.8, 0.95], [0.45, 0.6, 1, 1], [0.6, 1, 1, 1]],
+    'Violet': [...dust, [0.1, 0.25, 0.03, 0.4], [0.2, 0.6, 0.1, 0.85], [0.32, 1, 0.35, 0.75], [0.45, 1, 0.75, 0.6], [0.6, 1, 0.95, 0.9]],
 }
 
-const state = {palette: 'Hydrogen', density: 3, intensity: 1.5, rotate: !window.TESTING, seed: 3}
+const state = {palette: 'Hydrogen', density: 3, intensity: 3, rotate: !window.TESTING, seed: 3}
 let nebula: VolumeObject
 
 function applyPalette() {
@@ -156,7 +160,7 @@ async function init() {
         }},
     ]
     createExampleCard(viewer, {
-        description: 'A 256³ emission nebula made on the GPU in a fraction of a second from noise (generateVolume): hot filaments glowing above white, with bloom. Pick a palette, change the density, or make a new one.',
+        description: 'A 256³ emission nebula made on the GPU in a fraction of a second from noise (generateVolume): glowing gas, hot filaments and dark dust, with bloom. Pick a palette, change the density, or make a new one.',
         actions,
     })
 }
