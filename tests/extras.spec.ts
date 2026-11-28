@@ -199,3 +199,4 @@ test('volume-showcase', async({page}) => expect(page).toHaveTitle('Volume Showca
 test('volume-nebula', async({page}) => expect(page).toHaveTitle('Volume Nebula'))
 test('volume-clouds', async({page}) => expect(page).toHaveTitle('Volume Clouds'))
 test('volume-fractal', async({page}) => expect(page).toHaveTitle('Volume Fractal'))
+test('volume-editor', async({page}) => expect(page).toHaveTitle('Volume Editor'))
