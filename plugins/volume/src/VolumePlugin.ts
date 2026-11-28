@@ -32,7 +32,8 @@ import {volumeGLTFExtension} from './gltf'
  * jittered frames).
  *
  * Before each frame it builds the GPU maps the volumes use to skip empty space (and the gradient textures), within
- * {@link kernelBudget} per frame, and keeps frames coming until they are done. It also sets
+ * {@link kernelBudget} per frame, and keeps frames coming until they are done; `ProgressivePlugin` does not converge
+ * before that. It also sets
  * {@link VolumeData.maxTextureSize} from the renderer, and gives the volume materials the environment light of the scene
  * as spherical harmonics (for `shading`).
  *
@@ -215,9 +216,15 @@ export class VolumePlugin extends AViewerPluginSync {
     }
 
     private _postRender = () => {
-        // render one more frame, without a reset, so the still image gets the full sampling rate; and more frames
-        // while derived fields are being built (the image does not change, the frames get faster)
-        if (this._renderedInteractive || this._derivedPending) this._viewer?.renderManager.setDirty()
+        const rm = this._viewer?.renderManager
+        if (!rm) return
+        // while derived fields are being built, keep frames coming and the frame count at 0, so that
+        // ProgressivePlugin does not converge (and a snapshot or a converged recording frame is not taken) before the
+        // image is final; these frames are interactive, so the build is faster. When it is done, the volume is
+        // marked dirty and the progressive frames start again.
+        if (this._derivedPending) rm.reset()
+        // render one more frame, without a reset, so the still image gets the full sampling rate
+        else if (this._renderedInteractive) rm.setDirty()
         this._renderedInteractive = false
     }
 }
