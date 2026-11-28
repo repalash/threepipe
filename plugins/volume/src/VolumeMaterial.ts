@@ -1,3 +1,4 @@
+import {parseClut, parseNiiVueColormap, ParsedTransferFunction} from './library/transferFormats'
 import {
     BackSide,
     BufferGeometry,
@@ -552,6 +553,28 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     }
 
     private _tfUpdate = () => this.setDirty({change: 'transferFunction'})
+
+    /**
+     * Load a transfer function from a file's text: an MRIcroGL `.clut` colour table, a NiiVue colour map (JSON with
+     * `R`, `G`, `B`), or a saved {@link TransferFunction} (JSON with `colorPoints`). The range the file gives (if any)
+     * becomes {@link range}.
+     */
+    importTransferFunction(text: string, name = 'imported') {
+        const trimmed = text.trim()
+        let parsed: ParsedTransferFunction
+        if (trimmed.startsWith('{')) {
+            const json = JSON.parse(trimmed)
+            if (Array.isArray(json.colorPoints)) {
+                parsed = {preset: {name: json.name || name, absolute: false, colors: json.colorPoints, opacities: json.opacityPoints ?? [[0, 0], [1, 1]]}}
+            } else parsed = parseNiiVueColormap(json, name)
+        } else parsed = parseClut(trimmed, name)
+        this.transferFunction.setPreset(parsed.preset)
+        if (parsed.range) {
+            this.range.set(parsed.range[0], parsed.range[1])
+            this._rangeSet = true
+        }
+        this.setDirty({change: 'transferFunction'})
+    }
 
     /**
      * Apply a preset from {@link volumePresets}. A preset with an absolute range also sets {@link range}, unless

@@ -1,3 +1,4 @@
+import {toClut} from './library/transferFormats'
 import {
     ClampToEdgeWrapping,
     DataTexture,
@@ -141,6 +142,13 @@ export class TransferFunction extends EventDispatcher<TransferFunctionEventMap> 
         this.name = preset.name
         this.setDirty()
         return preset.absolute ? [lo, hi] : undefined
+    }
+
+    /**
+     * The function as an MRIcroGL `.clut` colour table, with `range` (data units) as its suggested display range.
+     */
+    toClut(range?: [number, number]): string {
+        return toClut(x => this.evaluate(x), [...this.colorPoints.map(c => c[0]), ...this.opacityPoints.map(o => o[0])], range)
     }
 
     /**

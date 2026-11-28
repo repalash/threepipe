@@ -45,3 +45,12 @@ src/VolumePlugin.ts
 
 src/procedural.ts
   volHash and volHash3: "Hash without Sine" by Dave Hoskins, https://www.shadertoy.com/view/4djSRW, MIT License.
+
+src/shaders/volume.frag.glsl (volScatter)
+  Multiple scattering by octaves follows M. Wrenninge, "Art-Directable Multiple Volumetric Scattering", SIGGRAPH 2015
+  Talks, as used in S. Hillaire, "Physically Based Sky, Atmosphere and Cloud Rendering in Frostbite", 2016 (method).
+
+src/library/transferFormats.ts
+  The .clut reader and writer port MRIcroGL colorTable.pas (CLUT2disk, GenerateLUT), https://github.com/rordenlab/MRIcroGL,
+  Copyright (c) 2014-2019 Chris Rorden, BSD 3-Clause License. The NiiVue colour map shape is from NiiVue,
+  https://github.com/niivue/niivue, BSD 2-Clause License.
