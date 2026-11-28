@@ -35,6 +35,7 @@ uniform vec2 uResolution;          // size of the target, for the depth lookup
 uniform vec2 cameraNearFar;
 uniform float frameCount;
 uniform float uJitter;             // 0 or 1
+uniform float uIntensity;          // scale of the colour: the transfer function colour is emitted light when unlit
 uniform mat3 uNormalMatrix;        // object to view, for normals (object.normalMatrix)
 
 #ifdef VOL_SKIP
@@ -54,6 +55,7 @@ uniform vec3 uEnvSH[9];            // environment radiance as spherical harmonic
 uniform mat3 uEnvRotation;         // world direction to environment direction
 uniform float uGradientFactor;     // hybrid: surface probability 1 - exp(-factor * |gradient per voxel|)
 uniform float uAnisotropy;         // Henyey-Greenstein g of the volume scattering, -1 back to 1 forward
+uniform float uMultipleScattering;  // energy of each multiple scattering octave (Wrenninge 2015), 0 for single scattering
 uniform float uRoughness;          // of the surface shading
 uniform float uSpecular;           // specular reflectance, F0 = 0.04 * specular
 #endif
@@ -426,7 +428,7 @@ void main() {
     // defined by VolumeGBufferMaterial; vViewPosition is -mvPosition, as in three.js
     volGBufferOutput(normal, -gbViewPosition);
     #else
-    gl_FragColor = acc;
+    gl_FragColor = vec4(acc.rgb * uIntensity, acc.a);
     #endif
 
     #include <logdepthbuf_fragment>
@@ -507,13 +509,35 @@ vec3 volSpecularGGX(vec3 l, vec3 v, vec3 n, vec3 f0, float roughness) {
     return F * (V * D);
 }
 
+// Henyey-Greenstein phase function with an anisotropy g, per steradian
+float volPhaseG(float cosTheta, float g) {
+    float g2 = g * g;
+    return RECIPROCAL_PI * 0.25 * (1.0 - g2) / pow(max(1.0 + g2 - 2.0 * g * cosTheta, 1e-4), 1.5);
+}
+
+// Light scattered toward the eye by the volume, for the transmittance T toward the light. With multiple scattering,
+// the approximation of Wrenninge ("Art-Directable Multiple Volumetric Scattering", 2015; as in Hillaire,
+// "Physically Based Sky, Atmosphere and Cloud Rendering in Frostbite", 2016): octave i has energy b^i, sees the
+// optical depth scaled by a^i (T^(a^i)) and a phase function of anisotropy g * c^i, with a = c = 0.5, b <= a.
+float volScatter(float cosTheta, float transmittance) {
+    float s = volPhase(cosTheta) * transmittance;
+    #ifdef VOL_MULTIPLE_SCATTERING
+    float a = 1.0, b = 1.0, c = 1.0;
+    for (int i = 1; i < 4; i++) {
+        a *= 0.5; b *= uMultipleScattering; c *= 0.5;
+        s += b * volPhaseG(cosTheta, uAnisotropy * c) * pow(transmittance, a);
+    }
+    #endif
+    return s;
+}
+
 void volAddLight(IncidentLight light, float shadow, vec3 n, vec3 v, vec3 albedo, vec3 f0, inout vec3 surface, inout vec3 volume) {
     if (!light.visible) return;
     vec3 c = light.color * shadow;
     float dotNL = saturate(dot(n, light.direction));
     surface += dotNL * c * (BRDF_Lambert(albedo) + volSpecularGGX(light.direction, v, n, f0, uRoughness));
-    // light travels along -direction and is scattered toward the eye
-    volume += albedo * c * volPhase(dot(-light.direction, v));
+    // light travels along -direction and is scattered toward the eye; the shadow is the transmittance to the light
+    volume += albedo * light.color * volScatter(dot(-light.direction, v), shadow);
 }
 
 // Lighting of a sample: model 1 surface (gradient normal, Lambert and GGX), 2 volume (phase function, no normal),

@@ -56,6 +56,8 @@ export class VolumeObject extends Mesh2<IGeometry, VolumeMaterial> {
 
     /**
      * Add (or replace) a field under its {@link VolumeData.name}. The first field becomes the {@link activeField}.
+     * A replaced field is not disposed (it may be used elsewhere): call its `dispose()` when nothing else uses it, which
+     * also frees what the materials built for it.
      */
     addField(data: VolumeData) {
         const old = this.fields[data.name]

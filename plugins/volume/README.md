@@ -5,6 +5,10 @@ Volume rendering for [threepipe](https://threepipe.org): scans, microscopy, simu
 [Example](https://threepipe.org/examples/#volume-plugin/) &mdash;
 [Benchmark](https://threepipe.org/examples/#volume-benchmark/) &mdash;
 [Lighting](https://threepipe.org/examples/#volume-lighting/) &mdash;
+[Showcase](https://threepipe.org/examples/#volume-showcase/) &mdash;
+[Nebula](https://threepipe.org/examples/#volume-nebula/) &mdash;
+[Clouds](https://threepipe.org/examples/#volume-clouds/) &mdash;
+[Fractal](https://threepipe.org/examples/#volume-fractal/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/plugins/volume/src/index.ts) &mdash;
 [API Reference](https://threepipe.org/plugins/volume/docs)
 
@@ -33,6 +37,18 @@ const data = new VolumeData({data: new Uint8Array(64 ** 3), size: [64, 64, 64], 
 viewer.scene.addObject(new VolumeObject(data))
 ```
 
+Made on the GPU from a GLSL function (noise functions included, see `volumeNoiseGLSL`):
+
+```ts
+import {generateVolume, VolumeObject} from '@threepipe/plugin-volume'
+
+const clouds = generateVolume(viewer.renderManager.webglRenderer, {
+    size: [192, 96, 192],
+    glsl: `float density(vec3 p) { return smoothstep(0.45, 0.7, volFbm(p * 6.0, 5)) * smoothstep(0.0, 0.2, p.y); }`,
+})
+viewer.scene.addObject(new VolumeObject(clouds))
+```
+
 ## What is in it
 
 | Class | What it is |
@@ -48,9 +64,11 @@ viewer.scene.addObject(new VolumeObject(data))
 | `VolumeGBufferMaterial` | Draws an isosurface into the G-buffer (depth, normal, flags), so SSAO and the other G-buffer effects see it |
 | `DerivedField`, `VolumeKernel` | Make your own: a GLSL function run once per voxel into a 3D render target, a few layers per frame |
 | `NRRDLoadPlugin` | `.nrrd` files through the three.js `NRRDLoader` |
+| `generateVolume`, `volumeNoiseGLSL` | A volume made on the GPU from `float density(vec3 p)`, one layer per draw, read back into a `VolumeData` (so it is processed and saved like loaded data); value, fractal and cellular noise and domain warping in GLSL |
 
 ### Notes
 
+- **`VolumePlugin`** builds the empty space maps, the lighting and the shadow and occlusion volumes before each frame, and saves volumes in glb files. `NRRDLoadPlugin` adds it; add it to the viewer yourself when no loader does (volumes made in code). Without it, volumes are drawn unlit and without skipping.
 - **Depth**: add `GBufferPlugin` and rays stop at opaque meshes inside the volume. Without it, the volume box is depth tested as a whole.
 - **Opacity** is per distance: the transfer function opacity is for `material.opacityUnitDistance` in the units of the field (the smallest voxel spacing by default), and each step is corrected for its physical length, so data with thick slices looks the same from every side.
 - **Clip planes**: set `material.clippingPlanes` (three.js planes); as for any three.js material they apply only with `viewer.renderManager.webglRenderer.localClippingEnabled = true`. The planes shorten the rays; with `clipIntersection` a point is clipped only when all planes clip it. `material.cropMin` and `cropMax` crop the box in texture coordinates.
@@ -58,7 +76,8 @@ viewer.scene.addObject(new VolumeObject(data))
 - **Saving**: a volume is saved in a glb as a link to its data file (the `WEBGI_volume` node extension) with its material settings; the voxels are not embedded. A volume made in code has no file to link to, so only its box is saved.
 - **Empty space skipping** (`material.emptySpaceSkipping`, on by default): rays jump over blocks of voxels (`skipBlockSize`, 8³ by default) that add nothing: all their values have zero opacity on the transfer function (composite, x-ray), they do not contain the iso value (iso), or they cannot change the result so far (MIP, MinIP). The jumps use a Chebyshev distance map of the empty blocks (Deakin and Knackstedt 2019). Only samples that add nothing are left out, so the image is the same. The maps are built on the GPU by `VolumePlugin` and rebuilt when the transfer function, range, mode or data change; without the plugin every sample is read. It is off with a material extension that replaces `volSample` or `volClassify`. Gains depend on the data: sparse data gains the most, dense data with nothing to skip pays a small cost per block. See the benchmark example, and `material.debugSteps` for the samples per pixel.
 - **Memory**: a field larger than `VolumeData.maxGpuBytes` (default `VolumeData.defaultMaxGpuBytes`, 512 MiB) or the GPU's `MAX_3D_TEXTURE_SIZE` is uploaded downsampled, with a warning; `data.textureSize` gives the size on the GPU. `VolumePlugin` shows the GPU memory of the volumes and their derived fields.
-- **Lighting** (`material.shading`): `surface` shades each sample as a surface with the gradient as its normal (Lambert and GGX, like a mesh), `volume` scatters the light with a phase function (`anisotropy`), `hybrid` mixes them by the gradient length (`gradientFactor`). The light comes from the three.js lights of the scene (directional, point, spot, hemisphere, ambient, light probes) and from `scene.environment`, which `VolumePlugin` turns into spherical harmonics. A volume next to a mesh of the same shape is lit the same. Iso mode is shaded as a surface. The shading model follows vtk.js and Exposure Render.
+- **Lighting** (`material.shading`): `surface` shades each sample as a surface with the gradient as its normal (Lambert and GGX, like a mesh), `volume` scatters the light with a phase function (`anisotropy`), `hybrid` mixes them by the gradient length (`gradientFactor`). The light comes from the three.js lights of the scene (directional, point, spot, hemisphere, ambient, light probes) and from `scene.environment`, which `VolumePlugin` turns into spherical harmonics. A volume next to a mesh of the same shape is lit the same. Iso mode is shaded as a surface. The shading model follows vtk.js and Exposure Render. `multipleScattering` adds light scattered more than once (the octave approximation of Wrenninge 2015, as in Frostbite's clouds), for bright, soft clouds.
+- **Intensity** (`material.intensity`): scales the colour in every mode. Unlit, the transfer function colour is emitted light, and above 1 it glows with `BloomPlugin` (from `@threepipe/webgi-plugins`).
 - **Shadows** (`material.shadows`): the volume shadows itself from one light: the first directional, spot or point light that casts shadows (else the first directional light). A light volume at `lightingResolution` (0.5 per axis by default) is built on the GPU by sweeping slices from the side of the light, rebuilt when the light, the transfer function or the data change, and kept double buffered so it does not flicker. Point and spot lights are taken as coming from the centre of the volume. The volume does not yet receive the shadows of meshes, or cast shadows on them.
 - **Ambient occlusion** (`material.ambientOcclusion`, `aoRadius`): darkens the environment and ambient light in creases and inside dense parts, from a precomputed occlusion volume.
 - **Tricubic sampling** (`material.sampling = 'cubic'`): a B-spline from 8 linear lookups, smoother surfaces and normals, about 8 times the texture reads.
