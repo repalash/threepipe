@@ -13,6 +13,7 @@ import {
     Vector3,
 } from 'threepipe'
 import {Volume} from 'three/examples/jsm/misc/Volume.js'
+import type {DerivedField} from './derived/DerivedField'
 
 /**
  * How the values of a {@link VolumeData} are stored on the GPU.
@@ -51,6 +52,10 @@ export interface VolumeDataOptions {
      */
     valueRange?: [number, number]
     gpuFormat?: VolumeGpuFormat
+    /**
+     * Largest size of the texture in bytes; a larger field is downsampled. Default {@link VolumeData.defaultMaxGpuBytes}.
+     */
+    maxGpuBytes?: number
 }
 
 export interface VolumeDataEventMap {
@@ -108,6 +113,24 @@ export class VolumeData extends Volume {
     gpuFormat: VolumeGpuFormat = 'auto'
 
     /**
+     * Largest texture size along an axis for all fields: the WebGL limit `MAX_3D_TEXTURE_SIZE` (2048 or more on
+     * nearly every device, 256 by the spec). {@link VolumePlugin} sets it from the renderer.
+     */
+    static maxTextureSize = 2048
+
+    /**
+     * Default of {@link maxGpuBytes}: 512 MiB.
+     */
+    static defaultMaxGpuBytes = 512 * 2 ** 20
+
+    /**
+     * Largest size of the texture in bytes. A field above it, or above {@link VolumeData.maxTextureSize} along an
+     * axis, is uploaded downsampled (box filter, halving the axis with the finest voxels first), with a warning; the
+     * data on the CPU stays at full size. See {@link textureSize}.
+     */
+    maxGpuBytes?: number
+
+    /**
      * Whether the GPU filters float textures linearly (`OES_texture_float_linear`). Without it an `r32f` texture with
      * linear filtering reads as 0, so it is filtered nearest. Set by the volume material from its renderer.
      */
@@ -115,6 +138,9 @@ export class VolumeData extends Volume {
 
     private _interpolate = true
     private _texture?: Data3DTexture
+    private _textureSize?: [number, number, number]
+    private _textureOutside = false
+    private _derived = new Map<string, DerivedField>()
     /**
      * Value range the texture values span: a texture value t in 0..1 is the data value
      * `textureRange[0] + t * (textureRange[1] - textureRange[0])`.
@@ -177,6 +203,7 @@ export class VolumeData extends Volume {
         if (options.units) this.units = options.units
         if (options.name) this.name = options.name
         if (options.gpuFormat) this.gpuFormat = options.gpuFormat
+        if (options.maxGpuBytes) this.maxGpuBytes = options.maxGpuBytes
         if (!this.axisOrder) this.axisOrder = ['x', 'y', 'z']
         if (!this.offset) this.offset = [0, 0, 0]
         if (options.valueRange) this.valueRange = [options.valueRange[0], options.valueRange[1]]
@@ -253,16 +280,139 @@ export class VolumeData extends Volume {
      * Bytes the texture takes on the GPU (without driver overhead).
      */
     get gpuBytes(): number {
-        const n = this.xLength * this.yLength * this.zLength
+        const [x, y, z] = this.textureSize
+        return x * y * z * this._bytesPerVoxel()
+    }
+
+    /**
+     * Whether some texture values are outside 0..1: only an `r32f` texture of data that goes past
+     * {@link valueRange} (the other formats are clamped).
+     */
+    get textureOutsideUnitRange(): boolean {
+        this.texture // computed with the texture
+        return this._textureOutside
+    }
+
+    /**
+     * Size of the texture along x, y, z: the voxel counts, or less when the field is downsampled to fit
+     * {@link maxGpuBytes} and {@link VolumeData.maxTextureSize}. Each texel then covers the same part of the box as
+     * the voxels it averages.
+     */
+    get textureSize(): [number, number, number] {
+        if (!this._textureSize) this._textureSize = this._fitTextureSize()
+        return this._textureSize
+    }
+
+    /**
+     * Whether the texture is smaller than the data, see {@link textureSize}.
+     */
+    get downsampled(): boolean {
+        const [x, y, z] = this.textureSize
+        return x !== this.xLength || y !== this.yLength || z !== this.zLength
+    }
+
+    /**
+     * A field computed from this one (a gradient, block ranges, ...), made with `create` the first time and kept
+     * until {@link dispose}. Derived fields rebuild themselves when this field changes.
+     */
+    getDerived<T extends DerivedField>(key: string, create: () => T): T {
+        let d = this._derived.get(key)
+        if (!d) {
+            d = create()
+            this._derived.set(key, d)
+        }
+        return d as T
+    }
+
+    /**
+     * Rebuild the derived fields cached on this field, for example after the WebGL context was lost and restored.
+     */
+    invalidateDerived() {
+        for (const d of this._derived.values()) d.invalidate()
+    }
+
+    /**
+     * Bytes on the GPU of the derived fields cached on this field ({@link getDerived}).
+     */
+    get derivedGpuBytes(): number {
+        let b = 0
+        for (const d of this._derived.values()) b += d.gpuBytes
+        return b
+    }
+
+    private _bytesPerVoxel() {
         const f = this.resolvedGpuFormat
-        return n * (f === 'r8' ? 1 : f === 'r16f' ? 2 : 4)
+        return f === 'r8' ? 1 : f === 'r16f' ? 2 : 4
+    }
+
+    private _fitTextureSize(): [number, number, number] {
+        const n = [this.xLength, this.yLength, this.zLength]
+        const maxSize = Math.max(1, VolumeData.maxTextureSize)
+        const maxBytes = this.maxGpuBytes ?? VolumeData.defaultMaxGpuBytes
+        const bpv = this._bytesPerVoxel()
+        const f = [1, 1, 1]
+        let d = n.slice()
+        for (let i = 0; i < 64; i++) {
+            d = n.map((v, a) => Math.ceil(v / f[a]))
+            const over = d.findIndex(v => v > maxSize)
+            if (over < 0 && d[0] * d[1] * d[2] * bpv <= maxBytes) break
+            let axis = over
+            if (axis < 0) {
+                // the axis with the finest voxels, which keeps them closest to cubes
+                axis = -1
+                for (let a = 0; a < 3; a++) {
+                    if (d[a] <= 1) continue
+                    if (axis < 0 || this.spacing[a] * f[a] < this.spacing[axis] * f[axis]) axis = a
+                }
+                if (axis < 0) break
+            }
+            f[axis] *= 2
+        }
+        return d as [number, number, number]
+    }
+
+    /**
+     * The values box filtered to the texture size, in their own type for 8-bit data, else as floats.
+     */
+    private _downsample(size: [number, number, number]): TypedArray {
+        const src = this.data as TypedArray
+        const [nx, ny, nz] = [this.xLength, this.yLength, this.zLength]
+        const [mx, my, mz] = size
+        // output texel j covers the voxels from floor(j n / m) to floor((j + 1) n / m) - 1: the same part of the box
+        const ranges = (n: number, m: number) => {
+            const r = new Int32Array(m + 1)
+            for (let j = 0; j <= m; j++) r[j] = Math.min(n, Math.floor(j * n / m))
+            for (let j = 0; j < m; j++) if (r[j + 1] <= r[j]) r[j + 1] = Math.min(n, r[j] + 1)
+            return r
+        }
+        const rx = ranges(nx, mx), ry = ranges(ny, my), rz = ranges(nz, mz)
+        const isU8 = src instanceof Uint8Array || src instanceof Uint8ClampedArray
+        const out = isU8 ? new Uint8Array(mx * my * mz) : new Float32Array(mx * my * mz)
+        let o = 0
+        for (let k = 0; k < mz; k++) for (let j = 0; j < my; j++) for (let i = 0; i < mx; i++) {
+            let sum = 0
+            let count = 0
+            for (let z = rz[k]; z < rz[k + 1]; z++) for (let y = ry[j]; y < ry[j + 1]; y++) {
+                const row = (z * ny + y) * nx
+                for (let x = rx[i]; x < rx[i + 1]; x++) sum += src[row + x]
+                count += rx[i + 1] - rx[i]
+            }
+            out[o++] = isU8 ? Math.round(sum / Math.max(1, count)) : sum / Math.max(1, count)
+        }
+        return out
     }
 
     private _createTexture(): Data3DTexture {
-        const n = this.xLength * this.yLength * this.zLength
-        const src = this.data as TypedArray
+        const size = this.textureSize
+        const n = size[0] * size[1] * size[2]
+        let src = this.data as TypedArray
+        if (this.downsampled) {
+            console.warn(`VolumeData: ${this.name} (${this.xLength}x${this.yLength}x${this.zLength}) is uploaded downsampled to ${size.join('x')} to fit the GPU limits (maxGpuBytes, VolumeData.maxTextureSize)`)
+            src = this._downsample(size)
+        }
         const format = this.resolvedGpuFormat
         const isU8 = src instanceof Uint8Array || src instanceof Uint8ClampedArray
+        this._textureOutside = false
         let data: TypedArray
         let type: typeof UnsignedByteType | typeof HalfFloatType | typeof FloatType
         if (format === 'r8' && isU8) {
@@ -285,12 +435,18 @@ export class VolumeData extends Volume {
                 type = HalfFloatType
             } else {
                 const out = new Float32Array(n)
-                for (let i = 0; i < n; i++) out[i] = (src[i] - lo) * scale
+                let outside = false
+                for (let i = 0; i < n; i++) {
+                    const v = (src[i] - lo) * scale
+                    out[i] = v
+                    if (v < 0 || v > 1) outside = true
+                }
+                this._textureOutside = outside
                 data = out
                 type = FloatType
             }
         }
-        const tex = new Data3DTexture(data as any, this.xLength, this.yLength, this.zLength)
+        const tex = new Data3DTexture(data as any, size[0], size[1], size[2])
         tex.format = RedFormat
         tex.type = type
         tex.wrapS = ClampToEdgeWrapping
@@ -320,6 +476,7 @@ export class VolumeData extends Volume {
     setDirty() {
         this._texture?.dispose()
         this._texture = undefined
+        this._textureSize = undefined
         this.events.dispatchEvent({type: 'update'})
     }
 
@@ -333,6 +490,8 @@ export class VolumeData extends Volume {
 
     dispose() {
         this.disposeTexture()
+        for (const d of this._derived.values()) d.dispose()
+        this._derived.clear()
         this.events.dispatchEvent({type: 'dispose'})
     }
 }

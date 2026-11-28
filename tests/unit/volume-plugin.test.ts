@@ -6,6 +6,7 @@ import {VolumeData} from '../../plugins/volume/src/VolumeData'
 import {VolumeMaterial} from '../../plugins/volume/src/VolumeMaterial'
 import {VolumeObject} from '../../plugins/volume/src/VolumeObject'
 import {colorMaps, volumePresets, volViewPresets} from '../../plugins/volume/src/library'
+import {DerivedField, DerivedFieldPass} from '../../plugins/volume/src/derived/DerivedField'
 
 describe('TransferFunction', () => {
     test('interpolates between points and clamps outside them', () => {
@@ -155,6 +156,79 @@ describe('VolumeData', () => {
         expect(d.valueRange).toEqual([-100, 1000])
         expect(Array.from(d.data as Int16Array)).toEqual(Array.from(values))
         expect(d.physicalSize).toEqual([1, 1, 1])
+    })
+})
+
+describe('VolumeData texture budget', () => {
+    test('a field over maxGpuBytes is downsampled, halving the finest axis first', () => {
+        const d = new VolumeData({data: new Float32Array(64 ** 3), size: [64, 64, 64], maxGpuBytes: 64 ** 3 * 2 / 8})
+        expect(d.textureSize).toEqual([32, 32, 32])
+        expect(d.downsampled).toBe(true)
+        expect(d.gpuBytes).toBe(32 ** 3 * 2)
+        // thick slices along z: x and y are halved before z
+        const a = new VolumeData({data: new Float32Array(64 ** 3), size: [64, 64, 64], spacing: [1, 1, 4], maxGpuBytes: 64 ** 3 * 2 / 4})
+        expect(a.textureSize).toEqual([32, 32, 64])
+    })
+
+    test('a field over the texture size limit is downsampled along that axis', () => {
+        const prev = VolumeData.maxTextureSize
+        VolumeData.maxTextureSize = 32
+        try {
+            const d = new VolumeData({data: new Uint8Array(100 * 10 * 10), size: [100, 10, 10]})
+            expect(d.textureSize).toEqual([25, 10, 10])
+            expect(d.texture.image.width).toBe(25)
+        } finally {
+            VolumeData.maxTextureSize = prev
+        }
+    })
+
+    test('each texel averages the voxels it covers in the box', () => {
+        // 5 voxels into 3 texels: voxels 0 | 1 2 | 3 4
+        const d = new VolumeData({data: new Uint8Array([10, 20, 40, 60, 100]), size: [5, 1, 1], maxGpuBytes: 3})
+        expect(d.textureSize).toEqual([3, 1, 1])
+        expect(Array.from(d.texture.image.data as Uint8Array)).toEqual([10, 30, 80])
+        const f = new VolumeData({data: new Float32Array([0, 1, 2, 3]), size: [4, 1, 1], maxGpuBytes: 4, gpuFormat: 'r16f'})
+        expect(f.textureSize).toEqual([2, 1, 1])
+        const out = Array.from(f.texture.image.data as Uint16Array).map(h => DataUtils.fromHalfFloat(h))
+        expect(out[0]).toBeCloseTo(0.5 / 3, 3)
+        expect(out[1]).toBeCloseTo(2.5 / 3, 3)
+    })
+})
+
+describe('DerivedField', () => {
+    class TestField extends DerivedField {
+        runs: [number, number][] = []
+        target = {width: 4, height: 4, depth: 10} as any
+        get size(): [number, number, number] {return [4, 4, 10]}
+        get texture() {return undefined}
+        get gpuBytes() {return 0}
+        protected _createPasses(): DerivedFieldPass[] {
+            const kernel = {run: (_r: any, _t: any, from: number, to: number) => this.runs.push([from, to])} as any
+            return [{kernel, target: this.target, cost: 1}]
+        }
+    }
+
+    test('is built a few layers per call within the budget', () => {
+        const f = new TestField()
+        // one layer is 16 reads
+        expect(f.update(null as any, 40)).toBe(32)
+        expect(f.ready).toBe(false)
+        while (!f.ready) f.update(null as any, 40)
+        expect(f.runs).toEqual([[0, 2], [2, 4], [4, 6], [6, 8], [8, 10]])
+        expect(f.version).toBe(1)
+        expect(f.update(null as any, 40)).toBe(0)
+        f.invalidate()
+        expect(f.ready).toBe(false)
+        f.update(null as any)
+        expect(f.ready).toBe(true)
+        expect(f.runs.at(-1)).toEqual([0, 10])
+        expect(f.version).toBe(2)
+    })
+
+    test('does at least one layer even when the budget is smaller', () => {
+        const f = new TestField()
+        f.update(null as any, 1)
+        expect(f.runs).toEqual([[0, 1]])
     })
 })
 
