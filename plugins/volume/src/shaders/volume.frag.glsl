@@ -7,6 +7,10 @@
 //   vec4  volClassify(float v, vec3 uvw)            value on the transfer function (0..1) to colour and opacity per voxel
 //   vec3  volShade(vec3 color, vec3 uvw, vec3 dir)  lighting of a sample; dir is the ray direction in texture space
 //   void  volBlend(inout vec4 acc, vec4 s)          adds a sample (premultiplied colour) to the ray, front to back
+//
+// Lighting (VOL_LIGHTING, VolumeMaterial.shading) uses the three.js lights of the scene (material.lights) and the
+// environment as spherical harmonics; the surface, volume and hybrid models follow vtk.js (vtkVolumeFS.glsl, BSD-3)
+// and Exposure Render (Kroes et al. 2012).
 
 precision highp sampler3D;
 
@@ -44,12 +48,43 @@ uniform float uBlockSize;          // voxels per block along each axis
 uniform float uOpenEnds;           // 1: 0 and 1 in uMinMaxMap also stand for values below and above
 #endif
 
+#ifdef VOL_LIGHTING
+// VOL_LIGHTING: 1 surface, 2 volume, 3 hybrid (VolumeMaterial.shading)
+uniform vec3 uEnvSH[9];            // environment radiance as spherical harmonics, world space (VolumePlugin)
+uniform mat3 uEnvRotation;         // world direction to environment direction
+uniform float uGradientFactor;     // hybrid: surface probability 1 - exp(-factor * |gradient per voxel|)
+uniform float uAnisotropy;         // Henyey-Greenstein g of the volume scattering, -1 back to 1 forward
+uniform float uRoughness;          // of the surface shading
+uniform float uSpecular;           // specular reflectance, F0 = 0.04 * specular
+#endif
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+
+#ifdef VOL_SHADOWS
+uniform highp sampler3D uLightMap; // LightVolume: transmittance toward the shadow light
+uniform float uLightReady;
+uniform mat3 uLightPerm;           // texture coordinate to light volume coordinate (its axes are permuted)
+uniform vec3 uLightOffset;         // shadow bias toward the light, in texture coordinates
+uniform int uShadowLightType;      // 1 directional, 2 point, 3 spot (index in the three.js light arrays below)
+uniform int uShadowLightIndex;
+#endif
+
+#ifdef VOL_AO
+uniform highp sampler3D uAOMap;    // AmbientOcclusionVolume
+uniform float uAOReady;
+uniform float uAOBias;             // lookup offset out of the surface, in voxels of the field
+#endif
+
 #ifdef VOL_GRADIENT_MAP
 uniform highp sampler3D uGradientMap; // GradientField: direction * 0.5 + 0.5, length / VOL_GRADIENT_MAX
 uniform float uGradientReady;
 #endif
 
 #include <common>
+#ifdef VOL_LIGHTING
+#include <lights_pars_begin>
+#endif
 #include <packing>
 #include <logdepthbuf_pars_fragment>
 #include <clipping_planes_pars_fragment>
@@ -91,6 +126,7 @@ float volValue(vec3 uvw) {
 }
 
 vec3 volGradient(vec3 uvw);
+vec3 volLight(vec3 albedo, vec3 uvw, int model);
 
 #ifdef VOL_SKIP
 // the block of a texture coordinate: blocks of uBlockSize voxels, with voxel centres at integer coordinates. Block 0
@@ -171,7 +207,8 @@ void main() {
     #endif
 
     // opaque scene geometry, from the G-buffer depth (GBufferPlugin)
-    #if defined(HAS_NORMAL_DEPTH_BUFFER) && HAS_NORMAL_DEPTH_BUFFER == 1
+    // (not when the surface writes its depth, iso mode: the depth test does it, and the G-buffer may hold this surface)
+    #if defined(HAS_NORMAL_DEPTH_BUFFER) && HAS_NORMAL_DEPTH_BUFFER == 1 && !defined(VOL_WRITE_DEPTH)
     {
         float sceneDepth = getDepth(gl_FragCoord.xy / uResolution);
         if (sceneDepth < 0.999 && abs(vDirectionView.z) > 1e-8) {
@@ -362,6 +399,9 @@ void main() {
     if (!hit) discard;
     #endif
     vec4 s = volClassify(uIsoValue, uvw);
+    #ifdef VOL_LIGHTING
+    acc = vec4(volLight(s.rgb, uvw, 1), 1.0);
+    #else
     vec3 n = volGradient(uvw) / uBoxSize; // object space normal direction, unnormalized
     vec3 nView = normalize(uNormalMatrix * n);
     if (dot(nView, vDirectionView) > 0.0) nView = -nView;
@@ -371,17 +411,39 @@ void main() {
     float spec = pow(max(dot(reflect(-l, nView), l), 0.0), 32.0) * 0.25;
     acc = vec4(s.rgb * (0.25 + 0.75 * diffuse) + spec, 1.0);
     #endif
+    #endif
 
     #ifndef VOL_DEBUG_STEPS
     if (acc.a <= 0.0) discard;
     #endif
 
     // premultiplied colour
+    #ifdef VOL_GBUFFER
+    // G-buffer of an isosurface (VolumeGBufferMaterial): view space position and normal of the hit
+    vec3 normal = normalize(uNormalMatrix * (volGradient(uvw) / uBoxSize));
+    if (dot(normal, vDirectionView) > 0.0) normal = -normal;
+    vec3 gbViewPosition = (modelViewMatrix * vec4((uvw - 0.5) * uBoxSize, 1.0)).xyz;
+    // defined by VolumeGBufferMaterial; vViewPosition is -mvPosition, as in three.js
+    volGBufferOutput(normal, -gbViewPosition);
+    #else
     gl_FragColor = acc;
+    #endif
 
     #include <logdepthbuf_fragment>
+
+    #ifdef VOL_WRITE_DEPTH
+    // depth of the surface instead of the back face of the box, so it is depth tested with the scene
+    vec4 hitClip = projectionMatrix * modelViewMatrix * vec4((uvw - 0.5) * uBoxSize, 1.0);
+    #ifdef USE_LOGDEPTHBUF
+    gl_FragDepth = isOrthographic ? (hitClip.z / hitClip.w) * 0.5 + 0.5 : log2(1.0 + hitClip.w) * logDepthBufFC * 0.5;
+    #else
+    gl_FragDepth = (hitClip.z / hitClip.w) * 0.5 + 0.5;
+    #endif
+    #endif
+    #ifndef VOL_GBUFFER
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
+    #endif
 
     #ifdef VOL_DEBUG_STEPS
     // red: samples read, green: loop iterations, blue: samples without skipping; 1 is 512
@@ -405,11 +467,158 @@ vec3 volGradient(vec3 uvw) {
     ) * (0.5 * uVolumeSize * uValueMap.x);
 }
 
+#ifdef VOL_LIGHTING
+
+float volShadow(vec3 uvw, int type, int index) {
+    #ifdef VOL_SHADOWS
+    if (uLightReady > 0.5 && type == uShadowLightType && index == uShadowLightIndex) return texture(uLightMap, uLightPerm * (uvw + uLightOffset)).r;
+    #endif
+    return 1.0;
+}
+
+float volAmbientOcclusion(vec3 uvw) {
+    #ifdef VOL_AO
+    if (uAOReady > 0.5) return texture(uAOMap, uvw).r;
+    #endif
+    return 1.0;
+}
+
+// Henyey-Greenstein phase function, per steradian
+float volPhase(float cosTheta) {
+    float g = uAnisotropy;
+    float g2 = g * g;
+    return RECIPROCAL_PI * 0.25 * (1.0 - g2) / pow(max(1.0 + g2 - 2.0 * g * cosTheta, 1e-4), 1.5);
+}
+
+// GGX specular as three.js BRDF_GGX (lights_physical_pars_fragment)
+vec3 volSpecularGGX(vec3 l, vec3 v, vec3 n, vec3 f0, float roughness) {
+    float alpha = pow2(max(roughness, 0.03));
+    vec3 h = normalize(l + v);
+    float dotNL = saturate(dot(n, l));
+    float dotNV = saturate(dot(n, v));
+    float dotNH = saturate(dot(n, h));
+    float dotVH = saturate(dot(v, h));
+    vec3 F = F_Schlick(f0, 1.0, dotVH);
+    float a2 = pow2(alpha);
+    float gv = dotNL * sqrt(a2 + (1.0 - a2) * pow2(dotNV));
+    float gl = dotNV * sqrt(a2 + (1.0 - a2) * pow2(dotNL));
+    float V = 0.5 / max(gv + gl, EPSILON);
+    float D = RECIPROCAL_PI * a2 / pow2(pow2(dotNH) * (a2 - 1.0) + 1.0);
+    return F * (V * D);
+}
+
+void volAddLight(IncidentLight light, float shadow, vec3 n, vec3 v, vec3 albedo, vec3 f0, inout vec3 surface, inout vec3 volume) {
+    if (!light.visible) return;
+    vec3 c = light.color * shadow;
+    float dotNL = saturate(dot(n, light.direction));
+    surface += dotNL * c * (BRDF_Lambert(albedo) + volSpecularGGX(light.direction, v, n, f0, uRoughness));
+    // light travels along -direction and is scattered toward the eye
+    volume += albedo * c * volPhase(dot(-light.direction, v));
+}
+
+// Lighting of a sample: model 1 surface (gradient normal, Lambert and GGX), 2 volume (phase function, no normal),
+// 3 hybrid (surface where the gradient is strong, volume where it is weak). Lights are in view space, as three.js
+// gives them; the environment and ambient lights are scaled by the ambient occlusion, the shadow light by the light
+// volume.
+vec3 volLight(vec3 albedo, vec3 uvw, int model) {
+    vec3 posView = (modelViewMatrix * vec4((uvw - 0.5) * uBoxSize, 1.0)).xyz;
+    vec3 v = isOrthographic ? vec3(0.0, 0.0, 1.0) : normalize(-posView);
+    float surfaceWeight = model == 1 ? 1.0 : 0.0;
+    vec3 n = v;
+    vec3 aoUvw = uvw;
+    if (model != 2) {
+        vec3 g = volGradient(uvw); // per texture unit
+        if (dot(g, g) > 0.0) {
+            n = normalize(uNormalMatrix * (g / uBoxSize));
+            float side = 1.0;
+            if (dot(n, v) < 0.0) { n = -n; side = -1.0; }
+            #ifdef VOL_AO
+            // the occlusion just outside the surface (on the side of the eye), not inside the dense part
+            aoUvw += side * normalize(g / uVolumeSize) * uAOBias / uVolumeSize;
+            #endif
+        }
+        if (model == 3) surfaceWeight = 1.0 - exp(-uGradientFactor * length(g / uVolumeSize));
+    }
+    vec3 f0 = vec3(0.04 * uSpecular);
+    vec3 surface = vec3(0.0);
+    vec3 volume = vec3(0.0);
+    IncidentLight light;
+    #if NUM_DIR_LIGHTS > 0
+    for (int i = 0; i < NUM_DIR_LIGHTS; i++) {
+        getDirectionalLightInfo(directionalLights[i], light);
+        volAddLight(light, volShadow(uvw, 1, i), n, v, albedo, f0, surface, volume);
+    }
+    #endif
+    #if NUM_POINT_LIGHTS > 0
+    for (int i = 0; i < NUM_POINT_LIGHTS; i++) {
+        getPointLightInfo(pointLights[i], posView, light);
+        volAddLight(light, volShadow(uvw, 2, i), n, v, albedo, f0, surface, volume);
+    }
+    #endif
+    #if NUM_SPOT_LIGHTS > 0
+    for (int i = 0; i < NUM_SPOT_LIGHTS; i++) {
+        getSpotLightInfo(spotLights[i], posView, light);
+        volAddLight(light, volShadow(uvw, 3, i), n, v, albedo, f0, surface, volume);
+    }
+    #endif
+
+    // ambient: irradiance on the surface; the mean radiance over all directions for the volume
+    float ao = volAmbientOcclusion(aoUvw);
+    vec3 nWorld = inverseTransformDirection(n, viewMatrix);
+    vec3 irradiance = getAmbientLightIrradiance(ambientLightColor) + shGetIrradianceAt(normalize(uEnvRotation * nWorld), uEnvSH);
+    vec3 meanRadiance = ambientLightColor * RECIPROCAL_PI + uEnvSH[0] * 0.282095;
+    #if defined(USE_LIGHT_PROBES)
+    irradiance += getLightProbeIrradiance(lightProbe, n);
+    meanRadiance += lightProbe[0] * 0.282095;
+    #endif
+    #if NUM_HEMI_LIGHTS > 0
+    for (int i = 0; i < NUM_HEMI_LIGHTS; i++) {
+        irradiance += getHemisphereLightIrradiance(hemisphereLights[i], n);
+        meanRadiance += (hemisphereLights[i].skyColor + hemisphereLights[i].groundColor) * 0.5 * RECIPROCAL_PI;
+    }
+    #endif
+    surface += BRDF_Lambert(albedo) * irradiance * ao;
+    volume += albedo * meanRadiance * ao;
+    return mix(volume, surface, surfaceWeight);
+}
+
+#endif
+
 // region default hooks
 
 #ifndef VOL_CUSTOM_SAMPLE
 float volSample(vec3 uvw) {
+    #ifdef VOL_CUBIC
+    // tricubic B-spline from 8 linear lookups: Sigg and Hadwiger, "Fast Third-Order Texture Filtering", GPU Gems 2
+    vec3 coord = uvw * uVolumeSize - 0.5;
+    vec3 i = floor(coord);
+    vec3 f = coord - i;
+    vec3 f2 = f * f;
+    vec3 f3 = f2 * f;
+    vec3 w0 = (1.0 - 3.0 * f + 3.0 * f2 - f3) / 6.0;
+    vec3 w1 = (4.0 - 6.0 * f2 + 3.0 * f3) / 6.0;
+    vec3 w2 = (1.0 + 3.0 * f + 3.0 * f2 - 3.0 * f3) / 6.0;
+    vec3 w3 = f3 / 6.0;
+    vec3 g0 = w0 + w1;
+    vec3 g1 = w2 + w3;
+    vec3 p0 = (i - 0.5 + w1 / g0) / uVolumeSize; // texel centres at (i + 0.5) / size
+    vec3 p1 = (i + 1.5 + w3 / g1) / uVolumeSize;
+    float c000 = texture(volumeMap, vec3(p0.x, p0.y, p0.z)).r;
+    float c100 = texture(volumeMap, vec3(p1.x, p0.y, p0.z)).r;
+    float c010 = texture(volumeMap, vec3(p0.x, p1.y, p0.z)).r;
+    float c110 = texture(volumeMap, vec3(p1.x, p1.y, p0.z)).r;
+    float c001 = texture(volumeMap, vec3(p0.x, p0.y, p1.z)).r;
+    float c101 = texture(volumeMap, vec3(p1.x, p0.y, p1.z)).r;
+    float c011 = texture(volumeMap, vec3(p0.x, p1.y, p1.z)).r;
+    float c111 = texture(volumeMap, vec3(p1.x, p1.y, p1.z)).r;
+    float c00 = g0.x * c000 + g1.x * c100;
+    float c10 = g0.x * c010 + g1.x * c110;
+    float c01 = g0.x * c001 + g1.x * c101;
+    float c11 = g0.x * c011 + g1.x * c111;
+    return g0.z * (g0.y * c00 + g1.y * c10) + g1.z * (g0.y * c01 + g1.y * c11);
+    #else
     return texture(volumeMap, uvw).r;
+    #endif
 }
 #endif
 
@@ -422,7 +631,11 @@ vec4 volClassify(float v, vec3 uvw) {
 
 #ifndef VOL_CUSTOM_SHADE
 vec3 volShade(vec3 color, vec3 uvw, vec3 dir) {
+    #ifdef VOL_LIGHTING
+    return volLight(color, uvw, VOL_LIGHTING);
+    #else
     return color;
+    #endif
 }
 #endif
 

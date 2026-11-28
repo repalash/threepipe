@@ -1,4 +1,20 @@
-import {AViewerPluginSync, IObject3D, serialize, ThreeViewer, uiFolderContainer, uiMonitor, uiToggle} from 'threepipe'
+import {
+    AViewerPluginSync,
+    Euler,
+    HalfFloatType,
+    IObject3D,
+    ITexture,
+    Matrix3,
+    Matrix4,
+    serialize,
+    ThreeViewer,
+    uiFolderContainer,
+    uiMonitor,
+    uiToggle,
+    Vector3,
+    WebGLCubeRenderTarget,
+} from 'threepipe'
+import {LightProbeGenerator} from 'three/examples/jsm/lights/LightProbeGenerator.js'
 import type {VolumeObject} from './VolumeObject'
 import type {VolumeMaterial} from './VolumeMaterial'
 import {VolumeData} from './VolumeData'
@@ -17,7 +33,8 @@ import {volumeGLTFExtension} from './gltf'
  *
  * Before each frame it builds the GPU maps the volumes use to skip empty space (and the gradient textures), within
  * {@link kernelBudget} per frame, and keeps frames coming until they are done. It also sets
- * {@link VolumeData.maxTextureSize} from the renderer.
+ * {@link VolumeData.maxTextureSize} from the renderer, and gives the volume materials the environment light of the scene
+ * as spherical harmonics (for `shading`).
  *
  * @category Plugins
  */
@@ -60,6 +77,10 @@ export class VolumePlugin extends AViewerPluginSync {
 
     private _renderedInteractive = false
     private _derivedPending = false
+    private _lightingVersions = new WeakMap<object, number>()
+    private _envKey = ''
+    private _envSH?: Vector3[]
+    private readonly _envRotation = new Matrix3()
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
@@ -151,17 +172,46 @@ export class VolumePlugin extends AViewerPluginSync {
         const viewer = this._viewer
         if (!viewer || !this.enabled) return
         const renderer = viewer.renderManager.webglRenderer
-        // each volume: a shared material builds the maps of the field of each volume
+        // each volume: a shared material builds the maps of the field and the shadows of each volume
+        const materials = new Set<VolumeMaterial>()
+        for (const v of this.volumes) if (v.visible && v.material?.isVolumeMaterial) materials.add(v.material)
+        this._updateEnvironment([...materials])
         let budget = this.kernelBudget
         let pending = false
+        let lightingChanged = false
         const context = {scene: viewer.scene, camera: viewer.scene.mainCamera}
         for (const v of this.volumes) {
             const m = v.material as VolumeMaterial
             if (!v.visible || !m?.isVolumeMaterial) continue
             if (budget > 0) budget -= m.updateDerived(renderer, budget, {...context, object: v})
             pending = pending || m.derivedPending
+            const lv = m.lightingVersion
+            if ((this._lightingVersions.get(m) ?? 0) !== lv) lightingChanged = true
+            this._lightingVersions.set(m, lv)
         }
         this._derivedPending = pending
+        // a finished shadow or occlusion volume changes the image: start the progressive frames again
+        if (lightingChanged) viewer.setDirty()
+    }
+
+    /**
+     * The environment of the scene as spherical harmonics, computed again when it changes.
+     */
+    private _updateEnvironment(materials: VolumeMaterial[]) {
+        const viewer = this._viewer!
+        const scene = viewer.scene
+        const env = scene.environment as ITexture | null
+        const lit = materials.some(m => m.shading !== 'none')
+        const rot = (scene as any).environmentRotation as Euler | undefined
+        const key = !lit || !env ? '' : [env.uuid, env.version, scene.environmentIntensity ?? 1, rot ? rot.toArray().join(',') : ''].join(';')
+        if (key !== this._envKey) {
+            this._envKey = key
+            this._envSH = key ? environmentSH(viewer, env!, scene.environmentIntensity ?? 1) : undefined
+            // as three.js does for environment maps (WebGLMaterials, envMapRotation): the Euler angles negated
+            if (rot) this._envRotation.setFromMatrix4(new Matrix4().makeRotationFromEuler(new Euler(-rot.x, -rot.y, -rot.z, rot.order)))
+            else this._envRotation.identity()
+        }
+        for (const m of materials) m.setEnvironment(this._envSH, this._envRotation)
     }
 
     private _postRender = () => {
@@ -169,5 +219,29 @@ export class VolumePlugin extends AViewerPluginSync {
         // while derived fields are being built (the image does not change, the frames get faster)
         if (this._renderedInteractive || this._derivedPending) this._viewer?.renderManager.setDirty()
         this._renderedInteractive = false
+    }
+}
+
+/**
+ * Spherical harmonics (radiance, 9 coefficients) of an environment texture: drawn into a small cube render target
+ * and projected with three.js LightProbeGenerator. Equirectangular textures and cube textures are supported.
+ */
+function environmentSH(viewer: ThreeViewer, env: ITexture, intensity: number): Vector3[] | undefined {
+    const renderer = viewer.renderManager.webglRenderer
+    try {
+        let probe
+        if ((env as any).isCubeTexture && Array.isArray((env as any).image) && (env as any).image[0]?.width) {
+            probe = LightProbeGenerator.fromCubeTexture(env as any)
+        } else if ((env as any).image) {
+            const rt = new WebGLCubeRenderTarget(32, {type: HalfFloatType})
+            rt.fromEquirectangularTexture(renderer, env as any)
+            probe = LightProbeGenerator.fromCubeRenderTarget(renderer, rt)
+            rt.dispose()
+        }
+        if (!probe) return undefined
+        return probe.sh.coefficients.map(c => c.clone().multiplyScalar(intensity))
+    } catch (e) {
+        console.warn('VolumePlugin: could not read the environment for volume lighting', e)
+        return undefined
     }
 }

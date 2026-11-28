@@ -6,12 +6,13 @@ import {VolumeKernel} from './VolumeKernel'
 const minMaxKernel = `
 uniform sampler3D uSource;
 uniform int uBlockSize;
+uniform int uReach;           // voxels past the block that a sample in it reads: 1 linear, 2 tricubic
 uniform int uFloat;           // 1: half float target, values as they are
 vec4 kernel(ivec3 b) {
     ivec3 size = textureSize(uSource, 0);
     // the voxels of the block and one more on each side: a sample in the block interpolates its neighbours too
     ivec3 lo = max(b * uBlockSize - 1, ivec3(0));
-    ivec3 hi = min((b + 1) * uBlockSize, size - 1);
+    ivec3 hi = min((b + 1) * uBlockSize - 1 + uReach, size - 1);
     float mn = 1e20;
     float mx = -1e20;
     for (int z = lo.z; z <= hi.z; z++)
@@ -49,7 +50,12 @@ export class MinMaxBlocks extends DerivedField {
     private _kernel?: VolumeKernel
     private _float = false
 
-    constructor(readonly source: VolumeData, readonly blockSize = 8) {
+    /**
+     * @param source - the field
+     * @param blockSize - voxels per block along each axis
+     * @param reach - voxels past a block that a sample in it reads: 1 for linear sampling, 2 for tricubic
+     */
+    constructor(readonly source: VolumeData, readonly blockSize = 8, readonly reach = 1) {
         super()
         source.events.addEventListener('update', this._sourceUpdate)
     }
@@ -57,8 +63,8 @@ export class MinMaxBlocks extends DerivedField {
     /**
      * The cached block ranges of a field for a block size.
      */
-    static of(source: VolumeData, blockSize = 8): MinMaxBlocks {
-        return source.getDerived('minmax' + blockSize, () => new MinMaxBlocks(source, blockSize))
+    static of(source: VolumeData, blockSize = 8, reach = 1): MinMaxBlocks {
+        return source.getDerived('minmax' + blockSize + '-' + reach, () => new MinMaxBlocks(source, blockSize, reach))
     }
 
     private _sourceUpdate = () => this.invalidate()
@@ -97,9 +103,9 @@ export class MinMaxBlocks extends DerivedField {
         if (!this._kernel) this._kernel = new VolumeKernel({
             name: 'VolumeMinMaxBlocks',
             fragment: minMaxKernel,
-            uniforms: {uSource: {value: null}, uBlockSize: {value: this.blockSize}, uFloat: {value: 0}},
+            uniforms: {uSource: {value: null}, uBlockSize: {value: this.blockSize}, uReach: {value: this.reach}, uFloat: {value: 0}},
         })
-        const b = this.blockSize + 2
+        const b = this.blockSize + 1 + this.reach
         return [{
             kernel: this._kernel,
             target: this._target,

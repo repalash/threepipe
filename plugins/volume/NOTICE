@@ -28,3 +28,17 @@ src/loaders/NRRDLoadPlugin.ts, src/VolumeData.ts
 src/derived/EmptySpaceMap.ts, src/shaders/volume.frag.glsl
   Empty space skipping with a Chebyshev distance map follows the method of L. J. Deakin and M. A. Knackstedt,
   "Accelerated volume rendering with Chebyshev distance maps", SIGGRAPH Asia 2019 Technical Briefs (no code copied).
+
+src/shaders/volume.frag.glsl (lighting)
+  The surface, volume and hybrid shading models follow vtk.js (Sources/Rendering/OpenGL/glsl/vtkVolumeFS.glsl):
+  https://github.com/Kitware/vtk-js, Copyright (c) 2016, Kitware Inc., BSD 3-Clause License; and Exposure Render,
+  T. Kroes, F. H. Post and C. P. Botha, "Exposure Render: An Interactive Photo-Realistic Volume Rendering Framework",
+  PLoS ONE 2012 (method). volSpecularGGX ports BRDF_GGX of three.js (lights_physical_pars_fragment), MIT License.
+  volSample with VOL_CUBIC: C. Sigg and M. Hadwiger, "Fast Third-Order Texture Filtering", GPU Gems 2, 2005 (method).
+
+src/derived/LightVolume.ts
+  Light propagation by slices follows T. Ropinski, C. Doring and C. Rezk-Salama, "Interactive Volumetric Lighting
+  Simulating Scattering and Shadowing", IEEE PacificVis 2010 (method, no code copied).
+
+src/VolumePlugin.ts
+  Spherical harmonics of the environment with three.js LightProbeGenerator (examples/jsm), MIT License.

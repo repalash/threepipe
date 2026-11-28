@@ -23,7 +23,11 @@ export interface DerivedFieldEventMap {
  * One kernel run over a whole render target, a step of building a {@link DerivedField}.
  */
 export interface DerivedFieldPass {
-    kernel: VolumeKernel
+    /**
+     * Runs the layers `from` to `to - 1` of the target: a {@link VolumeKernel}, or any object with such a `run`
+     * (for passes that need more than one draw per layer).
+     */
+    kernel: Pick<VolumeKernel, 'run'>
     target: WebGL3DRenderTarget
     /**
      * Texture reads per output voxel, to spread the work over frames ({@link DerivedField.update}).
@@ -97,6 +101,13 @@ export abstract class DerivedField {
     protected abstract _createPasses(renderer: WebGLRenderer): DerivedFieldPass[]
 
     /**
+     * Called when a build finishes, before the `update` event.
+     */
+    protected _onBuilt() {
+        // for subclasses
+    }
+
+    /**
      * Whether the inputs are there to build. A field whose inputs are not ready waits.
      */
     protected _canBuild(): boolean {
@@ -148,6 +159,7 @@ export abstract class DerivedField {
             this._built = true
             this._version++
             this._passes = undefined
+            this._onBuilt()
             this.events.dispatchEvent({type: 'update'})
         }
         return spent
