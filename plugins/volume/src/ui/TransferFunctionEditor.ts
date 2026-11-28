@@ -10,7 +10,7 @@ export interface TransferFunctionEditorUndo {
 
 export interface TransferFunctionEditorOptions {
     /**
-     * Height of the drawing in CSS pixels. Default 150.
+     * Height of the drawing in CSS pixels. Default 164.
      */
     height?: number
     /**
@@ -68,7 +68,7 @@ export class TransferFunctionEditor {
     private _colorInput: HTMLInputElement
 
     constructor(readonly material: VolumeMaterial, readonly options: TransferFunctionEditorOptions = {}) {
-        this._height = options.height ?? 150
+        this._height = options.height ?? 164
         if (!cssAdded && typeof document !== 'undefined') {
             const style = document.createElement('style')
             style.textContent = css
@@ -141,16 +141,17 @@ export class TransferFunctionEditor {
         return 4
     }
     private get _curveBottom() {
-        return this._height - 46
+        return this._height - 56
     }
     private get _stripTop() {
-        return this._height - 40
+        return this._height - 50
     }
     private get _stripBottom() {
-        return this._height - 26
+        return this._height - 36
     }
+    // the bar from windowTop + 1 to + 9, its numbers below it
     private get _windowTop() {
-        return this._height - 12
+        return this._height - 24
     }
 
     private _xToT(x: number) {
@@ -282,9 +283,9 @@ export class TransferFunctionEditor {
         ctx.textBaseline = 'bottom'
         ctx.fillStyle = fg
         ctx.textAlign = 'left'
-        ctx.fillText(fmt(r0), Math.max(this._pad, Math.min(x0, w - 80)), this._windowTop)
+        ctx.fillText(fmt(r0), Math.max(this._pad, Math.min(x0, w - 80)), this._height - 1)
         ctx.textAlign = 'right'
-        ctx.fillText(fmt(r1), Math.min(w - this._pad, Math.max(x1, 80)), this._windowTop)
+        ctx.fillText(fmt(r1), Math.min(w - this._pad, Math.max(x1, 80)), this._height - 1)
 
         if (this._presetSelect.value !== this.material.preset) this._presetSelect.value = this.material.preset && volumePresets[this.material.preset] ? this.material.preset : ''
     }
@@ -408,7 +409,9 @@ export class TransferFunctionEditor {
             // a long press on a point removes it (touch has no double-click)
             if (e.pointerType === 'touch') this._longPress = setTimeout(() => this._removeOpacity(this._drag?.index ?? -1, true), 600)
         }
-        this.canvas.setPointerCapture(e.pointerId)
+        try {
+            this.canvas.setPointerCapture(e.pointerId)
+        } catch { /* a synthetic event has no pointer to capture */ }
         e.preventDefault()
     }
 

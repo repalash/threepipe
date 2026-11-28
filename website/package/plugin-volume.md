@@ -20,6 +20,7 @@ Volume rendering for [threepipe](https://threepipe.org): scans, microscopy, simu
 [Nebula](https://threepipe.org/examples/#volume-nebula/) &mdash;
 [Clouds](https://threepipe.org/examples/#volume-clouds/) &mdash;
 [Fractal](https://threepipe.org/examples/#volume-fractal/) &mdash;
+[Editor](https://threepipe.org/examples/#volume-editor/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/plugins/volume/src/index.ts) &mdash;
 [API Reference](https://threepipe.org/plugins/volume/docs)
 
@@ -88,6 +89,7 @@ viewer.scene.addObject(new VolumeObject(clouds))
 - **Empty space skipping** (`material.emptySpaceSkipping`, on by default): rays jump over blocks of voxels (`skipBlockSize`, 8³ by default) that add nothing: all their values have zero opacity on the transfer function (composite, x-ray), they do not contain the iso value (iso), or they cannot change the result so far (MIP, MinIP). The jumps use a Chebyshev distance map of the empty blocks (Deakin and Knackstedt 2019). Only samples that add nothing are left out, so the image is the same. The maps are built on the GPU by `VolumePlugin` and rebuilt when the transfer function, range, mode or data change; without the plugin every sample is read. It is off with a material extension that replaces `volSample` or `volClassify`. Gains depend on the data: sparse data gains the most, dense data with nothing to skip pays a small cost per block. See the benchmark example, and `material.debugSteps` for the samples per pixel.
 - **Memory**: a field larger than `VolumeData.maxGpuBytes` (default `VolumeData.defaultMaxGpuBytes`, 512 MiB) or the GPU's `MAX_3D_TEXTURE_SIZE` is uploaded downsampled, with a warning; `data.textureSize` gives the size on the GPU. `VolumePlugin` shows the GPU memory of the volumes and their derived fields.
 - **Lighting** (`material.shading`): `surface` shades each sample as a surface with the gradient as its normal (Lambert and GGX, like a mesh), `volume` scatters the light with a phase function (`anisotropy`), `hybrid` mixes them by the gradient length (`gradientFactor`). The light comes from the three.js lights of the scene (directional, point, spot, hemisphere, ambient, light probes) and from `scene.environment`, which `VolumePlugin` turns into spherical harmonics. A volume next to a mesh of the same shape is lit the same. Iso mode is shaded as a surface. The shading model follows vtk.js and Exposure Render. `multipleScattering` adds light scattered more than once (the octave approximation of Wrenninge 2015, as in Frostbite's clouds), for bright, soft clouds.
+- **Transfer function editor** (`material.transferFunctionEditor`): drag the opacity curve over the histogram of the data (click to add a point, double-click or long press to remove), drag or tap the colour stops, and drag the window bar to set the range; presets, `.clut` load and save; each drag is one undo step with `UndoManagerPlugin`. It is plain DOM: Tweakpane shows it in the "Transfer Function" folder of `material.uiConfig`, and `editor.element` goes anywhere else. (The Blueprint UI does not show it yet.)
 - **Transfer function files**: `material.importTransferFunction(text)` reads an MRIcroGL `.clut` table, a NiiVue colour map (JSON) or a saved transfer function, and takes the file's value range when it has one; `material.transferFunction.toClut(range)` writes one. `data.histogram(bins)` counts the values, for editors.
 - **Intensity** (`material.intensity`): scales the colour in every mode. Unlit, the transfer function colour is emitted light, and above 1 it glows with `BloomPlugin` (from `@threepipe/webgi-plugins`).
 - **Shadows** (`material.shadows`): the volume shadows itself from one light: the first directional, spot or point light that casts shadows (else the first directional light). A light volume at `lightingResolution` (0.5 per axis by default) is built on the GPU by sweeping slices from the side of the light, rebuilt when the light, the transfer function or the data change, and kept double buffered so it does not flicker. Point and spot lights are taken as coming from the centre of the volume. The volume does not yet receive the shadows of meshes, or cast shadows on them.
@@ -99,7 +101,7 @@ viewer.scene.addObject(new VolumeObject(clouds))
 
 ### Not yet
 
-More file formats (NIfTI, DICOM, TIFF), the transfer function editor, slice views, shadows between volumes and meshes. Planned in the next phases.
+More file formats (NIfTI, DICOM, TIFF), crop and clip handles in the view, slice views, shadows between volumes and meshes. Planned in the next phases.
 
 ## License
 
