@@ -15,7 +15,7 @@ export type {VolumeDataOptions, VolumeGpuFormat, VolumeDataEventMap} from './Vol
 export {VolumeMaterial} from './VolumeMaterial'
 export type {VolumeRenderMode} from './VolumeMaterial'
 export {VolumeObject, defaultUnitScale} from './VolumeObject'
-export type {VolumeObjectOptions} from './VolumeObject'
+export type {VolumeObjectOptions, VolumeFieldLink} from './VolumeObject'
 export {TransferFunction} from './TransferFunction'
 export type {TransferFunctionPreset, TransferFunctionEventMap} from './TransferFunction'
 export {VolumePlugin} from './VolumePlugin'

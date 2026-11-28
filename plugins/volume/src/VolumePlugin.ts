@@ -89,7 +89,36 @@ export class VolumePlugin extends AViewerPluginSync {
 
     private _objectAdd = (e: {object?: IObject3D}) => {
         const o = e.object as unknown as VolumeObject
-        if (o?.isVolumeObject) this.volumes.add(o)
+        if (!o?.isVolumeObject) return
+        this.volumes.add(o)
+        if (o.pendingFieldLinks?.length) this._loadFieldLinks(o)
+    }
+
+    /**
+     * Loads the fields of a saved volume other than its active one, and adds them under their saved names.
+     */
+    private async _loadFieldLinks(o: VolumeObject) {
+        const viewer = this._viewer
+        if (!viewer) return
+        const links = o.pendingFieldLinks
+        o.pendingFieldLinks = []
+        for (const link of links) {
+            try {
+                const data = await viewer.assetManager.importer.importSingle(link.filePath, {volumeDataOnly: true} as any) as unknown as VolumeData | undefined
+                if (!(data as any)?.isVolumeData) {
+                    console.warn('VolumePlugin: could not load the field', link.name, 'from', link.filePath)
+                    continue
+                }
+                const d = data as VolumeData
+                d.name = link.name
+                d.fieldName = link.fieldName ?? ''
+                d.fieldIndex = link.fieldIndex ?? 0
+                if (!d.filePath) d.filePath = link.filePath
+                if (!o.fields[link.name]) o.addField(d)
+            } catch (e) {
+                console.warn('VolumePlugin: could not load the field', link.name, 'from', link.filePath, e)
+            }
+        }
     }
 
     private _objectRemove = (e: {object?: IObject3D}) => {

@@ -4,6 +4,7 @@ import {NRRDLoader} from 'three/examples/jsm/loaders/NRRDLoader.js'
 import {TransferFunction} from '../../plugins/volume/src/TransferFunction'
 import {VolumeData} from '../../plugins/volume/src/VolumeData'
 import {VolumeMaterial} from '../../plugins/volume/src/VolumeMaterial'
+import {VolumeObject} from '../../plugins/volume/src/VolumeObject'
 import {colorMaps, volumePresets, volViewPresets} from '../../plugins/volume/src/library'
 import {DerivedField, DerivedFieldPass} from '../../plugins/volume/src/derived/DerivedField'
 
@@ -272,5 +273,41 @@ describe('VolumeMaterial', () => {
         expect(b.preset).toBe('CT-Bone')
         expect(b.transferFunction.colorPoints).toEqual([[0, 1, 0, 0], [1, 0, 0, 1]])
         expect(b.range.toArray()).toEqual([-500, 500])
+    })
+})
+
+describe('VolumeObject', () => {
+    test('clone keeps the fields, the active field and the unit scale', () => {
+        const a = new VolumeData({data: new Uint8Array(8), size: [2, 2, 2], name: 'density'})
+        const b = new VolumeData({data: new Uint8Array(8), size: [2, 2, 2], name: 'temperature'})
+        const o = new VolumeObject([a, b], {unitScale: 0.5})
+        o.activeField = 'temperature'
+        const c = o.clone()
+        expect(c).not.toBe(o)
+        expect(Object.keys(c.fields)).toEqual(['density', 'temperature'])
+        expect(c.fields.density).toBe(a)
+        expect(c.activeField).toBe('temperature')
+        expect(c.data).toBe(b)
+        expect(c.unitScale).toBe(0.5)
+        expect(c.material).toBe(o.material)
+    })
+
+    test('a saved volume gives the loaded field its saved name and keeps the other links to load', () => {
+        const loaded = new VolumeData({data: new Uint8Array(8), size: [2, 2, 2]}) // default name 'density'
+        const o = new VolumeObject(loaded)
+        const saved = new VolumeObject()
+        saved.userData.__volumeSettings = {
+            activeField: 'temperature',
+            fields: {
+                temperature: {filePath: 'https://example.com/t.nrrd', fieldIndex: 2},
+                density: {filePath: 'https://example.com/d.nrrd'},
+            },
+        }
+        o._copyFromEmbedded(saved as any)
+        expect(o.activeField).toBe('temperature')
+        expect(o.fields.temperature).toBe(loaded)
+        expect(loaded.fieldIndex).toBe(2)
+        expect(o.fields.density).toBeUndefined()
+        expect(o.pendingFieldLinks).toEqual([{name: 'density', filePath: 'https://example.com/d.nrrd', fieldName: undefined, fieldIndex: undefined}])
     })
 })
