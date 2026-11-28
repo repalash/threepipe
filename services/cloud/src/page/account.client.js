@@ -46,7 +46,7 @@ async function newLink() {
     catch (e) { if (e.message !== 'signed out') toast('Could not create the link: ' + e.message, true); return }
     await load()
     // the link is shown once: only its hash is stored
-    await UI.dialog({title: 'Copy the link now', text: 'It is shown only once. Give it to your agent: it reads the instructions there.', ok: 'Done',
+    await UI.dialog({title: 'Copy the link now', text: 'It is shown only once. Give it to your agent: it reads the instructions there. In a .env file, keep it in quotes.', ok: 'Done',
         body: '<div class="field"><input readonly data-link value="' + esc(link.url) + '"><button type="button" data-copy-new>' + icon('copy') + 'Copy</button></div>',
         mount: d => d.querySelector('[data-copy-new]').addEventListener('click', () => navigator.clipboard.writeText(link.url).then(() => toast('Link copied'), e => toast(e.message, true)))})
 }
