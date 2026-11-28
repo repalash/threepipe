@@ -9,44 +9,46 @@ import {
     ThreeViewer,
     UiObjectConfig,
 } from 'threepipe'
-import {generateVolume, VolumeObject, VolumeRenderMode} from '@threepipe/plugin-volume'
+import {generateVolume, VolumeObject, VolumePlugin} from '@threepipe/plugin-volume'
 import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: false,
-    renderScale: 'auto',
+    // tricubic sampling, shadows and SSAO are slow on the software renderer of the screenshot tests
+    renderScale: window.TESTING ? 0.5 : 'auto',
     // the isosurface goes into the G-buffer, so SSAO darkens its creases like a mesh
-    plugins: [LoadingScreenPlugin, ProgressivePlugin, GBufferPlugin, SSAOPlugin],
+    plugins: [LoadingScreenPlugin, ProgressivePlugin, VolumePlugin, GBufferPlugin, SSAOPlugin],
 })
 
-// The Mandelbulb: how fast the point escapes under z -> z^power + c in spherical coordinates, as a smooth value
-// (1 inside, falling off outside), so the isosurface is the fractal's surface.
+// The Mandelbulb: points c whose orbit under z -> z^power + c (in spherical coordinates) stays bounded. Inside is 1;
+// outside, the distance estimate of the escaped orbit gives 0.5 on the surface, falling off outside. The estimate is
+// only valid for orbits that escaped, so a point still bounded after the last iteration counts as inside.
 const mandelbulbGLSL = /* glsl */`
 uniform float uPower;
 float density(vec3 p) {
     vec3 c = (p - 0.5) * 2.6;
     vec3 z = c;
-    float r = 0.0;
     float dr = 1.0;
-    for (int i = 0; i < 12; i++) {
-        r = length(z);
-        if (r > 2.0) break;
+    for (int i = 0; i < 8; i++) {
+        float r = length(z);
+        if (r > 2.0) {
+            float dist = 0.5 * log(r) * r / dr;
+            return 0.5 * exp(-dist * 30.0);
+        }
         float theta = acos(clamp(z.z / max(r, 1e-6), -1.0, 1.0)) * uPower;
         float phi = atan(z.y, z.x) * uPower;
         dr = pow(r, uPower - 1.0) * uPower * dr + 1.0;
-        float zr = pow(r, uPower);
-        z = zr * vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta)) + c;
+        z = pow(r, uPower) * vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta)) + c;
     }
-    // distance estimate, turned into a value that is 0.5 on the surface
-    float dist = 0.5 * log(max(r, 1e-6)) * r / dr;
-    return clamp(0.5 - dist * 6.0, 0.0, 1.0);
+    return 1.0;
 }
 `
 
-const state = {power: 8, mode: 'iso' as VolumeRenderMode, rotate: true, lightAngle: 50}
+const state = {power: 8, look: 'surface' as 'surface' | 'ice', rotate: !window.TESTING, lightAngle: 50}
 let bulb: VolumeObject
 let key: DirectionalLight2
+let powerTimer: ReturnType<typeof setTimeout> | undefined
 
 function makeBulb() {
     const data = generateVolume(viewer.renderManager.webglRenderer, {
@@ -70,17 +72,24 @@ function makeBulb() {
 
 function applyLook() {
     const m = bulb.material
-    m.mode = state.mode
+    const tf = m.transferFunction
     m.range.set(0, 1)
-    if (state.mode === 'iso') {
+    if (state.look === 'surface') {
+        // the first crossing of 0.5: the surface, shaded and shadowed like a mesh, in the G-buffer for SSAO
+        m.mode = 'iso'
         m.isoValue = 0.5
-        m.transferFunction.colorPoints = [[0, 0.95, 0.72, 0.42], [1, 0.95, 0.72, 0.42]]
+        m.shading = 'surface'
+        m.shadows = true
+        tf.colorPoints = [[0, 0.55, 0.36, 0.2], [1, 0.55, 0.36, 0.2]]
     } else {
-        // glowing shells of the escape value
-        m.transferFunction.colorPoints = [[0, 0.05, 0.1, 0.4], [0.35, 0.1, 0.6, 1], [0.5, 1, 0.8, 0.4], [0.62, 1, 1, 1]]
-        m.transferFunction.opacityPoints = [[0, 0], [0.3, 0], [0.45, 0.1], [0.5, 0.6], [0.55, 1]]
+        // only a thin shell at the surface is opaque, so the layers behind show through it
+        m.mode = 'composite'
+        m.shading = 'surface'
+        m.shadows = false
+        tf.colorPoints = [[0, 0.1, 0.5, 1], [0.45, 0.2, 0.7, 1], [0.5, 0.9, 0.95, 1], [1, 1, 1, 1]]
+        tf.opacityPoints = [[0, 0], [0.38, 0], [0.48, 0.25], [0.55, 0.25], [0.7, 0], [1, 0]]
     }
-    m.transferFunction.setDirty()
+    tf.setDirty()
     const a = state.lightAngle * Math.PI / 180
     key.position.set(Math.cos(a) * 3, 2.5, Math.sin(a) * 3)
     key.lookAt(0, 0, 0)
@@ -91,17 +100,15 @@ function applyLook() {
 async function init() {
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/studio_small_06_1k.hdr', {setBackground: false})
     viewer.scene.setBackgroundColor('#0d0e12')
-    key = new DirectionalLight2('#fff4e6', 3.5)
+    viewer.scene.envMapIntensity = 0.35
+    key = new DirectionalLight2('#fff4e6', 3)
     key.castShadow = true // the bulb shadows itself from this light
     viewer.scene.addObject(key)
 
     makeBulb()
     const m = bulb.material
     m.sampling = 'cubic' // smooth surface and normals from 256³ voxels
-    m.shading = 'surface'
-    m.roughness = 0.35
-    m.specular = 1.4
-    m.shadows = true
+    m.roughness = 0.3
     m.ambientOcclusion = true
     m.aoRadius = 6
     m.samplingRate = 1.5
@@ -119,15 +126,19 @@ async function init() {
 
     const actions: UiObjectConfig[] = [
         {type: 'slider', label: 'Power', property: [state, 'power'], bounds: [2, 12], stepSize: 0.5, onChange: () => {
-            makeBulb()
-            viewer.setDirty()
+            // a new volume takes about a quarter of a second: make it once the slider rests
+            clearTimeout(powerTimer)
+            powerTimer = setTimeout(() => {
+                makeBulb()
+                viewer.setDirty()
+            }, 150)
         }},
-        {type: 'dropdown', label: 'Look', property: [state, 'mode'], children: [['iso', 'Surface'], ['composite', 'Glow']].map(([value, label]) => ({label, value})), onChange: applyLook},
+        {type: 'dropdown', label: 'Look', property: [state, 'look'], children: [['surface', 'Surface'], ['ice', 'Ice']].map(([value, label]) => ({label, value})), onChange: applyLook},
         {type: 'slider', label: 'Light angle', property: [state, 'lightAngle'], bounds: [0, 360], stepSize: 1, onChange: applyLook},
         {type: 'checkbox', label: 'Turn', icon: 'rotate-3d', property: [state, 'rotate'], onChange: () => controls.autoRotate = state.rotate},
     ]
     createExampleCard(viewer, {
-        description: 'The Mandelbulb fractal computed on the GPU into a 256³ volume, shown as an isosurface with tricubic smoothing, scene lighting, self shadows, ambient occlusion and SSAO from the G-buffer. Change the power to morph it.',
+        description: 'The Mandelbulb fractal computed on the GPU into a 256³ volume in a quarter of a second: an isosurface with tricubic smoothing, scene lighting, self shadows, ambient occlusion and SSAO, or a shell of ice. Change the power to morph it.',
         actions,
     })
 }

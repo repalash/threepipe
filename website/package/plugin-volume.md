@@ -79,6 +79,7 @@ viewer.scene.addObject(new VolumeObject(clouds))
 
 ### Notes
 
+- **`VolumePlugin`** builds the empty space maps, the lighting and the shadow and occlusion volumes before each frame, and saves volumes in glb files. `NRRDLoadPlugin` adds it; add it to the viewer yourself when no loader does (volumes made in code). Without it, volumes are drawn unlit and without skipping.
 - **Depth**: add `GBufferPlugin` and rays stop at opaque meshes inside the volume. Without it, the volume box is depth tested as a whole.
 - **Opacity** is per distance: the transfer function opacity is for `material.opacityUnitDistance` in the units of the field (the smallest voxel spacing by default), and each step is corrected for its physical length, so data with thick slices looks the same from every side.
 - **Clip planes**: set `material.clippingPlanes` (three.js planes); as for any three.js material they apply only with `viewer.renderManager.webglRenderer.localClippingEnabled = true`. The planes shorten the rays; with `clipIntersection` a point is clipped only when all planes clip it. `material.cropMin` and `cropMax` crop the box in texture coordinates.

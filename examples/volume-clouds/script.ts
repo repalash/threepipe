@@ -16,26 +16,24 @@ const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: false,
     renderScale: 'auto',
-    plugins: [LoadingScreenPlugin, ProgressivePlugin],
+    plugins: [LoadingScreenPlugin, ProgressivePlugin, VolumePlugin],
 })
 
-// A deck of cumulus clouds: a coverage map from fractal noise, billowy shapes from cellular (Worley) noise, flat
-// bottoms and rounded tops.
+// Cumulus clouds: a coverage map from fractal noise sets where clouds are and how tall they grow; each is a dome on a
+// flat base, with puffs from cellular (Worley) noise on its surface. The same noise scale on every axis, though the
+// box is lower than it is wide.
 const cloudsGLSL = /* glsl */`
 float density(vec3 p) {
     float h = p.y;
-    // coverage over the deck, in patches
-    float cover = smoothstep(0.42, 0.62, volFbm(vec3(p.x * 3.0, 0.0, p.z * 3.0), 5));
-    // height profile: flat bottom, top that rises with the coverage
-    float top = 0.25 + 0.7 * cover;
-    float profile = smoothstep(0.05, 0.14, h) * smoothstep(top, top - 0.25, h);
-    // billows: cellular noise at two scales eats the edges
-    vec3 q = p * vec3(9.0, 7.0, 9.0);
-    float billow = 1.0 - (0.65 * volWorley(q) + 0.35 * volWorley(q * 2.3));
-    float d = cover * profile * smoothstep(0.25, 0.75, billow + 0.25 * volFbm(p * 20.0, 3));
-    // fade at the sides of the box
-    float edge = smoothstep(0.0, 0.08, min(min(p.x, 1.0 - p.x), min(p.z, 1.0 - p.z)));
-    return d * edge * 1.6;
+    vec3 q = vec3(p.x, h * 112.0 / 256.0, p.z);
+    float coverage = smoothstep(0.36, 0.62, volFbm(vec3(p.xz * 2.2, 0.0), 5));
+    coverage *= smoothstep(0.5, 0.3, length(p.xz - 0.5)); // a round patch of sky, so the box corners never show
+    float base = 0.1;
+    float puffs = 1.0 - volWorley(q * 10.0);
+    float puffs2 = 1.0 - volWorley(q * 23.0);
+    float top = base - 0.12 + 0.9 * sqrt(coverage) + 0.14 * (puffs - 0.5) + 0.06 * (puffs2 - 0.5);
+    float inside = min(top - h, (h - base + 0.03 * (puffs2 - 0.5)) * 2.0);
+    return smoothstep(0.0, 0.05, inside) * (0.75 + 0.25 * puffs);
 }
 `
 
@@ -57,11 +55,11 @@ function applyTime() {
     sun.lookAt(0, 0, 0)
     const t = Math.min(1, state.timeOfDay * 1.6)
     sun.color.copy(dusk).lerp(noon, t)
-    sun.intensity = 2.5 + 2.5 * t
+    sun.intensity = 3 + 3 * t
     sun.setDirty()
     sky.color.copy(skyDusk).lerp(skyNoon, t)
     sky.groundColor.set('#30343c').lerp(new Color('#8a8f98'), t)
-    sky.intensity = 0.6 + 0.8 * t
+    sky.intensity = 1 + 1.6 * t
     viewer.scene.setBackgroundColor(new Color('#1c1d33').lerp(new Color('#7fb0ea'), t))
     clouds.material.shadows = state.shadows
     viewer.setDirty()
@@ -80,18 +78,18 @@ async function init() {
     const m = clouds.material
     m.range.set(0, 255)
     m.transferFunction.colorPoints = [[0, 1, 1, 1], [1, 1, 1, 1]]
-    m.transferFunction.opacityPoints = [[0, 0], [0.08, 0], [0.3, 0.35], [1, 0.9]]
+    m.transferFunction.opacityPoints = [[0, 0], [0.04, 0], [0.3, 0.15], [1, 0.5]]
     m.transferFunction.setDirty()
-    m.density = 1.4
-    m.shading = 'volume'
-    m.anisotropy = 0.55 // forward scattering: bright edges toward the sun
+    m.density = 2.5
+    m.shading = 'hybrid' // lit like a surface where the cloud is dense, scattering in its soft edges
+    m.gradientFactor = 20
+    m.anisotropy = 0.35 // forward scattering: brighter toward the sun
     m.ambientOcclusion = true
     m.aoRadius = 12
     m.samplingRate = 1.2
-    viewer.getPlugin(VolumePlugin)!.kernelBudget = 2 ** 28
 
-    viewer.scene.mainCamera.position.set(-3.4, 0.9, 3.6)
-    viewer.scene.mainCamera.target.set(0, 0.05, 0)
+    viewer.scene.mainCamera.position.set(-2.7, 1.2, 2.9)
+    viewer.scene.mainCamera.target.set(0, -0.35, 0)
     viewer.scene.mainCamera.setDirty()
     applyTime()
 
@@ -108,7 +106,7 @@ async function init() {
         {type: 'checkbox', label: 'Self shadows', property: [state, 'shadows'], onChange: applyTime},
     ]
     createExampleCard(viewer, {
-        description: 'A deck of clouds made on the GPU from noise, lit by the sun and the sky: forward scattering gives the bright silver edges, and the clouds shadow themselves. Move the sun, or let it move.',
+        description: 'Cumulus clouds made on the GPU from noise in a quarter of a second, lit by the sun and the sky, shadowing themselves. Move the sun through the day, or let it move.',
         actions,
     })
 }

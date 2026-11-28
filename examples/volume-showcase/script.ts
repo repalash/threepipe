@@ -25,22 +25,31 @@ const hu = 1024
 interface Look {
     label: string
     mode: VolumeRenderMode
-    preset: string
     shading: VolumeShading
+    preset?: string
+    // or own points, over a range in Hounsfield units
+    colors?: number[][]
+    opacities?: number[][]
+    range?: [number, number]
     density?: number
     iso?: number
 }
 
 const looks: Look[] = [
-    {label: 'Bones', mode: 'composite', preset: 'CT-Bone', shading: 'hybrid', density: 2},
-    {label: 'Vessels and organs', mode: 'composite', preset: 'CT-AAA', shading: 'hybrid', density: 1.5},
-    {label: 'Muscle', mode: 'composite', preset: 'CT-Muscle', shading: 'hybrid', density: 1.2},
-    {label: 'Skin', mode: 'iso', preset: 'CT-Soft-Tissue', shading: 'surface', iso: hu - 350},
-    {label: 'X-ray', mode: 'xray', preset: 'CT-X-ray', shading: 'none'},
-    {label: 'Maximum intensity', mode: 'mip', preset: 'colormap:inferno', shading: 'none'},
+    {label: 'Vessels and organs', mode: 'composite', preset: 'CT-AAA', shading: 'hybrid'},
+    // VolView's CT-Bone also shows some soft tissue, which fogs a body this thick: bone only, from 100 HU
+    {label: 'Bones', mode: 'composite', shading: 'hybrid', range: [100, 1200],
+        colors: [[0, 0.75, 0.55, 0.4], [0.15, 0.9, 0.8, 0.65], [0.4, 1, 0.97, 0.88], [1, 1, 1, 1]],
+        opacities: [[0, 0], [0.05, 0], [0.2, 0.3], [0.5, 0.8], [1, 0.9]]},
+    // the first crossing of -350 HU (between air and skin), coloured by the transfer function at that value
+    {label: 'Skin', mode: 'iso', shading: 'surface', iso: -350, range: [-1000, 1000],
+        colors: [[0, 0.85, 0.62, 0.5], [1, 0.85, 0.62, 0.5]], opacities: [[0, 1], [1, 1]]},
+    {label: 'X-ray', mode: 'xray', preset: 'CT-X-ray', shading: 'none', density: 0.3},
+    {label: 'Maximum intensity', mode: 'mip', preset: 'colormap:inferno', shading: 'none', range: [-100, 600]},
 ]
 
-const state = {look: 'Bones', cut: 0, sweep: true, turn: true, shadows: true}
+// the sweep and the turn are off in the screenshot tests (window.TESTING), which need a still image
+const state = {look: looks[0].label, cut: 0, sweep: !window.TESTING, turn: !window.TESTING, shadows: true}
 let scan: VolumeObject
 let light: DirectionalLight2
 
@@ -48,12 +57,18 @@ function applyLook() {
     const look = looks.find(l => l.label === state.look) ?? looks[0]
     const m = scan.material
     m.mode = look.mode
-    m.setPreset(look.preset)
-    if (look.preset.startsWith('CT-')) m.range.set(m.range.x + hu, m.range.y + hu)
-    else m.range.set(hu - 100, hu + 600) // the colour map over soft tissue to bone
+    if (look.preset) {
+        m.setPreset(look.preset)
+        if (look.preset.startsWith('CT-')) m.range.set(m.range.x + hu, m.range.y + hu)
+    } else {
+        m.transferFunction.colorPoints = look.colors!.map(c => [...c])
+        m.transferFunction.opacityPoints = look.opacities!.map(o => [...o])
+        m.transferFunction.setDirty()
+    }
+    if (look.range) m.range.set(look.range[0] + hu, look.range[1] + hu)
+    if (look.iso !== undefined) m.isoValue = look.iso + hu
     m.shading = look.shading
     m.density = look.density ?? 1
-    if (look.iso !== undefined) m.isoValue = look.iso
     m.shadows = state.shadows
     viewer.setDirty()
 }
@@ -61,7 +76,7 @@ function applyLook() {
 function applyCut() {
     // the crop box is in texture coordinates; texture y runs from the back of the patient to the front
     scan.material.cropMax.y = 1 - state.cut * 0.6
-    scan.material.setDirty()
+    scan.material.setDirty({needsUpdate: false, refreshUi: false}) // a uniform: no shader change
     viewer.setDirty()
 }
 
@@ -83,6 +98,8 @@ async function init() {
     scan.rotation.x = Math.PI / 2
     scan.setDirty({change: 'rotation'})
     const m = scan.material
+    // the patient table is in the scan, behind the back: crop it off (texture y runs from the back to the front)
+    m.cropMin.y = 0.19
     m.ambientOcclusion = true
     m.aoRadius = 6
     m.samplingRate = 1.5
@@ -119,7 +136,7 @@ async function init() {
         {type: 'checkbox', label: 'Shadows', property: [state, 'shadows'], onChange: applyLook},
     ]
     createExampleCard(viewer, {
-        description: 'A CT scan of the abdomen with the CT presets from VolView: bones, vessels, muscle, skin as an isosurface, x-ray and maximum intensity. Lit by the scene, with self shadows and ambient occlusion. A crop sweeps through the front of the body.',
+        description: 'A CT scan of the abdomen (from the three.js examples): the aorta and the vessels with VolView\'s CT-AAA preset, the bones, the skin as an isosurface, x-ray and maximum intensity. Lit by the scene, with self shadows and ambient occlusion. A crop sweeps through the front of the body.',
         actions,
     })
 }
