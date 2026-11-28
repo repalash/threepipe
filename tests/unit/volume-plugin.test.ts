@@ -169,6 +169,9 @@ describe('VolumeMaterial', () => {
         const field = new VolumeData({data: new Int16Array([0, 100]), size: [2, 1, 1]})
         const d = new VolumeMaterial({field})
         expect(d.effectiveRange(field)).toEqual([0, 100])
+        // a range changed in place is used
+        d.range.set(10, 20)
+        expect(d.effectiveRange(field)).toEqual([10, 20])
     })
 
     test('clone keeps the volume settings and the field', () => {

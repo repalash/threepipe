@@ -182,8 +182,18 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      * range of the field.
      */
     effectiveRange(field?: VolumeData): [number, number] {
+        // a range changed in place (range.set(...)) does not call the setter: it differs from the one written here
+        if (!this._rangeSet && (this.range.x !== this._autoRange[0] || this.range.y !== this._autoRange[1])) this._rangeSet = true
         if (this._rangeSet || !field) return [this.range.x, this.range.y]
         return field.valueRange
+    }
+
+    // the range last written by the material itself (the default, or the range of the field)
+    private _autoRange: [number, number] = [0, 1]
+
+    private _setAutoRange(r: [number, number]) {
+        this.range.set(r[0], r[1])
+        this._autoRange = [r[0], r[1]]
     }
     // set at the end of the constructor: the @onChange callbacks also run for the initial values of the fields
     private declare _constructed?: boolean
@@ -368,7 +378,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      */
     resetRange() {
         const field = this._lastField ?? this._field
-        if (field) this.range.set(field.valueRange[0], field.valueRange[1])
+        if (field) this._setAutoRange(field.valueRange)
+        else this._autoRange = [this.range.x, this.range.y]
         this._rangeSet = false
         this.setDirty({change: 'range'})
     }
@@ -382,7 +393,7 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
             if (field !== this._lastField) {
                 this._lastField = field
                 // the range shown in the UI follows the field until it is set
-                if (!this._rangeSet) this.range.set(field.valueRange[0], field.valueRange[1])
+                if (!this._rangeSet && this.effectiveRange(field) === field.valueRange) this._setAutoRange(field.valueRange)
             }
             // linear filtering of float textures needs OES_texture_float_linear, else they read as 0
             VolumeData.floatLinearFiltering = renderer.extensions.has('OES_texture_float_linear')
@@ -491,7 +502,9 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this.interpolate = source.interpolate
         this.sourceField = source.sourceField
         this.opacityUnitDistance = source.opacityUnitDistance
+        source.effectiveRange() // notices a range changed in place
         this._rangeSet = source._rangeSet
+        this._autoRange = [source._autoRange[0], source._autoRange[1]]
         this.setDirty({change: 'copy'})
     }
 
