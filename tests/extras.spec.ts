@@ -195,3 +195,7 @@ test('svelte-sample', async({page}) => expect(page).toHaveTitle('Threepipe Svelt
 test('volume-plugin', async({page}) => expect(page).toHaveTitle('Volume Plugin'))
 test('volume-benchmark', async({page}) => expect(page).toHaveTitle('Volume Benchmark'))
 test('volume-lighting', async({page}) => expect(page).toHaveTitle('Volume Lighting'))
+test('volume-showcase', async({page}) => expect(page).toHaveTitle('Volume Showcase'))
+test('volume-nebula', async({page}) => expect(page).toHaveTitle('Volume Nebula'))
+test('volume-clouds', async({page}) => expect(page).toHaveTitle('Volume Clouds'))
+test('volume-fractal', async({page}) => expect(page).toHaveTitle('Volume Fractal'))

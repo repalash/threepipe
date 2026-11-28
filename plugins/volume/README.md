@@ -5,6 +5,10 @@ Volume rendering for [threepipe](https://threepipe.org): scans, microscopy, simu
 [Example](https://threepipe.org/examples/#volume-plugin/) &mdash;
 [Benchmark](https://threepipe.org/examples/#volume-benchmark/) &mdash;
 [Lighting](https://threepipe.org/examples/#volume-lighting/) &mdash;
+[Showcase](https://threepipe.org/examples/#volume-showcase/) &mdash;
+[Nebula](https://threepipe.org/examples/#volume-nebula/) &mdash;
+[Clouds](https://threepipe.org/examples/#volume-clouds/) &mdash;
+[Fractal](https://threepipe.org/examples/#volume-fractal/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/plugins/volume/src/index.ts) &mdash;
 [API Reference](https://threepipe.org/plugins/volume/docs)
 
@@ -33,6 +37,18 @@ const data = new VolumeData({data: new Uint8Array(64 ** 3), size: [64, 64, 64], 
 viewer.scene.addObject(new VolumeObject(data))
 ```
 
+Made on the GPU from a GLSL function (noise functions included, see `volumeNoiseGLSL`):
+
+```ts
+import {generateVolume, VolumeObject} from '@threepipe/plugin-volume'
+
+const clouds = generateVolume(viewer.renderManager.webglRenderer, {
+    size: [192, 96, 192],
+    glsl: `float density(vec3 p) { return smoothstep(0.45, 0.7, volFbm(p * 6.0, 5)) * smoothstep(0.0, 0.2, p.y); }`,
+})
+viewer.scene.addObject(new VolumeObject(clouds))
+```
+
 ## What is in it
 
 | Class | What it is |
@@ -48,6 +64,7 @@ viewer.scene.addObject(new VolumeObject(data))
 | `VolumeGBufferMaterial` | Draws an isosurface into the G-buffer (depth, normal, flags), so SSAO and the other G-buffer effects see it |
 | `DerivedField`, `VolumeKernel` | Make your own: a GLSL function run once per voxel into a 3D render target, a few layers per frame |
 | `NRRDLoadPlugin` | `.nrrd` files through the three.js `NRRDLoader` |
+| `generateVolume`, `volumeNoiseGLSL` | A volume made on the GPU from `float density(vec3 p)`, one layer per draw, read back into a `VolumeData` (so it is processed and saved like loaded data); value, fractal and cellular noise and domain warping in GLSL |
 
 ### Notes
 

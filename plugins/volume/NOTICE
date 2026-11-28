@@ -42,3 +42,6 @@ src/derived/LightVolume.ts
 
 src/VolumePlugin.ts
   Spherical harmonics of the environment with three.js LightProbeGenerator (examples/jsm), MIT License.
+
+src/procedural.ts
+  volHash and volHash3: "Hash without Sine" by Dave Hoskins, https://www.shadertoy.com/view/4djSRW, MIT License.
