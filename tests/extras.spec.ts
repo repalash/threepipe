@@ -192,3 +192,4 @@ test('react-tsx-sample', async({page}) => expect(page).toHaveTitle('Threepipe Re
 test('vue-html-sample', async({page}) => expect(page).toHaveTitle('Threepipe Vue/HTML Sample'))
 test('vue-sfc-sample', async({page}) => expect(page).toHaveTitle('Threepipe Vue/SFC Sample'))
 test('svelte-sample', async({page}) => expect(page).toHaveTitle('Threepipe Svelte Sample'))
+test('volume-plugin', async({page}) => expect(page).toHaveTitle('Volume Plugin'))

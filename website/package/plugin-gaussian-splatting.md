@@ -4,8 +4,8 @@ prev:
     link: './plugin-blend-importer'
 
 next: 
-    text: '@threepipe/plugin-svg-renderer'
-    link: './plugin-svg-renderer'
+    text: '@threepipe/plugin-volume'
+    link: './plugin-volume'
 
 ---
 
