@@ -452,3 +452,59 @@ describe('multiple scattering', () => {
         m.dispose()
     })
 })
+
+describe('transfer function files', () => {
+    // MRIcroGL Resources/lut/actc.clut
+    const actc = `[FLT]\nmin=0\nmax=0\n[INT]\nnumnodes=5\n[BYT]\nnodeintensity0=0\nnodeintensity1=64\nnodeintensity2=128\nnodeintensity3=156\nnodeintensity4=255\n[RGBA255]\nnodergba0=0|0|0|0\nnodergba1=0|0|136|32\nnodergba2=24|177|0|64\nnodergba3=248|254|0|78\nnodergba4=255|0|0|128\n`
+
+    test('an MRIcroGL .clut table is read as relative points, without a range when min equals max', async() => {
+        const {parseClut} = await import('../../plugins/volume/src/library/transferFormats')
+        const r = parseClut(actc, 'actc')
+        expect(r.range).toBeUndefined()
+        expect(r.preset.colors.length).toBe(5)
+        expect(r.preset.colors[1]).toEqual([64 / 255, 0, 0, 136 / 255])
+        expect(r.preset.opacities[4]).toEqual([1, 128 / 255])
+        const withRange = parseClut(actc.replace('min=0\nmax=0', 'min=-100\nmax=900'))
+        expect(withRange.range).toEqual([-100, 900])
+        expect(() => parseClut('[INT]\nnumnodes=1')).toThrow()
+    })
+
+    test('a transfer function written as .clut reads back the same at its points', async() => {
+        const {parseClut} = await import('../../plugins/volume/src/library/transferFormats')
+        const tf = new TransferFunction([[0, 0, 0, 0], [0.5, 1, 0.5, 0], [1, 1, 1, 1]], [[0, 0], [0.25, 0.2], [1, 0.8]])
+        const back = parseClut(tf.toClut([10, 20]))
+        expect(back.range).toEqual([10, 20])
+        const tf2 = new TransferFunction(back.preset.colors, back.preset.opacities)
+        for (const x of [0, 0.25, 0.5, 1]) {
+            const a = tf.evaluate(x), b = tf2.evaluate(Math.round(x * 255) / 255)
+            for (let i = 0; i < 4; i++) expect(Math.abs(a[i] - b[i])).toBeLessThan(1 / 255 + 1e-6)
+        }
+    })
+
+    test('the material imports .clut, NiiVue and its own JSON', () => {
+        const m = new VolumeMaterial()
+        m.importTransferFunction(actc.replace('min=0\nmax=0', 'min=0\nmax=200'), 'actc')
+        expect(m.transferFunction.name).toBe('actc')
+        expect(m.range.toArray()).toEqual([0, 200])
+        m.importTransferFunction(JSON.stringify({R: [0, 255], G: [0, 128], B: [0, 0], A: [0, 64], I: [0, 255], min: 5, max: 50}), 'nv')
+        expect(m.transferFunction.evaluate(1)).toEqual([1, 128 / 255, 0, 64 / 255])
+        expect(m.range.toArray()).toEqual([5, 50])
+        m.importTransferFunction(JSON.stringify({name: 'mine', colorPoints: [[0, 1, 0, 0], [1, 0, 0, 1]], opacityPoints: [[0, 0], [1, 0.5]]}))
+        expect(m.transferFunction.evaluate(0)).toEqual([1, 0, 0, 0])
+        m.dispose()
+    })
+})
+
+describe('histogram', () => {
+    test('counts values in bins over the value range, and is rebuilt after setDirty', () => {
+        const data = new Uint8Array([0, 0, 10, 255, 128, 128, 128, 255])
+        const d = new VolumeData({data, size: [2, 2, 2], valueRange: [0, 255]})
+        const h = d.histogram(4)
+        expect(Array.from(h)).toEqual([3, 0, 3, 2])
+        expect(d.histogram(4)).toBe(h) // cached
+        data[0] = 255
+        d.setDirty()
+        expect(Array.from(d.histogram(4))).toEqual([2, 0, 3, 3])
+        expect(Array.from(d.histogram(2, [100, 200]))).toEqual([3, 0])
+    })
+})

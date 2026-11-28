@@ -13,6 +13,7 @@ import {
     uiToggle,
     Vector3,
     WebGLCubeRenderTarget,
+    UndoManagerPlugin,
 } from 'threepipe'
 import {LightProbeGenerator} from 'three/examples/jsm/lights/LightProbeGenerator.js'
 import type {VolumeObject} from './VolumeObject'
@@ -95,7 +96,12 @@ export class VolumePlugin extends AViewerPluginSync {
         viewer.addEventListener('preRender', this._preRender)
         viewer.addEventListener('postRender', this._postRender)
         viewer.renderManager.addEventListener('contextRestored', this._contextRestored)
+        viewer.forPlugin<UndoManagerPlugin>('UndoManagerPlugin', (um) => {
+            this._undoManager = um.undoManager
+        }, () => this._undoManager = undefined, this)
     }
+
+    private _undoManager?: UndoManagerPlugin['undoManager']
 
     onRemove(viewer: ThreeViewer) {
         viewer.assetManager.unregisterGltfExtension(volumeGLTFExtension.name)
@@ -158,6 +164,7 @@ export class VolumePlugin extends AViewerPluginSync {
             const m = v.material
             if (!m?.isVolumeMaterial) continue
             m.interactive = interactive
+            m.undoManager = this._undoManager // for the transfer function editor
             if (interactive && m.interactiveSamplingRate !== m.samplingRate && v.visible) differs = true
         }
         this._renderedInteractive = interactive && differs

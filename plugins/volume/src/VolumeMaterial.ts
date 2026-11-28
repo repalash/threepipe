@@ -1,3 +1,5 @@
+import {TransferFunctionEditor, TransferFunctionEditorUndo} from './ui/TransferFunctionEditor'
+import {parseClut, parseNiiVueColormap, ParsedTransferFunction} from './library/transferFormats'
 import {
     BackSide,
     BufferGeometry,
@@ -143,6 +145,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this._fieldDisposeListeners.clear()
         this._gbufferMaterial?.dispose()
         this._gbufferMaterial = undefined
+        this._editor?.dispose()
+        this._editor = undefined
         this.transferFunction.removeEventListener('update', this._tfUpdate)
         this.transferFunction.dispose()
         return iMaterialCommons.dispose(super.dispose).call(this)
@@ -552,6 +556,28 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     }
 
     private _tfUpdate = () => this.setDirty({change: 'transferFunction'})
+
+    /**
+     * Load a transfer function from a file's text: an MRIcroGL `.clut` colour table, a NiiVue colour map (JSON with
+     * `R`, `G`, `B`), or a saved {@link TransferFunction} (JSON with `colorPoints`). The range the file gives (if any)
+     * becomes {@link range}.
+     */
+    importTransferFunction(text: string, name = 'imported') {
+        const trimmed = text.trim()
+        let parsed: ParsedTransferFunction
+        if (trimmed.startsWith('{')) {
+            const json = JSON.parse(trimmed)
+            if (Array.isArray(json.colorPoints)) {
+                parsed = {preset: {name: json.name || name, absolute: false, colors: json.colorPoints, opacities: json.opacityPoints ?? [[0, 0], [1, 1]]}}
+            } else parsed = parseNiiVueColormap(json, name)
+        } else parsed = parseClut(trimmed, name)
+        this.transferFunction.setPreset(parsed.preset)
+        if (parsed.range) {
+            this.range.set(parsed.range[0], parsed.range[1])
+            this._rangeSet = true
+        }
+        this.setDirty({change: 'transferFunction'})
+    }
 
     /**
      * Apply a preset from {@link volumePresets}. A preset with an absolute range also sets {@link range}, unless
@@ -1103,8 +1129,42 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
                 label: 'Fit range to data',
                 value: () => this.resetRange(),
             },
+            {
+                // a DOM editor, shown by renderers that support domChildren (Tweakpane); made on first show
+                type: 'folder',
+                label: 'Transfer Function',
+                expanded: true,
+                hidden: () => typeof document === 'undefined',
+                domChildren: () => typeof document === 'undefined' ? [] : [this.transferFunctionEditor.element],
+                children: [],
+            },
         ],
         onChange: () => this.setDirty({change: 'ui'}),
+    }
+
+    private _editor?: TransferFunctionEditor
+
+    /**
+     * An editor for the transfer function and the range (DOM, made on first use): put its `element` in a page, or
+     * open the "Transfer Function" folder of {@link uiConfig} in Tweakpane.
+     */
+    get transferFunctionEditor(): TransferFunctionEditor {
+        if (!this._editor) this._editor = new TransferFunctionEditor(this)
+        return this._editor
+    }
+
+    /**
+     * Where the transfer function editor records its undo steps (the `undoManager` of `UndoManagerPlugin`); set by
+     * {@link VolumePlugin} for the volumes in its viewer.
+     */
+    undoManager?: TransferFunctionEditorUndo
+
+    /**
+     * The field this material drew last (a material shared by volumes draws the field of each in turn), else its own
+     * {@link field}.
+     */
+    get lastField(): VolumeData | undefined {
+        return this._lastField ?? this._field
     }
 
 }

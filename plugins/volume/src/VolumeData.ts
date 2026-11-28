@@ -470,10 +470,35 @@ export class VolumeData extends Volume {
         return this._interpolate
     }
 
+    private _histograms = new Map<string, Float32Array>()
+
+    /**
+     * Counts of the values in `bins` equal bins over `range` (default {@link valueRange}); values outside are left out.
+     * Computed once per bins and range, on the CPU, until {@link setDirty}. For the transfer function editor.
+     */
+    histogram(bins = 256, range: [number, number] = this.valueRange): Float32Array {
+        const key = bins + ':' + range[0] + ':' + range[1]
+        let h = this._histograms.get(key)
+        if (h) return h
+        h = new Float32Array(bins)
+        const data = this.data as ArrayLike<number>
+        const lo = range[0], scale = bins / ((range[1] - range[0]) || 1)
+        // a sample of at most about 4M values is enough for the shape
+        const step = Math.max(1, Math.floor(data.length / 4e6))
+        for (let i = 0; i < data.length; i += step) {
+            const b = Math.floor((data[i] - lo) * scale)
+            if (b >= 0 && b < bins) h[b]++
+            else if (b === bins && data[i] === range[1]) h[bins - 1]++
+        }
+        this._histograms.set(key, h)
+        return h
+    }
+
     /**
      * Call after changing {@link data} or {@link valueRange} in place: the texture is rebuilt on its next use.
      */
     setDirty() {
+        this._histograms.clear()
         this._texture?.dispose()
         this._texture = undefined
         this._textureSize = undefined
