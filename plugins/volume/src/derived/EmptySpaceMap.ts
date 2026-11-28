@@ -54,11 +54,12 @@ vec4 kernel(ivec3 b) {
     if (uMode == 1) {
         occupied = lo <= uIso && uIso <= hi;
     } else {
-        // the texels a linear lookup between clamp(lo) and clamp(hi) can touch
+        // the texels a linear lookup between clamp(lo) and clamp(hi) can touch: the material reads value v at texel
+        // position v * (w - 1) (texel centres at whole numbers), between texels floor and floor + 1
         int w = textureSize(uTfCount, 0).x;
-        float fw = float(w);
-        int i0 = clamp(int(floor(clamp(lo, 0.0, 1.0) * fw - 0.5)), 0, w - 1);
-        int i1 = clamp(int(floor(clamp(hi, 0.0, 1.0) * fw - 0.5)) + 1, 0, w - 1);
+        float fw = float(w - 1);
+        int i0 = clamp(int(floor(clamp(lo, 0.0, 1.0) * fw)), 0, w - 1);
+        int i1 = clamp(int(floor(clamp(hi, 0.0, 1.0) * fw)) + 1, 0, w - 1);
         float c1 = texelFetch(uTfCount, ivec2(i1, 0), 0).r;
         float c0 = i0 > 0 ? texelFetch(uTfCount, ivec2(i0 - 1, 0), 0).r : 0.0;
         occupied = c1 - c0 > 0.5;

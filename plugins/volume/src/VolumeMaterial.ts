@@ -28,6 +28,7 @@ import {
     ThreeSerialization,
     WebGLProgramParametersWithUniforms,
     uiDropdown,
+    uiInput,
     uiNumber,
     uiSlider,
     uiToggle,
@@ -38,7 +39,7 @@ import {
     WebGLRenderer,
 } from 'threepipe'
 import {TransferFunction} from './TransferFunction'
-import type {VolumeData} from './VolumeData'
+import {VolumeData} from './VolumeData'
 import {defaultVolumePresetName, volumePresets} from './library'
 import {MinMaxBlocks} from './derived/MinMaxBlocks'
 import {EmptySpaceMap} from './derived/EmptySpaceMap'
@@ -56,6 +57,16 @@ import fragmentShader from './shaders/volume.frag.glsl'
  */
 export type VolumeRenderMode = 'composite' | 'mip' | 'minip' | 'average' | 'iso' | 'xray'
 
+/**
+ * Context for {@link VolumeMaterial.updateDerived}: the object drawn with the material and its scene, for the
+ * lighting fields.
+ */
+export interface VolumeDerivedContext {
+    object?: IObject3D
+    scene?: Scene
+    camera?: Camera
+}
+
 const modeDefine: Record<VolumeRenderMode, number> = {composite: 0, mip: 1, minip: 2, average: 3, iso: 4, xray: 5}
 
 /**
@@ -64,7 +75,11 @@ const modeDefine: Record<VolumeRenderMode, number> = {composite: 0, mip: 1, mini
  * The march is built from four hook functions (`volSample`, `volClassify`, `volShade`, `volBlend`, see
  * `shaders/volume.frag.glsl`) that a material extension can replace, as with any threepipe material.
  *
- * Values: the texture of the {@link field} is mapped to data units, then {@link range} (in data units) is mapped to
+ * The field it shows comes from the {@link VolumeObject} being drawn ({@link sourceField}, else the object's active
+ * field), so one material can be shared by volumes with different data; {@link field} is only for drawing outside a
+ * volume object.
+ *
+ * Values: the texture of the field is mapped to data units, then {@link range} (in data units) is mapped to
  * 0..1 on the {@link transferFunction}. Setting a preset with an absolute range (the CT presets) sets {@link range}.
  *
  * Clipping: `clippingPlanes` of the material shorten the ray. The ray also stops at opaque scene geometry when a
@@ -97,8 +112,11 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     readonly setDirty = iMaterialCommons.setDirty
     dispose(): this {
         this._field?.events.removeEventListener('update', this._fieldUpdate)
-        this._emptySpace?.dispose()
-        this._emptySpace = undefined
+        // (the @onChange callbacks also run while the fields are initialized)
+        if (this._emptySpace) {
+            for (const m of this._emptySpace.values()) m.dispose()
+            this._emptySpace.clear()
+        }
         this.transferFunction.removeEventListener('update', this._tfUpdate)
         this.transferFunction.dispose()
         return iMaterialCommons.dispose(super.dispose).call(this)
@@ -142,7 +160,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     }
 
     /**
-     * The field this material shows. Usually set by the {@link VolumeObject}.
+     * The field drawn when the material is not on a {@link VolumeObject} (a volume object gives its own, see
+     * {@link resolveField}).
      */
     get field(): VolumeData | undefined {
         return this._field
@@ -152,11 +171,48 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this._field?.events.removeEventListener('update', this._fieldUpdate)
         this._field = v
         v?.events.addEventListener('update', this._fieldUpdate)
-        if (v && !this._rangeSet) this.range.set(v.valueRange[0], v.valueRange[1])
         this.setDirty({change: 'field'})
     }
     private _field?: VolumeData
     private _rangeSet = false
+    // the field last drawn, for the range defaults and resetRange
+    private _lastField?: VolumeData
+
+    /**
+     * Name of the field of the volume this material shows, a key of {@link VolumeObject.fields} (as a USD field
+     * relationship name). Empty: the active field of the volume being drawn.
+     */
+    @uiInput('Source Field')
+    @serialize() sourceField = ''
+
+    /**
+     * The field this material shows on an object: {@link sourceField} or the active field of a {@link VolumeObject},
+     * else {@link field}.
+     */
+    resolveField(object?: Object3D | null): VolumeData | undefined {
+        const o = object as any
+        if (o?.isVolumeObject) return (this.sourceField && o.fields[this.sourceField]) || o.data
+        return this._field
+    }
+
+    /**
+     * The value range used: {@link range} once set (by the user, a preset with a range, or a saved file), else the value
+     * range of the field.
+     */
+    effectiveRange(field?: VolumeData): [number, number] {
+        // a range changed in place (range.set(...)) does not call the setter: it differs from the one written here
+        if (!this._rangeSet && (this.range.x !== this._autoRange[0] || this.range.y !== this._autoRange[1])) this._rangeSet = true
+        if (this._rangeSet || !field) return [this.range.x, this.range.y]
+        return field.valueRange
+    }
+
+    // the range last written by the material itself (the default, or the range of the field)
+    private _autoRange: [number, number] = [0, 1]
+
+    private _setAutoRange(r: [number, number]) {
+        this.range.set(r[0], r[1])
+        this._autoRange = [r[0], r[1]]
+    }
     // set at the end of the constructor: the @onChange callbacks also run for the initial values of the fields
     private declare _constructed?: boolean
     private _fieldUpdate = () => this.setDirty({change: 'field'})
@@ -187,6 +243,14 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      */
     @uiSlider('Density', [0, 10], 0.01)
     @serialize() density = 1
+
+    /**
+     * The distance, in the units of the field ({@link VolumeData.units}), over which a sample has the opacity of the
+     * transfer function (at density 1). 0: the smallest voxel spacing of the field. Opacity follows the physical length
+     * of each step, so data with thick slices looks the same from every side (vtk.js scalar opacity unit distance).
+     */
+    @uiNumber('Opacity Unit Distance')
+    @serialize() opacityUnitDistance = 0
 
     /**
      * Samples per voxel along the ray when the image is still. Higher is smoother and slower.
@@ -271,7 +335,8 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      */
     interactive = false
 
-    private _emptySpace?: EmptySpaceMap
+    // one map per field (a shared material can draw several)
+    private _emptySpace = new Map<VolumeData, EmptySpaceMap>()
 
     constructor(parameters?: {field?: VolumeData, mode?: VolumeRenderMode, preset?: string}) {
         super()
@@ -284,10 +349,11 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
                 transferMap: {value: null},
                 uBoxSize: {value: new Vector3(1, 1, 1)},
                 uVolumeSize: {value: new Vector3(1, 1, 1)},
-                uDataSize: {value: new Vector3(1, 1, 1)},
                 uValueMap: {value: new Vector2(1, 0)},
                 uSamplingRate: {value: 1},
-                uOpacityExponent: {value: 1},
+                uDensity: {value: 1},
+                uPhysicalSize: {value: new Vector3(1, 1, 1)},
+                uOpacityUnit: {value: 1},
                 uIsoValue: {value: 0.5},
                 uCropMin: {value: new Vector3(0, 0, 0)},
                 uCropMax: {value: new Vector3(1, 1, 1)},
@@ -309,6 +375,7 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
             defines: {
                 VOLUME_MODE: 0,
                 VOL_GRADIENT_MAX: gradientMaxLength.toFixed(7),
+                VOL_TF_WIDTH: TransferFunction.TextureWidth.toFixed(1),
             },
             side: BackSide,
             transparent: true,
@@ -382,8 +449,11 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     }
 
     private _blockSizeChanged() {
-        this._emptySpace?.dispose()
-        this._emptySpace = undefined
+        // (the @onChange callbacks also run while the fields are initialized)
+        if (this._emptySpace) {
+            for (const m of this._emptySpace.values()) m.dispose()
+            this._emptySpace.clear()
+        }
         this.setDirty({change: 'skipBlockSize'})
     }
 
@@ -392,8 +462,17 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      */
     private _valueMap(field: VolumeData): [number, number] {
         const [t0, t1] = field.textureRange
-        const span = this.range.y - this.range.x || 1
-        return [(t1 - t0) / span, (t0 - this.range.x) / span]
+        const [r0, r1] = this.effectiveRange(field)
+        const span = r1 - r0 || 1
+        return [(t1 - t0) / span, (t0 - r0) / span]
+    }
+
+    /**
+     * {@link isoValue} on the transfer function coordinate.
+     */
+    private _isoCoordinate(field: VolumeData) {
+        const [r0, r1] = this.effectiveRange(field)
+        return (this.isoValue - r0) / (r1 - r0 || 1)
     }
 
     private _usesEmptySpaceMap() {
@@ -406,12 +485,16 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
 
     private _blocks(field: VolumeData) {
         const minMax = MinMaxBlocks.of(field, this.skipBlockSize)
-        if (this._emptySpace && this._emptySpace.minMax !== minMax) {
-            this._emptySpace.dispose()
-            this._emptySpace = undefined
+        let emptySpace = this._emptySpace.get(field)
+        if (emptySpace && emptySpace.minMax !== minMax) {
+            emptySpace.dispose()
+            emptySpace = undefined
         }
-        if (!this._emptySpace) this._emptySpace = new EmptySpaceMap(minMax)
-        return {minMax, emptySpace: this._emptySpace}
+        if (!emptySpace) {
+            emptySpace = new EmptySpaceMap(minMax)
+            this._emptySpace.set(field, emptySpace)
+        }
+        return {minMax, emptySpace}
     }
 
     // what counts as empty for the current settings; the map is invalidated when it changes
@@ -419,7 +502,7 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         emptySpace.setParams({
             mode: this.mode === 'iso' ? 'iso' : 'transfer',
             valueMap: this._valueMap(field),
-            iso: (this.isoValue - this.range.x) / (this.range.y - this.range.x || 1),
+            iso: this._isoCoordinate(field),
             transferTexture: this.transferFunction.texture,
         })
     }
@@ -428,9 +511,10 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      * Builds the GPU maps the march uses ({@link emptySpaceSkipping}, {@link gradientTexture}), spending at most
      * `budget` texture reads; called by {@link VolumePlugin} before each frame. Returns the reads spent.
      */
-    updateDerived(renderer: WebGLRenderer, budget = Infinity): number {
-        const field = this._field
+    updateDerived(renderer: WebGLRenderer, budget = Infinity, context: VolumeDerivedContext = {}): number {
+        const field = this.resolveField(context.object) ?? this._lastField
         if (!field) return 0
+        this._lastField = field
         let spent = 0
         if (this._usesMinMax()) {
             const {minMax, emptySpace} = this._blocks(field)
@@ -448,7 +532,10 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      * Rebuild the maps of {@link updateDerived}, including those cached on the field.
      */
     invalidateDerived() {
-        this._emptySpace?.invalidate()
+        for (const [field, map] of this._emptySpace) {
+            map.invalidate()
+            field.invalidateDerived()
+        }
         this._field?.invalidateDerived()
     }
 
@@ -456,7 +543,7 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      * Whether a map from {@link updateDerived} is still being built (the march then reads every sample).
      */
     get derivedPending(): boolean {
-        const field = this._field
+        const field = this._lastField ?? this._field
         if (!field) return false
         if (this._usesMinMax()) {
             const {minMax, emptySpace} = this._blocks(field)
@@ -471,7 +558,9 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
      * ({@link MinMaxBlocks}, {@link GradientField}) are counted by the field.
      */
     get derivedGpuBytes(): number {
-        return this._emptySpace?.gpuBytes ?? 0
+        let b = 0
+        for (const m of this._emptySpace.values()) b += m.gpuBytes
+        return b
     }
 
     private _rangeChanged() {
@@ -480,16 +569,17 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
     }
 
     private _interpolateChanged() {
-        if (this._field) this._field.interpolate = this.interpolate
         this.setDirty({change: 'interpolate'})
     }
 
     /**
-     * Fit {@link range} to the value range of the field.
+     * Fit {@link range} to the value range of the field (the one last drawn, or {@link field}); the range then follows
+     * the field until it is set again.
      */
     resetRange() {
-        if (!this._field) return
-        this.range.set(this._field.valueRange[0], this._field.valueRange[1])
+        const field = this._lastField ?? this._field
+        if (field) this._setAutoRange(field.valueRange)
+        else this._autoRange = [this.range.x, this.range.y]
         this._rangeSet = false
         this.setDirty({change: 'range'})
     }
@@ -498,20 +588,30 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         super.onBeforeRender(renderer, scene, camera, geometry, object, group)
         iMaterialCommons.onBeforeRender.call(this, renderer, scene, camera, geometry, object, group)
         const u = this.uniforms as Record<string, IUniform>
-        const field = this._field
+        const field = this.resolveField(object)
         u.uSkipReady.value = 0
         u.uMinMaxReady.value = 0
         u.uGradientReady.value = 0
         if (field) {
+            if (field !== this._lastField) {
+                this._lastField = field
+                // the range shown in the UI follows the field until it is set
+                if (!this._rangeSet && this.effectiveRange(field) === field.valueRange) this._setAutoRange(field.valueRange)
+            }
+            // linear filtering of float textures needs OES_texture_float_linear, else they read as 0
+            VolumeData.floatLinearFiltering = renderer.extensions.has('OES_texture_float_linear')
+            field.interpolate = this.interpolate
             const tex = field.texture
             u.volumeMap.value = tex
             const [sx, sy, sz] = field.textureSize
             u.uVolumeSize.value.set(sx, sy, sz)
-            u.uDataSize.value.set(field.xLength, field.yLength, field.zLength)
+            const [px, py, pz] = field.physicalSize
+            u.uPhysicalSize.value.set(px, py, pz)
+            u.uOpacityUnit.value = this.opacityUnitDistance > 0 ? this.opacityUnitDistance : Math.min(...field.spacing)
             // texture value t -> data value d -> transfer function coordinate
             const [vx, vy] = this._valueMap(field)
             u.uValueMap.value.set(vx, vy)
-            u.uIsoValue.value = (this.isoValue - this.range.x) / (this.range.y - this.range.x || 1)
+            u.uIsoValue.value = this._isoCoordinate(field)
             if (this._usesMinMax()) {
                 const {minMax, emptySpace} = this._blocks(field)
                 const [gx, gy, gz] = minMax.size
@@ -543,11 +643,14 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         if (box && box.width !== undefined) u.uBoxSize.value.set(box.width, box.height, box.depth)
         const rate = Math.max(0.01, this.interactive ? this.interactiveSamplingRate : this.samplingRate)
         u.uSamplingRate.value = rate
-        u.uOpacityExponent.value = this.density / rate
+        u.uDensity.value = this.density
         u.uCropMin.value.copy(this.cropMin)
         u.uCropMax.value.copy(this.cropMax)
         u.uJitter.value = this.jitter ? 1 : 0
         u.uNormalMatrix.value.copy(object.normalMatrix)
+        // the uniforms change per object (field, box, matrices): three.js uploads the uniforms of a material only when
+        // the material changes between draws, unless asked
+        this.uniformsNeedUpdate = true
 
         const target = renderer.getRenderTarget()
         if (target) u.uResolution.value.set(target.width, target.height)
@@ -629,7 +732,11 @@ export class VolumeMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ex
         this.emptySpaceSkipping = source.emptySpaceSkipping
         this.skipBlockSize = source.skipBlockSize
         this.gradientTexture = source.gradientTexture
-        this._rangeSet = true
+        this.sourceField = source.sourceField
+        this.opacityUnitDistance = source.opacityUnitDistance
+        source.effectiveRange() // notices a range changed in place
+        this._rangeSet = source._rangeSet
+        this._autoRange = [source._autoRange[0], source._autoRange[1]]
         this.setDirty({change: 'copy'})
     }
 

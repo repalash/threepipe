@@ -151,12 +151,14 @@ export class VolumePlugin extends AViewerPluginSync {
         const viewer = this._viewer
         if (!viewer || !this.enabled) return
         const renderer = viewer.renderManager.webglRenderer
-        const materials = new Set<VolumeMaterial>()
-        for (const v of this.volumes) if (v.visible && v.material?.isVolumeMaterial) materials.add(v.material)
+        // each volume: a shared material builds the maps of the field of each volume
         let budget = this.kernelBudget
         let pending = false
-        for (const m of materials) {
-            if (budget > 0) budget -= m.updateDerived(renderer, budget)
+        const context = {scene: viewer.scene, camera: viewer.scene.mainCamera}
+        for (const v of this.volumes) {
+            const m = v.material as VolumeMaterial
+            if (!v.visible || !m?.isVolumeMaterial) continue
+            if (budget > 0) budget -= m.updateDerived(renderer, budget, {...context, object: v})
             pending = pending || m.derivedPending
         }
         this._derivedPending = pending

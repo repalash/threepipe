@@ -1,5 +1,5 @@
 import {describe, expect, test} from 'vitest'
-import {DataUtils, FloatType, HalfFloatType, UnsignedByteType} from 'three'
+import {DataUtils, FloatType, HalfFloatType, LinearFilter, NearestFilter, UnsignedByteType} from 'three'
 import {NRRDLoader} from 'three/examples/jsm/loaders/NRRDLoader.js'
 import {TransferFunction} from '../../plugins/volume/src/TransferFunction'
 import {VolumeData} from '../../plugins/volume/src/VolumeData'
@@ -238,9 +238,14 @@ describe('VolumeMaterial', () => {
         expect(m.range.toArray()).toEqual([-3024, 3071])
         m.field = new VolumeData({data: new Int16Array([0, 100]), size: [2, 1, 1]})
         expect(m.range.toArray()).toEqual([-3024, 3071])
+        expect(m.effectiveRange(m.field)).toEqual([-3024, 3071])
         // the default preset stretches over the field
-        const d = new VolumeMaterial({field: new VolumeData({data: new Int16Array([0, 100]), size: [2, 1, 1]})})
-        expect(d.range.toArray()).toEqual([0, 100])
+        const field = new VolumeData({data: new Int16Array([0, 100]), size: [2, 1, 1]})
+        const d = new VolumeMaterial({field})
+        expect(d.effectiveRange(field)).toEqual([0, 100])
+        // a range changed in place is used
+        d.range.set(10, 20)
+        expect(d.effectiveRange(field)).toEqual([10, 20])
     })
 
     test('clone keeps the volume settings and the field', () => {
@@ -309,5 +314,43 @@ describe('VolumeObject', () => {
         expect(loaded.fieldIndex).toBe(2)
         expect(o.fields.density).toBeUndefined()
         expect(o.pendingFieldLinks).toEqual([{name: 'density', filePath: 'https://example.com/d.nrrd', fieldName: undefined, fieldIndex: undefined}])
+    })
+})
+
+describe('fields on the object', () => {
+    test('a shared material shows the field of each volume', () => {
+        const a = new VolumeData({data: new Uint8Array(8), size: [2, 2, 2], name: 'density'})
+        const b = new VolumeData({data: new Uint8Array(27), size: [3, 3, 3], name: 'density'})
+        const t = new VolumeData({data: new Uint8Array(8), size: [2, 2, 2], name: 'temperature'})
+        const va = new VolumeObject([a, t])
+        const vb = new VolumeObject(b, {material: va.material})
+        expect(va.material.resolveField(va)).toBe(a)
+        expect(va.material.resolveField(vb)).toBe(b)
+        // sourceField picks a field by name, falling back to the active one
+        va.material.sourceField = 'temperature'
+        expect(va.material.resolveField(va)).toBe(t)
+        expect(va.material.resolveField(vb)).toBe(b)
+    })
+
+    test('the interpolation of a field is kept when its texture is built again', () => {
+        const d = new VolumeData({data: new Uint8Array(8), size: [2, 2, 2]})
+        d.interpolate = false
+        d.setDirty()
+        expect(d.texture.magFilter).toBe(NearestFilter)
+        d.interpolate = true
+        expect(d.texture.magFilter).toBe(LinearFilter)
+    })
+
+    test('a float texture is filtered nearest where the GPU cannot filter floats', () => {
+        const prev = VolumeData.floatLinearFiltering
+        try {
+            VolumeData.floatLinearFiltering = false
+            const d = new VolumeData({data: new Float32Array(8), size: [2, 2, 2], gpuFormat: 'r32f'})
+            expect(d.texture.magFilter).toBe(NearestFilter)
+            const h = new VolumeData({data: new Float32Array(8), size: [2, 2, 2]}) // r16f filters everywhere
+            expect(h.texture.magFilter).toBe(LinearFilter)
+        } finally {
+            VolumeData.floatLinearFiltering = prev
+        }
     })
 })
